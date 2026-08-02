@@ -1,15 +1,9 @@
-import { Button } from '@heroui/react'
+import { getSessionUser } from '@server/auth.js'
+import { redirect } from 'react-router'
 import type { Route } from './+types/home'
 
-export function meta(_: Route.MetaArgs) {
-  return [{ title: 'Todoist ⇄ Glassfrog Sync' }]
-}
-
-export default function Home() {
-  return (
-    <main className="mx-auto flex min-h-dvh max-w-md flex-col items-center justify-center gap-4 p-6">
-      <h1 className="font-semibold text-2xl">Todoist ⇄ Glassfrog Sync</h1>
-      <Button variant="primary">Get started</Button>
-    </main>
-  )
+/** The root path is just a signpost: straight to the dashboard, or to login. */
+export async function loader({ request }: Route.LoaderArgs) {
+  const user = await getSessionUser(request)
+  return redirect(user ? '/dashboard' : '/login')
 }
