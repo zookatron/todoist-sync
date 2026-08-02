@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto'
 import { TodoistApi, TodoistRequestError } from '@doist/todoist-sdk'
 import { logger } from '../logger.js'
 import { getValidAccessToken } from './tokens.js'
@@ -59,4 +60,41 @@ export async function callTodoist<T>(
       await new Promise((resolve) => setTimeout(resolve, delay))
     }
   }
+}
+
+/**
+ * Re-parents a Todoist project.
+ *
+ * The REST `updateProject` endpoint cannot change a project's parent — `UpdateProjectArgs`
+ * has no `parentId`. Moving is only expressible as the Sync API's `project_move` command,
+ * so the hierarchy mirror goes through here.
+ *
+ * @param parentId the new parent, or null to move the project to the top level.
+ */
+export async function moveTodoistProject(
+  userId: string,
+  projectId: string,
+  parentId: string | null,
+): Promise<void> {
+  await callTodoist(userId, async (api) => {
+    const response = await api.sync({
+      commands: [
+        {
+          type: 'project_move',
+          uuid: randomUUID(),
+          args: { id: projectId, parentId },
+        },
+      ],
+    })
+
+    // The Sync API reports per-command failures in the body with a 200 status, so a
+    // thrown error is not enough to detect a failed move.
+    for (const [uuid, status] of Object.entries(response.syncStatus ?? {})) {
+      if (status !== 'ok') {
+        throw new Error(
+          `Todoist project_move failed (${uuid}): ${'error' in status ? status.error : 'unknown error'}`,
+        )
+      }
+    }
+  })
 }

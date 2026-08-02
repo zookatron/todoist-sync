@@ -48,6 +48,17 @@ describe('createGlassfrogClient', () => {
 })
 
 describe('paginateAll', () => {
+  /** Drives real pagination through the generated /me/actions endpoint. */
+  const listActions = (client: Client) =>
+    paginateAll<{ id: string }>(async ({ cursor, perPage }) => {
+      const response = await listMyActions({
+        client,
+        query: { cursor, per_page: perPage },
+        throwOnError: true,
+      })
+      return response.data as unknown as { data: { id: string }[]; meta: { pagination: never } }
+    })
+
   it('follows next_cursor until the last page and concatenates results', async () => {
     const pages = [
       {
@@ -62,13 +73,11 @@ describe('paginateAll', () => {
     let call = 0
     const { client, requests } = stubClient(() => jsonPage(pages[call++]))
 
-    const results = await paginateAll<{ id: string }>(listMyActions as never, client, {
-      perPage: 2,
-    })
+    const results = await listActions(client)
 
     expect(results.map((r) => r.id)).toEqual(['a', 'b', 'c'])
     expect(requests).toHaveLength(2)
-    expect(requests[0]?.url).toContain('per_page=2')
+    expect(requests[0]?.url).toContain('per_page=100')
     expect(requests[0]?.url).not.toContain('cursor=')
     expect(requests[1]?.url).toContain('cursor=cursor-2')
   })
@@ -81,24 +90,25 @@ describe('paginateAll', () => {
       }),
     )
 
-    expect(await paginateAll<{ id: string }>(listMyActions as never, client)).toHaveLength(1)
+    expect(await listActions(client)).toHaveLength(1)
     expect(requests).toHaveLength(1)
   })
 
   it('stops at maxPages rather than looping forever on a broken cursor', async () => {
     // A server that always claims another page would otherwise spin indefinitely.
-    const { client, requests } = stubClient(() =>
-      jsonPage({
-        data: [{ id: 'x' }],
-        meta: { pagination: { per_page: 1, has_next_page: true, next_cursor: 'always' } },
-      }),
+    let calls = 0
+    const results = await paginateAll<{ id: string }>(
+      async () => {
+        calls += 1
+        return {
+          data: [{ id: 'x' }],
+          meta: { pagination: { per_page: 1, has_next_page: true, next_cursor: 'always' } },
+        }
+      },
+      { maxPages: 3 },
     )
 
-    const results = await paginateAll<{ id: string }>(listMyActions as never, client, {
-      maxPages: 3,
-    })
-
-    expect(requests).toHaveLength(3)
+    expect(calls).toBe(3)
     expect(results).toHaveLength(3)
   })
 })

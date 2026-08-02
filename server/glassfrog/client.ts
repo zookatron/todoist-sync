@@ -44,29 +44,35 @@ export async function getGlassfrogClient(userId: string): Promise<Client> {
   return createGlassfrogClient(integration.apiKey)
 }
 
-type PaginatedResponse<T> = {
+/** The envelope every Glassfrog list endpoint returns. */
+export type PageEnvelope<T> = {
   data: T[]
   meta: { pagination: Pagination }
 }
 
-type PaginatedCall<T> = (options: {
-  client: Client
-  query: { cursor?: string; per_page?: number }
-  throwOnError: true
-}) => Promise<{ data: PaginatedResponse<T> }>
-
 /**
  * Follows Glassfrog's cursor pagination to completion.
  *
+ * Takes a page fetcher rather than a generated function directly, because list endpoints
+ * differ in their path parameters (`/me/actions` versus `/roles/{role_id}/actions`).
+ * Callers close over whatever the endpoint needs:
+ *
+ * ```ts
+ * await paginateAll<Role>(async ({ cursor, perPage }) => {
+ *   const response = await listMyRoles({
+ *     client, query: { cursor, per_page: perPage }, throwOnError: true,
+ *   })
+ *   return response.data
+ * })
+ * ```
+ *
  * Glassfrog offers no `updated_since` filter, so change detection means enumerating a
- * whole collection every poll — this helper is on the hot path. `per_page` defaults to
- * the API maximum-ish 100 to keep round trips down.
+ * whole collection every poll — this is on the hot path.
  *
  * `maxPages` is a runaway guard; hitting it is logged rather than silently truncating.
  */
 export async function paginateAll<T>(
-  call: PaginatedCall<T>,
-  client: Client,
+  fetchPage: (params: { cursor?: string; perPage: number }) => Promise<PageEnvelope<T>>,
   options: { perPage?: number; maxPages?: number } = {},
 ): Promise<T[]> {
   const perPage = options.perPage ?? 100
@@ -77,17 +83,11 @@ export async function paginateAll<T>(
   let page = 0
 
   do {
-    const response = await withRetry(() =>
-      call({
-        client,
-        query: cursor ? { cursor, per_page: perPage } : { per_page: perPage },
-        throwOnError: true,
-      }),
-    )
+    const envelope = await withRetry(() => fetchPage({ cursor, perPage }))
 
-    collected.push(...response.data.data)
+    collected.push(...envelope.data)
 
-    const pagination = response.data.meta.pagination
+    const pagination = envelope.meta.pagination
     cursor = pagination.has_next_page ? (pagination.next_cursor ?? undefined) : undefined
     page += 1
 
