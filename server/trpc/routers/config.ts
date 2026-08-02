@@ -2,6 +2,7 @@ import { eq } from 'drizzle-orm'
 import { z } from 'zod'
 import type { Database } from '../../db/index.js'
 import { syncConfig } from '../../db/schema/sync.js'
+import { schedulePollForUser, unschedulePollForUser } from '../../queue/queues.js'
 import { protectedProcedure, router } from '../init.js'
 
 type ConfigContext = { db: Database; user: { id: string } }
@@ -68,6 +69,14 @@ export const configRouter = router({
         .update(syncConfig)
         .set({ enabled: input.enabled, updatedAt: new Date() })
         .where(eq(syncConfig.userId, ctx.user.id))
+
+      // Register or tear down the recurring poll immediately, so toggling here takes
+      // effect without restarting the worker.
+      if (input.enabled) {
+        await schedulePollForUser(ctx.user.id)
+      } else {
+        await unschedulePollForUser(ctx.user.id)
+      }
 
       return { ok: true }
     }),

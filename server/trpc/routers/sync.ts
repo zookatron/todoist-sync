@@ -1,6 +1,7 @@
 import { and, count, desc, eq, isNull } from 'drizzle-orm'
 import { z } from 'zod'
 import { projectMapping, syncLog, taskMapping } from '../../db/schema/sync.js'
+import { pollQueue } from '../../queue/queues.js'
 import { protectedProcedure, router } from '../init.js'
 
 export const syncRouter = router({
@@ -20,6 +21,20 @@ export const syncRouter = router({
       mappedProjects: projects?.value ?? 0,
       mappedTasks: tasks?.value ?? 0,
     }
+  }),
+
+  /**
+   * Queues an immediate poll instead of waiting for the next tick.
+   *
+   * A fixed job id makes repeated clicks idempotent while one is still pending.
+   */
+  triggerNow: protectedProcedure.mutation(async ({ ctx }) => {
+    await pollQueue.add(
+      'poll',
+      { userId: ctx.user.id },
+      { jobId: `manual-poll:${ctx.user.id}:${Date.now()}` },
+    )
+    return { ok: true }
   }),
 
   recentLogs: protectedProcedure
