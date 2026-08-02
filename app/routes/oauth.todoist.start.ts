@@ -1,6 +1,6 @@
 import { getAuthorizationUrl, getAuthStateParameter } from '@doist/todoist-sdk'
-import { env } from '@server/env.js'
 import { TODOIST_SCOPES, todoistOAuthStateCookie } from '@server/todoist/oauth.js'
+import { env } from '@server/utils/env.js'
 import { redirect } from 'react-router'
 import { requireUser } from '../middleware/auth.js'
 import type { Route } from './+types/oauth.todoist.start'

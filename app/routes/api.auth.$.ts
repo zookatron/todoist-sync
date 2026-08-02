@@ -1,4 +1,4 @@
-import { auth } from '@server/auth.js'
+import { auth } from '@server/utils/auth.js'
 import type { Route } from './+types/api.auth.$'
 
 /**

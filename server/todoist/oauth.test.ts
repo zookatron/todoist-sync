@@ -10,7 +10,7 @@ const { todoistIntegration } = await import('../db/schema/integrations.js')
 const { user } = await import('../db/schema/auth.js')
 const { locks } = await import('../db/schema/locks.js')
 const { getValidAccessToken, TodoistReauthRequiredError, TodoistNotConnectedError } =
-  await import('./tokens.js')
+  await import('./oauth.js')
 
 const userId = `test-user-${randomUUID()}`
 

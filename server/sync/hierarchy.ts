@@ -4,8 +4,8 @@ import { type Database, db as defaultDb } from '../db/index.js'
 import { todoistIntegration } from '../db/schema/integrations.js'
 import { projectMapping, syncLog } from '../db/schema/sync.js'
 import { getGlassfrogClient } from '../glassfrog/client.js'
-import { logger } from '../logger.js'
 import { callTodoist, moveTodoistProject } from '../todoist/client.js'
+import { logger } from '../utils/logger.js'
 import { buildDesiredTree } from './desired-tree.js'
 import {
   type ActualProject,

@@ -12,8 +12,6 @@ import {
   updateAction,
 } from '../../glassfrog/generated/sdk.gen.js'
 import type { Action } from '../../glassfrog/generated/types.gen.js'
-import { withLock } from '../../lock.js'
-import { logger } from '../../logger.js'
 import {
   contentHash,
   GLASSFROG_COMPLETED_STATUS,
@@ -23,6 +21,8 @@ import {
   type TaskSnapshot,
 } from '../../sync/resolve.js'
 import { callTodoist } from '../../todoist/client.js'
+import { withLock } from '../../utils/lock.js'
+import { logger } from '../../utils/logger.js'
 import type { TaskJobData } from '../queues.js'
 
 const LOCK_TTL_MS = 60_000

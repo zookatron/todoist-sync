@@ -1,5 +1,5 @@
 import { Alert, Card } from '@heroui/react'
-import { env } from '@server/env.js'
+import { env } from '@server/utils/env.js'
 import { useQuery } from '@tanstack/react-query'
 import { useSearchParams } from 'react-router'
 import {

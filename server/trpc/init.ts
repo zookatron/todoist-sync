@@ -1,8 +1,8 @@
 import { initTRPC, TRPCError } from '@trpc/server'
 import superjson from 'superjson'
-import type { AuthUser } from '../auth.js'
 import { type Database, db } from '../db/index.js'
-import { type Logger, logger } from '../logger.js'
+import type { AuthUser } from '../utils/auth.js'
+import { type Logger, logger } from '../utils/logger.js'
 
 export type TRPCContext = {
   db: Database

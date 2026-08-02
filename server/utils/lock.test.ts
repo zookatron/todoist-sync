@@ -1,7 +1,7 @@
 import { sql } from 'drizzle-orm'
 import { afterAll, beforeEach, describe, expect, it } from 'vitest'
-import { db, pool } from './db/index.js'
-import { locks } from './db/schema/locks.js'
+import { db, pool } from '../db/index.js'
+import { locks } from '../db/schema/locks.js'
 import {
   acquireLock,
   cleanupExpiredLocks,

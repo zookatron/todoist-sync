@@ -1,4 +1,4 @@
-import { getSessionUser } from '@server/auth.js'
+import { getSessionUser } from '@server/utils/auth.js'
 import type { MiddlewareFunction } from 'react-router'
 import { redirect } from 'react-router'
 import { userContext } from '../context.js'

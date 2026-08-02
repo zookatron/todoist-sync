@@ -1,4 +1,4 @@
-import { getSessionUser } from '@server/auth.js'
+import { getSessionUser } from '@server/utils/auth.js'
 import { redirect } from 'react-router'
 import type { Route } from './+types/home'
 

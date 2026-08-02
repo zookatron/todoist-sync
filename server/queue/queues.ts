@@ -1,6 +1,6 @@
 import { type JobsOptions, Queue } from 'bullmq'
 import IORedis from 'ioredis'
-import { env } from '../env.js'
+import { env } from '../utils/env.js'
 
 /**
  * Shared Redis connection.

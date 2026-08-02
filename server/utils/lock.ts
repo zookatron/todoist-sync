@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto'
 import { and, eq, lt, sql } from 'drizzle-orm'
-import { type Database, db as defaultDb } from './db/index.js'
-import { locks } from './db/schema/locks.js'
+import { type Database, db as defaultDb } from '../db/index.js'
+import { locks } from '../db/schema/locks.js'
 
 export class LockUnavailableError extends Error {
   readonly key: string

@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto'
 import { TodoistApi, TodoistRequestError } from '@doist/todoist-sdk'
-import { logger } from '../logger.js'
-import { getValidAccessToken } from './tokens.js'
+import { logger } from '../utils/logger.js'
+import { getValidAccessToken } from './oauth.js'
 
 /** Builds a client bound to the user's current access token. */
 export async function getTodoistApi(userId: string): Promise<TodoistApi> {

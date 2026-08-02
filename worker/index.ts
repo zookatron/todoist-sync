@@ -1,9 +1,9 @@
 import { Worker } from 'bullmq'
 import { db, pool } from '../server/db/index.js'
 import { todoistIntegration } from '../server/db/schema/integrations.js'
-import { env } from '../server/env.js'
-import { cleanupExpiredLocks } from '../server/lock.js'
-import { logger } from '../server/logger.js'
+import { cleanupExpiredLocks } from '../server/utils/lock.js'
+import { env } from '../server/utils/env.js'
+import { logger } from '../server/utils/logger.js'
 import { runPoll } from '../server/queue/jobs/poll.js'
 import { runTaskSync } from '../server/queue/jobs/sync-task.js'
 import {

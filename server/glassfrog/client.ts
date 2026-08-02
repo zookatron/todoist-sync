@@ -1,7 +1,7 @@
 import { eq } from 'drizzle-orm'
 import { db } from '../db/index.js'
 import { glassfrogIntegration } from '../db/schema/integrations.js'
-import { logger } from '../logger.js'
+import { logger } from '../utils/logger.js'
 import type { Client } from './generated/client/index.js'
 import { createClient, createConfig } from './generated/client/index.js'
 import type { Pagination } from './generated/types.gen.js'

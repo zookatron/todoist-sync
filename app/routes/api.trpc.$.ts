@@ -1,7 +1,7 @@
-import { getSessionUser } from '@server/auth.js'
-import { logger } from '@server/logger.js'
 import { createContextFactory } from '@server/trpc/init.js'
 import { appRouter } from '@server/trpc/router.js'
+import { getSessionUser } from '@server/utils/auth.js'
+import { logger } from '@server/utils/logger.js'
 import { fetchRequestHandler } from '@trpc/server/adapters/fetch'
 import type { Route } from './+types/api.trpc.$'
 

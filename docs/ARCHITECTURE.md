@@ -85,7 +85,7 @@ and overwrites the other.
 
 ## Concurrency
 
-A single generic lock utility (`server/lock.ts`) backed by a `locks` table, acquired with one
+A single generic lock utility (`server/utils/lock.ts`) backed by a `locks` table, acquired with one
 atomic `INSERT ... ON CONFLICT DO UPDATE ... WHERE expires_at < now()`. A row comes back only if
 the caller won.
 

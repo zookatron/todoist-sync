@@ -47,13 +47,13 @@ Read `docs/ARCHITECTURE.md` for the sync data flow.
   excluded from ESLint and from `prettier --write` (the generator formats them itself).
 - **Never log credentials.** Todoist tokens and the Glassfrog API key are stored in plaintext in
   the database. The pino logger has a redaction list; keep it current.
-- **Always get Todoist tokens via `getValidAccessToken(userId)`** (`server/todoist/tokens.ts`).
+- **Always get Todoist tokens via `getValidAccessToken(userId)`** (`server/todoist/oauth.ts`).
   Never read the token column directly — access tokens expire hourly and refresh tokens
   **rotate**, so a bypassed refresh path will brick the connection.
 - **Sync decision logic must stay pure.** `server/sync/resolve.ts` and the hierarchy diff take
   plain data and return operations, with no I/O. That is what makes them testable; keep API calls
   in the callers.
-- Environment access goes through `server/env.ts` (zod-validated at import), never
+- Environment access goes through `server/utils/env.ts` (zod-validated at import), never
   `process.env` directly.
 
 ## The two bugs most likely to bite

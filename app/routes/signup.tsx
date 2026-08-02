@@ -1,6 +1,6 @@
 import { Alert, Button, Card, ErrorMessage, Input, Label, TextField } from '@heroui/react'
-import { getSessionUser } from '@server/auth.js'
-import { env } from '@server/env.js'
+import { getSessionUser } from '@server/utils/auth.js'
+import { env } from '@server/utils/env.js'
 import { useState } from 'react'
 import { Link, redirect, useNavigate } from 'react-router'
 import { authClient } from '../lib/auth-client.js'

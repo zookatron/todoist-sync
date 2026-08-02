@@ -1,4 +1,4 @@
-import type { AuthUser } from '@server/auth.js'
+import type { AuthUser } from '@server/utils/auth.js'
 import { createContext } from 'react-router'
 
 /**

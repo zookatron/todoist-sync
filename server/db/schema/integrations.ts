@@ -6,7 +6,7 @@ import { user } from './auth.js'
  *
  * Access tokens issued to new Todoist apps expire after one hour, and the refresh token
  * ROTATES on every refresh (the previous one dies after ~60s). Always read these through
- * `getValidAccessToken()` in server/todoist/tokens.ts, never directly.
+ * `getValidAccessToken()` in server/todoist/oauth.ts, never directly.
  */
 export const todoistIntegration = pgTable('todoist_integration', {
   userId: text('user_id')

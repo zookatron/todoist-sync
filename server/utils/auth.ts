@@ -1,7 +1,7 @@
 import { drizzleAdapter } from '@better-auth/drizzle-adapter'
 import { betterAuth } from 'better-auth'
-import { db } from './db/index.js'
-import * as schema from './db/schema/auth.js'
+import { db } from '../db/index.js'
+import * as schema from '../db/schema/auth.js'
 import { env } from './env.js'
 
 /**
