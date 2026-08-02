@@ -17,11 +17,11 @@ function stubClient(responder: (request: Request) => Response): {
     ...client.getConfig(),
     // The generated client always calls fetch with a Request; the wider DOM signature
     // is narrowed here so the stub can read url/headers directly.
-    fetch: (async (input: RequestInfo | URL) => {
+    fetch: async (input: RequestInfo | URL) => {
       const request = input as Request
       requests.push({ url: request.url, headers: Object.fromEntries(request.headers.entries()) })
       return responder(request)
-    }) as typeof fetch,
+    },
   })
 
   return { client, requests }
@@ -56,7 +56,7 @@ describe('paginateAll', () => {
         query: { cursor, per_page: perPage },
         throwOnError: true,
       })
-      return response.data as unknown as { data: { id: string }[]; meta: { pagination: never } }
+      return response.data
     })
 
   it('follows next_cursor until the last page and concatenates results', async () => {

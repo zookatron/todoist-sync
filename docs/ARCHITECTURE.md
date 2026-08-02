@@ -4,10 +4,10 @@
 
 Two processes share one codebase and one database:
 
-| Process | Entry | Responsibility |
-| --- | --- | --- |
-| Web | `react-router-serve` → `app/` | UI, auth, tRPC API, Todoist OAuth callback |
-| Worker | `worker/index.ts` | BullMQ scheduler + job execution. **All syncing happens here.** |
+| Process | Entry                         | Responsibility                                                  |
+| ------- | ----------------------------- | --------------------------------------------------------------- |
+| Web     | `react-router-serve` → `app/` | UI, auth, tRPC API, Todoist OAuth callback                      |
+| Worker  | `worker/index.ts`             | BullMQ scheduler + job execution. **All syncing happens here.** |
 
 Shared logic lives in `server/`, outside `app/`, so the worker can import it without dragging in
 React Router's route-module graph. Both reach it through the `@server/*` alias.
@@ -52,7 +52,7 @@ are enqueued, so a crash re-delivers rather than silently skips.
 **Glassfrog** does not. The v5 API has no org-wide action list and no `updated_since` filter, so
 there is nothing to be incremental against. Detection is enumerate-and-diff: page through
 `/me/actions` and compare each `updated_at` against the stored mapping. A mapped action that is
-*absent* from the enumeration was deleted or moved out of scope. Limiting scope to your own roles
+_absent_ from the enumeration was deleted or moved out of scope. Limiting scope to your own roles
 (`/me/*`) keeps this to roughly one page per poll.
 
 ## Hierarchy mapping
@@ -72,13 +72,13 @@ mistake is recoverable.
 
 ## Task mapping
 
-| Glassfrog Action | Todoist Task |
-| --- | --- |
-| `description` | `content` |
-| `note` | `description` |
-| `status: completed` | `checked: true` |
-| `status: cancelled` / `archived` | task deleted |
-| `role_id` / `parent_project_id` | containing project |
+| Glassfrog Action                 | Todoist Task       |
+| -------------------------------- | ------------------ |
+| `description`                    | `content`          |
+| `note`                           | `description`      |
+| `status: completed`              | `checked: true`    |
+| `status: cancelled` / `archived` | task deleted       |
+| `role_id` / `parent_project_id`  | containing project |
 
 Conflicts resolve by comparing `updated_at` on both sides — the more recently modified side wins
 and overwrites the other.

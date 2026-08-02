@@ -121,13 +121,13 @@ describe('withLock', () => {
 describe('cleanupExpiredLocks', () => {
   it('removes only locks that expired beyond the grace period', async () => {
     await db.insert(locks).values([
-      { key: 'stale', owner: 'a', expiresAt: sql`now() - interval '2 hours'` as unknown as Date },
+      { key: 'stale', owner: 'a', expiresAt: sql`now() - interval '2 hours'` },
       {
         key: 'recently-expired',
         owner: 'b',
-        expiresAt: sql`now() - interval '1 minute'` as unknown as Date,
+        expiresAt: sql`now() - interval '1 minute'`,
       },
-      { key: 'live', owner: 'c', expiresAt: sql`now() + interval '1 hour'` as unknown as Date },
+      { key: 'live', owner: 'c', expiresAt: sql`now() + interval '1 hour'` },
     ])
 
     expect(await cleanupExpiredLocks(60 * 60 * 1000)).toBe(1)

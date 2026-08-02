@@ -11,7 +11,7 @@ export async function getTodoistApi(userId: string): Promise<TodoistApi> {
 function retryAfterMs(error: TodoistRequestError): number | null {
   const data = error.responseData
   if (data && typeof data === 'object' && 'retryAfter' in data) {
-    const seconds = Number((data as { retryAfter: unknown }).retryAfter)
+    const seconds = Number(data.retryAfter)
     if (Number.isFinite(seconds)) return seconds * 1000
   }
   return null

@@ -33,7 +33,13 @@ export default function ProtectedLayout({ loaderData }: Route.ComponentProps) {
             <span className="font-semibold">Todoist ⇄ Glassfrog Sync</span>
             <div className="flex items-center gap-3">
               <span className="text-foreground-secondary text-sm">{loaderData.email}</span>
-              <Button variant="ghost" size="sm" onPress={handleSignOut}>
+              <Button
+                variant="ghost"
+                size="sm"
+                onPress={() => {
+                  void handleSignOut()
+                }}
+              >
                 Sign out
               </Button>
             </div>

@@ -4,6 +4,7 @@ import { env } from '@server/env.js'
 import { useState } from 'react'
 import { Link, redirect, useNavigate, useSearchParams } from 'react-router'
 import { authClient } from '../lib/auth-client.js'
+import { textField } from '../lib/form.js'
 import type { Route } from './+types/login'
 
 export function meta(_: Route.MetaArgs) {
@@ -31,8 +32,8 @@ export default function Login({ loaderData }: Route.ComponentProps) {
 
     const form = new FormData(event.currentTarget)
     const result = await authClient.signIn.email({
-      email: String(form.get('email') ?? ''),
-      password: String(form.get('password') ?? ''),
+      email: textField(form, 'email'),
+      password: textField(form, 'password'),
     })
 
     if (result.error) {
@@ -52,7 +53,11 @@ export default function Login({ loaderData }: Route.ComponentProps) {
           <Card.Description>Access your Todoist ⇄ Glassfrog sync settings.</Card.Description>
         </Card.Header>
 
-        <form onSubmit={handleSubmit}>
+        <form
+          onSubmit={(event) => {
+            void handleSubmit(event)
+          }}
+        >
           <Card.Content className="flex flex-col gap-4">
             {error && (
               <Alert status="danger">

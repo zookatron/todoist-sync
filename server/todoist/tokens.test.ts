@@ -9,9 +9,8 @@ const { db, pool } = await import('../db/index.js')
 const { todoistIntegration } = await import('../db/schema/integrations.js')
 const { user } = await import('../db/schema/auth.js')
 const { locks } = await import('../db/schema/locks.js')
-const { getValidAccessToken, TodoistReauthRequiredError, TodoistNotConnectedError } = await import(
-  './tokens.js'
-)
+const { getValidAccessToken, TodoistReauthRequiredError, TodoistNotConnectedError } =
+  await import('./tokens.js')
 
 const userId = `test-user-${randomUUID()}`
 

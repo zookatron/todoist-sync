@@ -1,0 +1,8 @@
+# Generated or vendored — never hand-formatted.
+server/glassfrog/generated/
+openapi/
+drizzle/
+.react-router/
+build/
+node_modules/
+package-lock.json

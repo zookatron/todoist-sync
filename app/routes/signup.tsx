@@ -4,6 +4,7 @@ import { env } from '@server/env.js'
 import { useState } from 'react'
 import { Link, redirect, useNavigate } from 'react-router'
 import { authClient } from '../lib/auth-client.js'
+import { textField } from '../lib/form.js'
 import type { Route } from './+types/signup'
 
 export function meta(_: Route.MetaArgs) {
@@ -33,20 +34,20 @@ export default function Signup() {
     setError(null)
 
     const form = new FormData(event.currentTarget)
-    const password = String(form.get('password') ?? '')
+    const password = textField(form, 'password')
 
-    if (password !== String(form.get('confirmPassword') ?? '')) {
+    if (password !== textField(form, 'confirmPassword')) {
       setError('Passwords do not match.')
       return
     }
 
     setIsSubmitting(true)
 
-    const email = String(form.get('email') ?? '')
+    const email = textField(form, 'email')
     const result = await authClient.signUp.email({
       email,
       password,
-      name: String(form.get('name') ?? '') || email,
+      name: textField(form, 'name') || email,
     })
 
     if (result.error) {
@@ -68,7 +69,11 @@ export default function Signup() {
           </Card.Description>
         </Card.Header>
 
-        <form onSubmit={handleSubmit}>
+        <form
+          onSubmit={(event) => {
+            void handleSubmit(event)
+          }}
+        >
           <Card.Content className="flex flex-col gap-4">
             {error && (
               <Alert status="danger">

@@ -42,11 +42,12 @@ export async function loader({ request, context }: Route.LoaderArgs) {
 
   if (!code || !state) return failed('missing_code_or_state')
 
-  const expectedState = await todoistOAuthStateCookie.parse(request.headers.get('Cookie'))
+  // Cookie.parse is typed `any`; keep it opaque and prove it is a string before use.
+  const expectedState: unknown = await todoistOAuthStateCookie.parse(request.headers.get('Cookie'))
 
   // The whole point of `state`: a mismatch means this callback did not originate from
   // the authorization request we started.
-  if (!expectedState || expectedState !== state) {
+  if (typeof expectedState !== 'string' || expectedState !== state) {
     logger.warn({ userId: user.id }, 'Todoist OAuth state mismatch; rejecting callback')
     return failed('state_mismatch')
   }

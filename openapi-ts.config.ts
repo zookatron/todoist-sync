@@ -10,9 +10,11 @@ import { defineConfig } from '@hey-api/openapi-ts'
 export default defineConfig({
   input: './openapi/glassfrog.json',
   output: {
-    // No `format` post-processor: the generated tree is excluded from Biome in
-    // biome.json, and invoking Biome's prebuilt binary here fails on NixOS.
     path: './server/glassfrog/generated',
+    // Formatting the output keeps regeneration diffs readable. The tree is still
+    // excluded from lint and from `prettier --write .` — this is the only thing that
+    // touches it.
+    format: 'prettier',
   },
   // Tree-shakable functions (listMyActions, getRole, …) rather than a class.
   plugins: ['@hey-api/client-fetch', '@hey-api/typescript', '@hey-api/sdk'],

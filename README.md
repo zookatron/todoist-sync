@@ -76,12 +76,12 @@ Todoist project. Set `ALLOW_SIGNUP=false` afterwards to close the instance.
 
 ## Configuration
 
-| Variable | Default | Purpose |
-| --- | --- | --- |
-| `SYNC_INTERVAL_MS` | `60000` | How often the poll job runs |
-| `PRUNE_MODE` | `archive` | `dry-run` logs unmapped Todoist projects; `archive` archives them |
-| `ALLOW_SIGNUP` | `true` | Set `false` to close signups after creating your account |
-| `LOG_LEVEL` | `info` | pino log level |
+| Variable           | Default   | Purpose                                                           |
+| ------------------ | --------- | ----------------------------------------------------------------- |
+| `SYNC_INTERVAL_MS` | `60000`   | How often the poll job runs                                       |
+| `PRUNE_MODE`       | `archive` | `dry-run` logs unmapped Todoist projects; `archive` archives them |
+| `ALLOW_SIGNUP`     | `true`    | Set `false` to close signups after creating your account          |
+| `LOG_LEVEL`        | `info`    | pino log level                                                    |
 
 **Tip:** run with `PRUNE_MODE=dry-run` for the first sync, check the dashboard activity log to
 confirm the hierarchy looks right, then switch to `archive`.
@@ -92,7 +92,9 @@ confirm the hierarchy looks right, then switch to `archive`.
 npm run dev          # web + worker
 npm run dev:web      # web only
 npm run dev:worker   # worker only
-npm run check        # biome + typecheck
+npm run check        # prettier --check + eslint + typecheck
+npm run format       # prettier --write
+npm run lint:fix     # eslint --fix
 npm run test         # vitest (requires Postgres running)
 npm run db:generate  # generate a migration after editing server/db/schema/
 npm run db:studio    # browse the database

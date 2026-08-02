@@ -14,16 +14,16 @@ Several libraries here are on a **major version newer than most training data**.
 remembered APIs will produce code that does not compile. When unsure, read the installed source
 of truth listed in each row.
 
-| Library | Installed | The trap | Source of truth |
-| --- | --- | --- | --- |
-| React Router | **8** | Not v7. ESM-only. `react-router-dom` **does not exist** — import from `react-router` / `react-router/dom`. Middleware is **baseline** (no future flag). Needs Node ≥22.22, React ≥19.2.7, Vite ≥7. | `node_modules/react-router/docs/` (version-matched) + `.agents/skills/react-router/` |
-| HeroUI | **3** | Not v2/NextUI. **No `HeroUIProvider`.** No `tailwind.config.js` plugin — setup is two CSS `@import`s. Compound-component API, built on React Aria. `Image` was removed. **There is no `color` prop** — `Button` takes `variant` (`primary`, `secondary`, `tertiary`, `danger`, `danger-soft`, `ghost`, `outline`) and `size` (`sm`/`md`/`lg`). Check `node_modules/@heroui/react/dist/components/<name>/` for the real prop types before guessing. | `node_modules/@heroui/react/dist/components/` |
-| BullMQ | **6** | Use **Job Schedulers** (`queue.upsertJobScheduler`), not the deprecated repeatable-jobs API (`repeat` on `add`). v6 introduced pluggable backends; Redis is still the default. | `node_modules/bullmq/dist/esm/` typings |
-| `@doist/todoist-sdk` | **13** | Not `@doist/todoist-api-typescript` v1. Fields are **camelCase** (`updatedAt`, `isDeleted`, `projectId`). Incremental deltas come from `api.sync({ syncToken, resourceTypes })`. OAuth helpers are **free functions**, not methods. | `node_modules/@doist/todoist-sdk/dist/types/` |
-| Better Auth | **1.6** | `@better-auth/drizzle-adapter` is a **separate package** from `better-auth`. The `@better-auth/cli` publishes at 1.4.x and lags — do not let it dictate schema; verify generated tables against the docs. | https://www.better-auth.com/docs |
-| Tailwind | **4** | CSS-first config. No `tailwind.config.js`. `@theme` / `@custom-variant` in CSS. | — |
-| Drizzle | **0.45** | Not the 1.0 beta line. | — |
-| TypeScript | **5.9** | Deliberately not 7.x — the native port is unproven against tRPC v11 / Drizzle deep generics. | — |
+| Library              | Installed | The trap                                                                                                                                                                                                                                                                                                                                                                                                                                           | Source of truth                                                                      |
+| -------------------- | --------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------ |
+| React Router         | **8**     | Not v7. ESM-only. `react-router-dom` **does not exist** — import from `react-router` / `react-router/dom`. Middleware is **baseline** (no future flag). Needs Node ≥22.22, React ≥19.2.7, Vite ≥7.                                                                                                                                                                                                                                                 | `node_modules/react-router/docs/` (version-matched) + `.agents/skills/react-router/` |
+| HeroUI               | **3**     | Not v2/NextUI. **No `HeroUIProvider`.** No `tailwind.config.js` plugin — setup is two CSS `@import`s. Compound-component API, built on React Aria. `Image` was removed. **There is no `color` prop** — `Button` takes `variant` (`primary`, `secondary`, `tertiary`, `danger`, `danger-soft`, `ghost`, `outline`) and `size` (`sm`/`md`/`lg`). Check `node_modules/@heroui/react/dist/components/<name>/` for the real prop types before guessing. | `node_modules/@heroui/react/dist/components/`                                        |
+| BullMQ               | **6**     | Use **Job Schedulers** (`queue.upsertJobScheduler`), not the deprecated repeatable-jobs API (`repeat` on `add`). v6 introduced pluggable backends; Redis is still the default.                                                                                                                                                                                                                                                                     | `node_modules/bullmq/dist/esm/` typings                                              |
+| `@doist/todoist-sdk` | **13**    | Not `@doist/todoist-api-typescript` v1. Fields are **camelCase** (`updatedAt`, `isDeleted`, `projectId`). Incremental deltas come from `api.sync({ syncToken, resourceTypes })`. OAuth helpers are **free functions**, not methods.                                                                                                                                                                                                                | `node_modules/@doist/todoist-sdk/dist/types/`                                        |
+| Better Auth          | **1.6**   | `@better-auth/drizzle-adapter` is a **separate package** from `better-auth`. The `@better-auth/cli` publishes at 1.4.x and lags — do not let it dictate schema; verify generated tables against the docs.                                                                                                                                                                                                                                          | https://www.better-auth.com/docs                                                     |
+| Tailwind             | **4**     | CSS-first config. No `tailwind.config.js`. `@theme` / `@custom-variant` in CSS.                                                                                                                                                                                                                                                                                                                                                                    | —                                                                                    |
+| Drizzle              | **0.45**  | Not the 1.0 beta line.                                                                                                                                                                                                                                                                                                                                                                                                                             | —                                                                                    |
+| TypeScript           | **5.9**   | Deliberately not 7.x — the native port is unproven against tRPC v11 / Drizzle deep generics.                                                                                                                                                                                                                                                                                                                                                       | —                                                                                    |
 
 ## Architecture
 
@@ -42,8 +42,8 @@ Read `docs/ARCHITECTURE.md` for the sync data flow.
 
 - **Never hand-write Glassfrog HTTP calls.** The client in `server/glassfrog/generated/` is
   generated from the vendored `openapi/glassfrog.json`. To change it, run
-  `npm run gen:glassfrog:fetch` and review the diff. Generated files are committed and are
-  excluded from Biome.
+  `npm run gen:glassfrog:fetch` and review the diff. Generated files are committed, and are
+  excluded from ESLint and from `prettier --write` (the generator formats them itself).
 - **Never log credentials.** Todoist tokens and the Glassfrog API key are encrypted at rest via
   the `encryptedText` Drizzle column type (`server/crypto.ts`). The pino logger has a redaction
   list; keep it current.
@@ -72,18 +72,31 @@ Read `docs/ARCHITECTURE.md` for the sync data flow.
 docker compose up -d      # postgres + redis
 npm run db:migrate        # apply migrations
 npm run dev               # web (5173) + worker together
-npm run check             # biome + typecheck  ← run before finishing work
+npm run check             # prettier --check + eslint + tsc  ← run before finishing work
+npm run format            # prettier --write
+npm run lint:fix          # eslint --fix
 npm run test              # vitest (needs postgres up)
 npm run db:generate       # after editing server/db/schema/
 ```
 
-Two notes on this machine specifically:
+## Linting
 
-- **Biome cannot run its prebuilt binary on NixOS.** Always invoke it through
-  `npm run lint` / `scripts/biome.mjs`, which falls back to `nix run nixpkgs#biome`. A bare
-  `npx biome` will fail. For the same reason `openapi-ts` has no `format` post-processor.
-- **The worker is bundled for production** (`npm run build:worker` → `build/worker/index.js`)
-  so `tsx` stays a dev dependency. `npm run dev:worker` still runs the TypeScript directly.
+ESLint 9-style flat config in `eslint.config.js`, with **type-aware** rules
+(`recommendedTypeChecked` + `projectService`). That is deliberate: this codebase is almost
+entirely async database and HTTP calls, so `no-floating-promises` and `no-misused-promises`
+catch real bugs `tsc` does not. Formatting is Prettier's job alone —
+`eslint-config-prettier` is last in the config and switches off every rule that would fight it.
+
+Two deviations worth knowing before you "fix" them:
+
+- `eslint-plugin-react` is **not** installed — no release supports ESLint 10.
+  `eslint-plugin-react-hooks` is, and covers the rules that matter.
+- `only-throw-error` is configured to allow throwing a `Response`, because
+  `throw redirect(...)` is the React Router idiom for short-circuiting a loader.
+
+Also note: **the worker is bundled for production** (`npm run build:worker` →
+`build/worker/index.js`) so `tsx` stays a dev dependency. `npm run dev:worker` still runs the
+TypeScript directly.
 
 ## API constraints worth remembering
 

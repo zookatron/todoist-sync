@@ -1,9 +1,14 @@
 pre-commit:
-  parallel: true
+  parallel: false
   jobs:
-    - name: biome
-      glob: "*.{js,ts,jsx,tsx,json,jsonc,css}"
-      run: node scripts/biome.mjs check --write --no-errors-on-unmatched {staged_files}
+    - name: prettier
+      glob: '*.{js,mjs,ts,tsx,json,jsonc,css,md,yml,yaml}'
+      run: npx prettier --write --ignore-unknown {staged_files}
+      stage_fixed: true
+
+    - name: eslint
+      glob: '*.{js,mjs,ts,tsx}'
+      run: npx eslint --fix --no-warn-ignored {staged_files}
       stage_fixed: true
 
 pre-push:

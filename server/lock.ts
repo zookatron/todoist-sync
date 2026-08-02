@@ -45,7 +45,7 @@ export async function acquireLock(key: string, options: AcquireOptions): Promise
 
   const rows = await db
     .insert(locks)
-    .values({ key, owner, expiresAt: expiry as unknown as Date })
+    .values({ key, owner, expiresAt: expiry })
     .onConflictDoUpdate({
       target: locks.key,
       set: { owner, acquiredAt: sql`now()`, expiresAt: expiry },

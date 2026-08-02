@@ -105,7 +105,7 @@ export async function paginateAll<T>(
 
 function statusOf(error: unknown): number | undefined {
   if (error && typeof error === 'object' && 'status' in error) {
-    const status = (error as { status: unknown }).status
+    const status = error.status
     if (typeof status === 'number') return status
   }
   // hey-api throws the raw Response on throwOnError when the body is not JSON.

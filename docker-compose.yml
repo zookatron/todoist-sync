@@ -7,11 +7,11 @@ services:
       POSTGRES_PASSWORD: todoist_sync
       POSTGRES_DB: todoist_sync
     ports:
-      - "5432:5432"
+      - '5432:5432'
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U todoist_sync"]
+      test: ['CMD-SHELL', 'pg_isready -U todoist_sync']
       interval: 5s
       timeout: 5s
       retries: 10
@@ -19,13 +19,13 @@ services:
   redis:
     image: redis:8-alpine
     restart: unless-stopped
-    command: ["redis-server", "--appendonly", "yes"]
+    command: ['redis-server', '--appendonly', 'yes']
     ports:
-      - "6379:6379"
+      - '6379:6379'
     volumes:
       - redis_data:/data
     healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
+      test: ['CMD', 'redis-cli', 'ping']
       interval: 5s
       timeout: 5s
       retries: 10
@@ -34,7 +34,7 @@ services:
   # brings up only the datastores for local development:
   #   docker compose --profile app up -d --build
   web:
-    profiles: ["app"]
+    profiles: ['app']
     build: .
     restart: unless-stopped
     command: sh -c "npx drizzle-kit migrate && npm run start"
@@ -43,13 +43,13 @@ services:
       DATABASE_URL: postgres://todoist_sync:todoist_sync@postgres:5432/todoist_sync
       REDIS_URL: redis://redis:6379
     ports:
-      - "3000:3000"
+      - '3000:3000'
     depends_on:
       postgres: { condition: service_healthy }
       redis: { condition: service_healthy }
 
   worker:
-    profiles: ["app"]
+    profiles: ['app']
     build: .
     restart: unless-stopped
     command: npm run worker
