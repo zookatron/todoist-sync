@@ -7,6 +7,14 @@
 /.react-router/
 /build/
 
+# Yarn 4 (node-modules linker, global cache — nothing here needs committing)
+/.yarn/*
+!/.yarn/patches/
+!/.yarn/plugins/
+!/.yarn/releases/
+!/.yarn/versions/
+.pnp.*
+
 # Tooling
 /coverage/
 *.log

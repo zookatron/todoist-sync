@@ -62,13 +62,17 @@ encoded — **changing it later makes every stored credential unreadable.**
 
 ### 5. Install and run
 
+Package management is Yarn 4, pinned by the `packageManager` field and provisioned by
+Corepack — run `corepack enable` once and the right Yarn is used automatically.
+
 ```bash
-npm install
-npm run db:migrate
-npm run dev
+corepack enable
+yarn install
+yarn db:migrate
+yarn dev
 ```
 
-The app is at <http://localhost:5173>. `npm run dev` starts both the web server and the
+The app is at <http://localhost:5173>. `yarn dev` starts both the web server and the
 background worker; the worker must be running for any syncing to happen.
 
 Sign up, then use the dashboard to connect Todoist, save your Glassfrog key, and pick a root
@@ -89,15 +93,15 @@ confirm the hierarchy looks right, then switch to `archive`.
 ## Development
 
 ```bash
-npm run dev          # web + worker
-npm run dev:web      # web only
-npm run dev:worker   # worker only
-npm run check        # prettier --check + eslint + typecheck
-npm run format       # prettier --write
-npm run lint:fix     # eslint --fix
-npm run test         # vitest (requires Postgres running)
-npm run db:generate  # generate a migration after editing server/db/schema/
-npm run db:studio    # browse the database
+yarn dev          # web + worker
+yarn dev:web      # web only
+yarn dev:worker   # worker only
+yarn check        # prettier --check + eslint + typecheck
+yarn format       # prettier --write
+yarn lint:fix     # eslint --fix
+yarn test         # vitest (requires Postgres running)
+yarn db:generate  # generate a migration after editing server/db/schema/
+yarn db:studio    # browse the database
 ```
 
 ### Regenerating the Glassfrog client
@@ -106,7 +110,7 @@ The Glassfrog v5 API is in beta, so its OpenAPI spec is vendored at `openapi/gla
 the client is generated from that file. To pick up upstream changes:
 
 ```bash
-npm run gen:glassfrog:fetch   # re-download the spec + regenerate, then review the diff
+yarn gen:glassfrog:fetch   # re-download the spec + regenerate, then review the diff
 ```
 
 ## Running it in Docker

@@ -37,7 +37,10 @@ services:
     profiles: ['app']
     build: .
     restart: unless-stopped
-    command: sh -c "npx drizzle-kit migrate && npm run start"
+    # drizzle-kit is a runtime dependency, not a dev one: this container applies
+    # migrations at startup, so `workspaces focus --production` has to keep it in
+    # the image. Running the local binary means no network fetch on boot.
+    command: sh -c "yarn drizzle-kit migrate && yarn start"
     env_file: .env
     environment:
       DATABASE_URL: postgres://todoist_sync:todoist_sync@postgres:5432/todoist_sync
@@ -52,7 +55,7 @@ services:
     profiles: ['app']
     build: .
     restart: unless-stopped
-    command: npm run worker
+    command: yarn worker
     env_file: .env
     environment:
       DATABASE_URL: postgres://todoist_sync:todoist_sync@postgres:5432/todoist_sync

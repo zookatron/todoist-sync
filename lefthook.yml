@@ -3,15 +3,15 @@ pre-commit:
   jobs:
     - name: prettier
       glob: '*.{js,mjs,ts,tsx,json,jsonc,css,md,yml,yaml}'
-      run: npx prettier --write --ignore-unknown {staged_files}
+      run: yarn prettier --write --ignore-unknown {staged_files}
       stage_fixed: true
 
     - name: eslint
       glob: '*.{js,mjs,ts,tsx}'
-      run: npx eslint --fix --no-warn-ignored {staged_files}
+      run: yarn eslint --fix --no-warn-ignored {staged_files}
       stage_fixed: true
 
 pre-push:
   jobs:
     - name: typecheck
-      run: npm run typecheck
+      run: yarn typecheck

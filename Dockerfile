@@ -1,28 +1,30 @@
 # One image runs both processes; `command` in docker-compose picks which.
-FROM node:24-alpine AS development-dependencies-env
+# Yarn 4 comes from Corepack, pinned by the `packageManager` field in package.json.
+FROM node:24-alpine AS yarn-env
+ENV COREPACK_ENABLE_DOWNLOAD_PROMPT=0
+WORKDIR /app
+COPY ./package.json ./yarn.lock ./.yarnrc.yml /app/
+RUN corepack enable && corepack install
+
+FROM yarn-env AS development-dependencies-env
 COPY . /app
-WORKDIR /app
-RUN npm ci
+RUN yarn install --immutable
 
-FROM node:24-alpine AS production-dependencies-env
-COPY ./package.json package-lock.json /app/
-WORKDIR /app
-RUN npm ci --omit=dev
+FROM yarn-env AS production-dependencies-env
+# `workspaces focus --production` is Yarn 4's equivalent of `npm ci --omit=dev`.
+RUN yarn workspaces focus --all --production
 
-FROM node:24-alpine AS build-env
+FROM yarn-env AS build-env
 COPY . /app/
 COPY --from=development-dependencies-env /app/node_modules /app/node_modules
-WORKDIR /app
 # Builds the React Router app and bundles worker/index.ts into build/worker/.
-RUN npm run build
+RUN yarn build
 
-FROM node:24-alpine
-COPY ./package.json package-lock.json /app/
+FROM yarn-env
 COPY --from=production-dependencies-env /app/node_modules /app/node_modules
 COPY --from=build-env /app/build /app/build
 # Migrations are applied by the web container at startup.
 COPY --from=build-env /app/drizzle /app/drizzle
 COPY --from=build-env /app/drizzle.config.ts /app/drizzle.config.ts
-WORKDIR /app
 EXPOSE 3000
-CMD ["npm", "run", "start"]
+CMD ["yarn", "start"]

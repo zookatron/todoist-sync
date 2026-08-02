@@ -8,13 +8,6 @@ import type { Pagination } from './generated/types.gen.js'
 
 export const GLASSFROG_BASE_URL = 'https://app.glassfrog.com/api/v5'
 
-export class GlassfrogNotConnectedError extends Error {
-  constructor(userId: string) {
-    super(`User ${userId} has not saved a Glassfrog API key`)
-    this.name = 'GlassfrogNotConnectedError'
-  }
-}
-
 /**
  * Builds a client authenticated with a specific key.
  *
@@ -39,7 +32,7 @@ export async function getGlassfrogClient(userId: string): Promise<Client> {
     where: eq(glassfrogIntegration.userId, userId),
   })
 
-  if (!integration) throw new GlassfrogNotConnectedError(userId)
+  if (!integration) throw new Error(`User ${userId} has not saved a Glassfrog API key`)
 
   return createGlassfrogClient(integration.apiKey)
 }
@@ -69,7 +62,9 @@ export type PageEnvelope<T> = {
  * Glassfrog offers no `updated_since` filter, so change detection means enumerating a
  * whole collection every poll — this is on the hot path.
  *
- * `maxPages` is a runaway guard; hitting it is logged rather than silently truncating.
+ * `maxPages` is a runaway guard. Hitting it throws rather than returning a partial
+ * collection: callers diff these results against Todoist, so a silent truncation would
+ * read as "the rest was deleted upstream" and prune live data.
  */
 export async function paginateAll<T>(
   fetchPage: (params: { cursor?: string; perPage: number }) => Promise<PageEnvelope<T>>,
@@ -92,11 +87,7 @@ export async function paginateAll<T>(
     page += 1
 
     if (page >= maxPages && cursor) {
-      logger.warn(
-        { pages: page, collected: collected.length },
-        'Stopped paginating Glassfrog at the page limit; results are incomplete',
-      )
-      break
+      throw new Error('Hit Glassfrog pagination limit, unable to retrieve all results')
     }
   } while (cursor)
 
@@ -130,7 +121,10 @@ export async function withRetry<T>(fn: () => Promise<T>, maxRetries = 3): Promis
       if (!isRetryable || attempt >= maxRetries) throw error
 
       const delay = Math.min(30_000, 1000 * 2 ** attempt)
-      logger.warn({ status, attempt, delay }, 'Glassfrog request failed; retrying')
+      logger.warn(
+        { status, attempt, delay },
+        `Glassfrog request failed with status ${status}; retrying`,
+      )
       await new Promise((resolve) => setTimeout(resolve, delay))
     }
   }

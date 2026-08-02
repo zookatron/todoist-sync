@@ -24,6 +24,7 @@ of truth listed in each row.
 | Tailwind             | **4**     | CSS-first config. No `tailwind.config.js`. `@theme` / `@custom-variant` in CSS.                                                                                                                                                                                                                                                                                                                                                                    | —                                                                                    |
 | Drizzle              | **0.45**  | Not the 1.0 beta line.                                                                                                                                                                                                                                                                                                                                                                                                                             | —                                                                                    |
 | TypeScript           | **5.9**   | Deliberately not 7.x — the native port is unproven against tRPC v11 / Drizzle deep generics.                                                                                                                                                                                                                                                                                                                                                       | —                                                                                    |
+| Yarn                 | **4.18**  | Not Classic 1.x — the `yarn` npm package is a legacy shim. Provisioned by **Corepack** from `packageManager`; there is no checked-in release binary. **`nodeLinker: node-modules`**, not PnP. Dependency **build scripts are disabled by default** in v4 — a package needing one must be listed in `dependenciesMeta.<pkg>.built`. `npm ci` → `yarn install --immutable`; `npm ci --omit=dev` → `yarn workspaces focus --all --production`.        | `.yarnrc.yml` + https://yarnpkg.com/configuration/yarnrc                             |
 
 ## Architecture
 
@@ -42,7 +43,7 @@ Read `docs/ARCHITECTURE.md` for the sync data flow.
 
 - **Never hand-write Glassfrog HTTP calls.** The client in `server/glassfrog/generated/` is
   generated from the vendored `openapi/glassfrog.json`. To change it, run
-  `npm run gen:glassfrog:fetch` and review the diff. Generated files are committed, and are
+  `yarn gen:glassfrog:fetch` and review the diff. Generated files are committed, and are
   excluded from ESLint and from `prettier --write` (the generator formats them itself).
 - **Never log credentials.** Todoist tokens and the Glassfrog API key are encrypted at rest via
   the `encryptedText` Drizzle column type (`server/crypto.ts`). The pino logger has a redaction
@@ -69,14 +70,16 @@ Read `docs/ARCHITECTURE.md` for the sync data flow.
 ## Commands
 
 ```bash
+corepack enable           # once per machine — provisions the pinned Yarn
 docker compose up -d      # postgres + redis
-npm run db:migrate        # apply migrations
-npm run dev               # web (5173) + worker together
-npm run check             # prettier --check + eslint + tsc  ← run before finishing work
-npm run format            # prettier --write
-npm run lint:fix          # eslint --fix
-npm run test              # vitest (needs postgres up)
-npm run db:generate       # after editing server/db/schema/
+yarn install              # `yarn install --immutable` in CI
+yarn db:migrate           # apply migrations
+yarn dev                  # web (5173) + worker together
+yarn check                # prettier --check + eslint + tsc  ← run before finishing work
+yarn format               # prettier --write
+yarn lint:fix             # eslint --fix
+yarn test                 # vitest (needs postgres up)
+yarn db:generate          # after editing server/db/schema/
 ```
 
 ## Linting
@@ -94,8 +97,8 @@ Two deviations worth knowing before you "fix" them:
 - `only-throw-error` is configured to allow throwing a `Response`, because
   `throw redirect(...)` is the React Router idiom for short-circuiting a loader.
 
-Also note: **the worker is bundled for production** (`npm run build:worker` →
-`build/worker/index.js`) so `tsx` stays a dev dependency. `npm run dev:worker` still runs the
+Also note: **the worker is bundled for production** (`yarn build:worker` →
+`build/worker/index.js`) so `tsx` stays a dev dependency. `yarn dev:worker` still runs the
 TypeScript directly.
 
 ## API constraints worth remembering

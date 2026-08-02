@@ -48,21 +48,26 @@ jobs:
     steps:
       - uses: actions/checkout@v5
 
+      # Corepack reads the pinned Yarn version from package.json's
+      # `packageManager` field, so setup-node's yarn cache resolves correctly.
+      - name: Enable Corepack
+        run: corepack enable
+
       - uses: actions/setup-node@v5
         with:
           node-version: 24
-          cache: npm
+          cache: yarn
 
-      - run: npm ci
+      - run: yarn install --immutable
 
       - name: Apply migrations
-        run: npm run db:migrate
+        run: yarn db:migrate
 
       - name: Lint and typecheck
-        run: npm run check
+        run: yarn check
 
       - name: Test
-        run: npm run test
+        run: yarn test
 
       - name: Build
-        run: npm run build
+        run: yarn build

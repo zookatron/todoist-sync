@@ -94,22 +94,24 @@ describe('paginateAll', () => {
     expect(requests).toHaveLength(1)
   })
 
-  it('stops at maxPages rather than looping forever on a broken cursor', async () => {
+  it('throws at maxPages rather than looping forever on a broken cursor', async () => {
     // A server that always claims another page would otherwise spin indefinitely.
+    // Returning what was collected so far would look like a successful sync over a
+    // short list, and the hierarchy diff would then prune everything it never saw —
+    // so the guard fails loudly instead of truncating.
     let calls = 0
-    const results = await paginateAll<{ id: string }>(
-      async () => {
-        calls += 1
-        return {
-          data: [{ id: 'x' }],
-          meta: { pagination: { per_page: 1, has_next_page: true, next_cursor: 'always' } },
-        }
-      },
-      { maxPages: 3 },
-    )
+    const fetchPage = async () => {
+      calls += 1
+      return {
+        data: [{ id: 'x' }],
+        meta: { pagination: { per_page: 1, has_next_page: true, next_cursor: 'always' } },
+      }
+    }
 
+    await expect(paginateAll<{ id: string }>(fetchPage, { maxPages: 3 })).rejects.toThrow(
+      /pagination limit/,
+    )
     expect(calls).toBe(3)
-    expect(results).toHaveLength(3)
   })
 })
 
