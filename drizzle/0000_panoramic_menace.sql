@@ -1,6 +1,4 @@
 CREATE TYPE "public"."mapping_kind" AS ENUM('role', 'project');--> statement-breakpoint
-CREATE TYPE "public"."prune_mode" AS ENUM('dry-run', 'archive');--> statement-breakpoint
-CREATE TYPE "public"."sync_log_level" AS ENUM('info', 'warn', 'error');--> statement-breakpoint
 CREATE TABLE "account" (
 	"id" text PRIMARY KEY NOT NULL,
 	"account_id" text NOT NULL,
@@ -52,9 +50,6 @@ CREATE TABLE "verification" (
 CREATE TABLE "glassfrog_integration" (
 	"user_id" text PRIMARY KEY NOT NULL,
 	"api_key" text NOT NULL,
-	"person_id" text,
-	"person_name" text,
-	"org_name" text,
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
 	"updated_at" timestamp with time zone DEFAULT now() NOT NULL
 );
@@ -64,10 +59,9 @@ CREATE TABLE "todoist_integration" (
 	"access_token" text NOT NULL,
 	"refresh_token" text,
 	"expires_at" timestamp with time zone,
-	"scope" text,
-	"todoist_user_id" text,
-	"todoist_email" text,
 	"needs_reauth_at" timestamp with time zone,
+	"root_todoist_project_id" text,
+	"todoist_sync_token" text,
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
 	"updated_at" timestamp with time zone DEFAULT now() NOT NULL
 );
@@ -86,32 +80,15 @@ CREATE TABLE "project_mapping" (
 	"glassfrog_id" text NOT NULL,
 	"todoist_project_id" text NOT NULL,
 	"parent_glassfrog_id" text,
-	"name" text NOT NULL,
 	"last_synced_at" timestamp with time zone DEFAULT now() NOT NULL,
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL
-);
---> statement-breakpoint
-CREATE TABLE "sync_config" (
-	"user_id" text PRIMARY KEY NOT NULL,
-	"root_todoist_project_id" text,
-	"enabled" boolean DEFAULT false NOT NULL,
-	"todoist_sync_token" text,
-	"prune_mode" "prune_mode",
-	"last_poll_at" timestamp with time zone,
-	"last_hierarchy_sync_at" timestamp with time zone,
-	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
-	"updated_at" timestamp with time zone DEFAULT now() NOT NULL
 );
 --> statement-breakpoint
 CREATE TABLE "sync_log" (
 	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
 	"user_id" text NOT NULL,
-	"level" "sync_log_level" DEFAULT 'info' NOT NULL,
-	"entity" text NOT NULL,
-	"entity_id" text,
-	"action" text NOT NULL,
-	"message" text NOT NULL,
-	"payload" jsonb,
+	"description" text NOT NULL,
+	"metadata" jsonb,
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL
 );
 --> statement-breakpoint
@@ -123,7 +100,6 @@ CREATE TABLE "task_mapping" (
 	"glassfrog_updated_at" timestamp with time zone,
 	"todoist_updated_at" timestamp with time zone,
 	"content_hash" text,
-	"deleted_at" timestamp with time zone,
 	"last_synced_at" timestamp with time zone DEFAULT now() NOT NULL,
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL
 );
@@ -133,7 +109,6 @@ ALTER TABLE "session" ADD CONSTRAINT "session_user_id_user_id_fk" FOREIGN KEY ("
 ALTER TABLE "glassfrog_integration" ADD CONSTRAINT "glassfrog_integration_user_id_user_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."user"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "todoist_integration" ADD CONSTRAINT "todoist_integration_user_id_user_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."user"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "project_mapping" ADD CONSTRAINT "project_mapping_user_id_user_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."user"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "sync_config" ADD CONSTRAINT "sync_config_user_id_user_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."user"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "sync_log" ADD CONSTRAINT "sync_log_user_id_user_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."user"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "task_mapping" ADD CONSTRAINT "task_mapping_user_id_user_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."user"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 CREATE UNIQUE INDEX "project_mapping_glassfrog_idx" ON "project_mapping" USING btree ("user_id","kind","glassfrog_id");--> statement-breakpoint

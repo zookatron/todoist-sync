@@ -20,12 +20,6 @@ const EnvSchema = z.object({
   /** Poll cadence for the scheduled sync job. */
   SYNC_INTERVAL_MS: z.coerce.number().int().positive().default(60_000),
 
-  /**
-   * How to treat Todoist projects under the root that have no Glassfrog counterpart.
-   * `dry-run` only records intent in sync_log; `archive` archives them in Todoist.
-   */
-  PRUNE_MODE: z.enum(['dry-run', 'archive']).default('archive'),
-
   /** Set false after creating your account to close the instance to new signups. */
   ALLOW_SIGNUP: z
     .enum(['true', 'false'])

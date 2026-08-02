@@ -14,12 +14,7 @@ export const glassfrogRouter = router({
 
     if (!integration) return { connected: false as const }
 
-    return {
-      connected: true as const,
-      personName: integration.personName,
-      orgName: integration.orgName,
-      connectedAt: integration.createdAt,
-    }
+    return { connected: true as const }
   }),
 
   /**
@@ -31,13 +26,8 @@ export const glassfrogRouter = router({
     .mutation(async ({ ctx, input }) => {
       const apiKey = input.apiKey.trim()
 
-      let me: Awaited<ReturnType<typeof getMe>>['data']
       try {
-        const response = await getMe({
-          client: createGlassfrogClient(apiKey),
-          throwOnError: true,
-        })
-        me = response.data
+        await getMe({ client: createGlassfrogClient(apiKey), throwOnError: true })
       } catch (error) {
         ctx.logger.warn({ userId: ctx.user.id, err: error }, 'Glassfrog API key rejected')
         throw new TRPCError({
@@ -46,21 +36,14 @@ export const glassfrogRouter = router({
         })
       }
 
-      const values = {
-        userId: ctx.user.id,
-        apiKey,
-        personId: me?.data.actor.id ?? null,
-        personName: me?.data.actor.name ?? null,
-        orgName: me?.data.organization.name ?? null,
-        updatedAt: new Date(),
-      }
+      const values = { userId: ctx.user.id, apiKey, updatedAt: new Date() }
 
       await ctx.db
         .insert(glassfrogIntegration)
         .values(values)
         .onConflictDoUpdate({ target: glassfrogIntegration.userId, set: values })
 
-      return { personName: values.personName, orgName: values.orgName }
+      return { ok: true }
     }),
 
   disconnect: protectedProcedure.mutation(async ({ ctx }) => {

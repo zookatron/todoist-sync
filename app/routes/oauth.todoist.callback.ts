@@ -1,8 +1,9 @@
-import { getAuthToken, TodoistApi } from '@doist/todoist-sdk'
+import { getAuthToken } from '@doist/todoist-sdk'
 import { db } from '@server/db/index.js'
 import { todoistIntegration } from '@server/db/schema/integrations.js'
 import { env } from '@server/env.js'
 import { logger } from '@server/logger.js'
+import { schedulePollForUser } from '@server/queue/queues.js'
 import { todoistOAuthStateCookie } from '@server/todoist/oauth.js'
 import { redirect } from 'react-router'
 import { userContext } from '../context.js'
@@ -64,26 +65,11 @@ export async function loader({ request, context }: Route.LoaderArgs) {
     return failed('token_exchange_failed')
   }
 
-  // Identify the account so the dashboard can show which Todoist user is connected.
-  let todoistUserId: string | null = null
-  let todoistEmail: string | null = null
-  try {
-    const me = await new TodoistApi(token.accessToken).getUser()
-    todoistUserId = me.id
-    todoistEmail = me.email
-  } catch (err) {
-    // Cosmetic only — never fail the connection over it.
-    logger.warn({ userId: user.id, err }, 'Could not read the Todoist user profile')
-  }
-
   const values = {
     userId: user.id,
     accessToken: token.accessToken,
     refreshToken: token.refreshToken ?? null,
     expiresAt: token.expiresIn ? new Date(Date.now() + token.expiresIn * 1000) : null,
-    scope: token.scope ?? null,
-    todoistUserId,
-    todoistEmail,
     needsReauth: null,
     updatedAt: new Date(),
   }
@@ -92,6 +78,8 @@ export async function loader({ request, context }: Route.LoaderArgs) {
     .insert(todoistIntegration)
     .values(values)
     .onConflictDoUpdate({ target: todoistIntegration.userId, set: values })
+
+  await schedulePollForUser(user.id)
 
   logger.info(
     { userId: user.id, expiresIn: token.expiresIn, hasRefreshToken: Boolean(token.refreshToken) },

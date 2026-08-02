@@ -7,7 +7,6 @@ import {
   Label,
   ListBox,
   Select,
-  Switch,
   TextField,
 } from '@heroui/react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
@@ -62,8 +61,6 @@ export function TodoistCard({ connectError }: { connectError: string | null }) {
 
         {status.data?.connected ? (
           <dl className="grid grid-cols-2 gap-2 text-sm">
-            <dt className="text-foreground-secondary">Account</dt>
-            <dd>{status.data.todoistEmail ?? 'connected'}</dd>
             <dt className="text-foreground-secondary">Token expires</dt>
             <dd>{formatDate(status.data.expiresAt)}</dd>
           </dl>
@@ -113,8 +110,7 @@ export function GlassfrogCard() {
       <Card.Header>
         <Card.Title>Glassfrog</Card.Title>
         <Card.Description>
-          Paste an API v5 key. It is verified against your account before being stored, and
-          encrypted at rest.
+          Paste an API v5 key. It is verified against your account before being stored.
         </Card.Description>
       </Card.Header>
 
@@ -128,12 +124,7 @@ export function GlassfrogCard() {
         )}
 
         {status.data?.connected ? (
-          <dl className="grid grid-cols-2 gap-2 text-sm">
-            <dt className="text-foreground-secondary">Person</dt>
-            <dd>{status.data.personName ?? 'unknown'}</dd>
-            <dt className="text-foreground-secondary">Organization</dt>
-            <dd>{status.data.orgName ?? 'unknown'}</dd>
-          </dl>
+          <p className="text-foreground-secondary text-sm">Connected.</p>
         ) : (
           <TextField
             name="apiKey"
@@ -171,19 +162,20 @@ export function GlassfrogCard() {
 export function RootProjectCard({ todoistConnected }: { todoistConnected: boolean }) {
   const trpc = useTRPC()
   const queryClient = useQueryClient()
-  const config = useQuery(trpc.config.get.queryOptions())
+  const status = useQuery(trpc.todoist.status.queryOptions())
   const projects = useQuery({
     ...trpc.todoist.listProjects.queryOptions(),
     enabled: todoistConnected,
   })
 
   const setRoot = useMutation(
-    trpc.config.setRootProject.mutationOptions({
+    trpc.todoist.setRootProject.mutationOptions({
       onSuccess: () => queryClient.invalidateQueries(),
     }),
   )
 
   const items = projects.data ?? []
+  const rootTodoistProjectId = status.data?.connected ? status.data.rootTodoistProjectId : null
 
   return (
     <Card>
@@ -200,7 +192,7 @@ export function RootProjectCard({ todoistConnected }: { todoistConnected: boolea
           <p className="text-foreground-secondary text-sm">Connect Todoist first.</p>
         ) : (
           <Select
-            selectedKey={config.data?.rootTodoistProjectId ?? null}
+            selectedKey={rootTodoistProjectId ?? null}
             onSelectionChange={(key) => {
               if (key) setRoot.mutate({ projectId: String(key) })
             }}
@@ -229,53 +221,32 @@ export function RootProjectCard({ todoistConnected }: { todoistConnected: boolea
 
 export function SyncCard({ intervalSeconds }: { intervalSeconds: number }) {
   const trpc = useTRPC()
-  const queryClient = useQueryClient()
-  const config = useQuery(trpc.config.get.queryOptions())
-  const status = useQuery({
+  const status = useQuery(trpc.todoist.status.queryOptions())
+  const mappings = useQuery({
     ...trpc.sync.status.queryOptions(),
     refetchInterval: 10_000,
   })
 
-  const setEnabled = useMutation(
-    trpc.config.setEnabled.mutationOptions({
-      onSuccess: () => queryClient.invalidateQueries(),
-    }),
-  )
-
   const triggerNow = useMutation(trpc.sync.triggerNow.mutationOptions())
 
-  const ready = Boolean(config.data?.rootTodoistProjectId)
+  const ready = Boolean(status.data?.connected && status.data.rootTodoistProjectId)
 
   return (
     <Card>
       <Card.Header>
         <Card.Title>Sync</Card.Title>
-        <Card.Description>Polls every {intervalSeconds} seconds while enabled.</Card.Description>
+        <Card.Description>
+          Polls every {intervalSeconds} seconds once Todoist, Glassfrog, and a root project are set
+          up.
+        </Card.Description>
       </Card.Header>
 
       <Card.Content className="flex flex-col gap-4">
-        <Switch
-          isSelected={config.data?.enabled ?? false}
-          isDisabled={!ready || setEnabled.isPending}
-          onChange={(enabled) => setEnabled.mutate({ enabled })}
-        >
-          <Switch.Content>
-            <Switch.Control>
-              <Switch.Thumb />
-            </Switch.Control>
-            Sync enabled
-          </Switch.Content>
-        </Switch>
-
         <dl className="grid grid-cols-2 gap-2 text-sm">
           <dt className="text-foreground-secondary">Mapped projects</dt>
-          <dd>{status.data?.mappedProjects ?? '—'}</dd>
+          <dd>{mappings.data?.mappedProjects ?? '—'}</dd>
           <dt className="text-foreground-secondary">Mapped tasks</dt>
-          <dd>{status.data?.mappedTasks ?? '—'}</dd>
-          <dt className="text-foreground-secondary">Last poll</dt>
-          <dd>{formatDate(config.data?.lastPollAt)}</dd>
-          <dt className="text-foreground-secondary">Last hierarchy pass</dt>
-          <dd>{formatDate(config.data?.lastHierarchySyncAt)}</dd>
+          <dd>{mappings.data?.mappedTasks ?? '—'}</dd>
         </dl>
       </Card.Content>
 
@@ -317,20 +288,14 @@ export function ActivityCard() {
               <thead className="text-foreground-secondary">
                 <tr>
                   <th className="py-1 pr-4 font-medium">When</th>
-                  <th className="py-1 pr-4 font-medium">Entity</th>
-                  <th className="py-1 pr-4 font-medium">Action</th>
-                  <th className="py-1 font-medium">Message</th>
+                  <th className="py-1 font-medium">Description</th>
                 </tr>
               </thead>
               <tbody>
                 {entries.map((entry) => (
                   <tr key={entry.id} className="border-default border-t">
                     <td className="py-1 pr-4 whitespace-nowrap">{formatDate(entry.createdAt)}</td>
-                    <td className="py-1 pr-4">{entry.entity}</td>
-                    <td className="py-1 pr-4">{entry.action}</td>
-                    <td className={entry.level === 'error' ? 'py-1 text-danger' : 'py-1'}>
-                      {entry.message}
-                    </td>
+                    <td className="py-1">{entry.description}</td>
                   </tr>
                 ))}
               </tbody>

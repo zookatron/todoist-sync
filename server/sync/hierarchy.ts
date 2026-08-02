@@ -1,8 +1,8 @@
 import type { TodoistApi } from '@doist/todoist-sdk'
 import { and, eq, inArray } from 'drizzle-orm'
 import { type Database, db as defaultDb } from '../db/index.js'
-import { projectMapping, syncConfig, syncLog } from '../db/schema/sync.js'
-import { env } from '../env.js'
+import { todoistIntegration } from '../db/schema/integrations.js'
+import { projectMapping, syncLog } from '../db/schema/sync.js'
 import { getGlassfrogClient } from '../glassfrog/client.js'
 import { logger } from '../logger.js'
 import { callTodoist, moveTodoistProject } from '../todoist/client.js'
@@ -13,8 +13,6 @@ import {
   diffHierarchy,
   type HierarchyOperation,
 } from './hierarchy-diff.js'
-
-export type PruneMode = 'dry-run' | 'archive'
 
 export type HierarchyResult = {
   created: number
@@ -99,8 +97,10 @@ export async function syncHierarchy(
   const db = options.db ?? defaultDb
   const log = logger.child({ userId, job: 'hierarchy' })
 
-  const config = await db.query.syncConfig.findFirst({ where: eq(syncConfig.userId, userId) })
-  const rootId = config?.rootTodoistProjectId
+  const integration = await db.query.todoistIntegration.findFirst({
+    where: eq(todoistIntegration.userId, userId),
+  })
+  const rootId = integration?.rootTodoistProjectId
 
   if (!rootId) {
     log.debug('No root Todoist project configured; skipping hierarchy sync')
@@ -129,27 +129,12 @@ export async function syncHierarchy(
   })
 
   if (operations.length === 0) {
-    await db
-      .update(syncConfig)
-      .set({ lastHierarchySyncAt: new Date() })
-      .where(eq(syncConfig.userId, userId))
     return { created: 0, renamed: 0, moved: 0, archived: 0, skipped: 0 }
   }
 
   log.info({ operations: operations.length }, 'Applying hierarchy changes')
 
-  return applyOperations({
-    userId,
-    db,
-    rootId,
-    operations,
-    mappings,
-    pruneMode: resolvePruneMode(config?.pruneMode),
-  })
-}
-
-function resolvePruneMode(configured: PruneMode | null | undefined): PruneMode {
-  return configured ?? env.PRUNE_MODE
+  return applyOperations({ userId, db, rootId, operations, mappings })
 }
 
 async function applyOperations(args: {
@@ -158,9 +143,8 @@ async function applyOperations(args: {
   rootId: string
   operations: HierarchyOperation[]
   mappings: { kind: 'role' | 'project'; glassfrogId: string; todoistProjectId: string }[]
-  pruneMode: PruneMode
 }): Promise<HierarchyResult> {
-  const { userId, db, rootId, operations, pruneMode } = args
+  const { userId, db, rootId, operations } = args
   const log = logger.child({ userId, job: 'hierarchy' })
 
   const result: HierarchyResult = { created: 0, renamed: 0, moved: 0, archived: 0, skipped: 0 }
@@ -191,13 +175,11 @@ async function applyOperations(args: {
               glassfrogId: operation.node.glassfrogId,
               todoistProjectId: projectId,
               parentGlassfrogId: operation.node.parentGlassfrogId,
-              name: operation.node.name,
             })
             .onConflictDoUpdate({
               target: [projectMapping.userId, projectMapping.kind, projectMapping.glassfrogId],
               set: {
                 todoistProjectId: projectId,
-                name: operation.node.name,
                 lastSyncedAt: new Date(),
               },
             })
@@ -205,10 +187,12 @@ async function applyOperations(args: {
           result.created += 1
           logEntries.push({
             userId,
-            entity: 'project',
-            entityId: operation.node.glassfrogId,
-            action: 'create',
-            message: `Created Todoist project "${operation.node.name}"`,
+            description: `Created Todoist project "${operation.node.name}"`,
+            metadata: {
+              entity: 'project',
+              action: 'create',
+              glassfrogId: operation.node.glassfrogId,
+            },
           })
           break
         }
@@ -220,7 +204,7 @@ async function applyOperations(args: {
 
           await db
             .update(projectMapping)
-            .set({ name: operation.to, lastSyncedAt: new Date() })
+            .set({ lastSyncedAt: new Date() })
             .where(
               and(
                 eq(projectMapping.userId, userId),
@@ -231,10 +215,8 @@ async function applyOperations(args: {
           result.renamed += 1
           logEntries.push({
             userId,
-            entity: 'project',
-            entityId: operation.glassfrogId,
-            action: 'rename',
-            message: `Renamed "${operation.from}" to "${operation.to}"`,
+            description: `Renamed "${operation.from}" to "${operation.to}"`,
+            metadata: { entity: 'project', action: 'rename', glassfrogId: operation.glassfrogId },
           })
           break
         }
@@ -246,28 +228,13 @@ async function applyOperations(args: {
           result.moved += 1
           logEntries.push({
             userId,
-            entity: 'project',
-            entityId: operation.glassfrogId,
-            action: 'move',
-            message: `Moved project under ${parentId}`,
+            description: `Moved project under ${parentId}`,
+            metadata: { entity: 'project', action: 'move', glassfrogId: operation.glassfrogId },
           })
           break
         }
 
         case 'orphan': {
-          if (pruneMode === 'dry-run') {
-            result.skipped += 1
-            logEntries.push({
-              userId,
-              level: 'warn',
-              entity: 'project',
-              entityId: operation.todoistProjectId,
-              action: 'skip',
-              message: `Would archive "${operation.name}" (PRUNE_MODE=dry-run)`,
-            })
-            break
-          }
-
           // Archive rather than delete: recoverable in Todoist if the mirror is wrong.
           await callTodoist(userId, (api) => api.archiveProject(operation.todoistProjectId))
 
@@ -283,11 +250,12 @@ async function applyOperations(args: {
           result.archived += 1
           logEntries.push({
             userId,
-            level: 'warn',
-            entity: 'project',
-            entityId: operation.todoistProjectId,
-            action: 'archive',
-            message: `Archived "${operation.name}" — no matching Glassfrog role or project`,
+            description: `Archived "${operation.name}" — no matching Glassfrog role or project`,
+            metadata: {
+              entity: 'project',
+              action: 'archive',
+              todoistProjectId: operation.todoistProjectId,
+            },
           })
           break
         }
@@ -297,20 +265,13 @@ async function applyOperations(args: {
       log.error({ err: error, operation: operation.type }, 'Hierarchy operation failed')
       logEntries.push({
         userId,
-        level: 'error',
-        entity: 'project',
-        action: operation.type,
-        message: `Operation failed: ${error instanceof Error ? error.message : String(error)}`,
+        description: `Operation failed: ${error instanceof Error ? error.message : String(error)}`,
+        metadata: { entity: 'project', action: operation.type },
       })
     }
   }
 
   if (logEntries.length > 0) await db.insert(syncLog).values(logEntries)
-
-  await db
-    .update(syncConfig)
-    .set({ lastHierarchySyncAt: new Date() })
-    .where(eq(syncConfig.userId, userId))
 
   // Drop mapping rows whose Todoist project no longer exists.
   await pruneStaleMappings(userId, db)

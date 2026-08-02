@@ -1,4 +1,4 @@
-import { and, count, desc, eq, isNull } from 'drizzle-orm'
+import { count, desc, eq } from 'drizzle-orm'
 import { z } from 'zod'
 import { projectMapping, syncLog, taskMapping } from '../../db/schema/sync.js'
 import { pollQueue } from '../../queue/queues.js'
@@ -15,7 +15,7 @@ export const syncRouter = router({
     const [tasks] = await ctx.db
       .select({ value: count() })
       .from(taskMapping)
-      .where(and(eq(taskMapping.userId, ctx.user.id), isNull(taskMapping.deletedAt)))
+      .where(eq(taskMapping.userId, ctx.user.id))
 
     return {
       mappedProjects: projects?.value ?? 0,

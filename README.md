@@ -78,15 +78,11 @@ Todoist project. Set `ALLOW_SIGNUP=false` afterwards to close the instance.
 
 ## Configuration
 
-| Variable           | Default   | Purpose                                                           |
-| ------------------ | --------- | ----------------------------------------------------------------- |
-| `SYNC_INTERVAL_MS` | `60000`   | How often the poll job runs                                       |
-| `PRUNE_MODE`       | `archive` | `dry-run` logs unmapped Todoist projects; `archive` archives them |
-| `ALLOW_SIGNUP`     | `true`    | Set `false` to close signups after creating your account          |
-| `LOG_LEVEL`        | `info`    | pino log level                                                    |
-
-**Tip:** run with `PRUNE_MODE=dry-run` for the first sync, check the dashboard activity log to
-confirm the hierarchy looks right, then switch to `archive`.
+| Variable           | Default | Purpose                                                  |
+| ------------------ | ------- | -------------------------------------------------------- |
+| `SYNC_INTERVAL_MS` | `60000` | How often the poll job runs                              |
+| `ALLOW_SIGNUP`     | `true`  | Set `false` to close signups after creating your account |
+| `LOG_LEVEL`        | `info`  | pino log level                                           |
 
 ## Development
 

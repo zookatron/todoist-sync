@@ -1,7 +1,10 @@
 import { revokeToken } from '@doist/todoist-sdk'
+import { TRPCError } from '@trpc/server'
 import { eq } from 'drizzle-orm'
+import { z } from 'zod'
 import { todoistIntegration } from '../../db/schema/integrations.js'
 import { env } from '../../env.js'
+import { unschedulePollForUser } from '../../queue/queues.js'
 import { callTodoist } from '../../todoist/client.js'
 import { protectedProcedure, router } from '../init.js'
 
@@ -15,10 +18,9 @@ export const todoistRouter = router({
 
     return {
       connected: true as const,
-      todoistEmail: integration.todoistEmail,
       expiresAt: integration.expiresAt,
       needsReauth: Boolean(integration.needsReauth),
-      connectedAt: integration.createdAt,
+      rootTodoistProjectId: integration.rootTodoistProjectId,
     }
   }),
 
@@ -47,6 +49,22 @@ export const todoistRouter = router({
     return projects
   }),
 
+  setRootProject: protectedProcedure
+    .input(z.object({ projectId: z.string().min(1) }))
+    .mutation(async ({ ctx, input }) => {
+      const result = await ctx.db
+        .update(todoistIntegration)
+        .set({ rootTodoistProjectId: input.projectId, updatedAt: new Date() })
+        .where(eq(todoistIntegration.userId, ctx.user.id))
+        .returning({ userId: todoistIntegration.userId })
+
+      if (result.length === 0) {
+        throw new TRPCError({ code: 'BAD_REQUEST', message: 'Connect Todoist first.' })
+      }
+
+      return { ok: true }
+    }),
+
   disconnect: protectedProcedure.mutation(async ({ ctx }) => {
     const integration = await ctx.db.query.todoistIntegration.findFirst({
       where: eq(todoistIntegration.userId, ctx.user.id),
@@ -65,6 +83,7 @@ export const todoistRouter = router({
       }
     }
 
+    await unschedulePollForUser(ctx.user.id)
     await ctx.db.delete(todoistIntegration).where(eq(todoistIntegration.userId, ctx.user.id))
 
     return { ok: true }

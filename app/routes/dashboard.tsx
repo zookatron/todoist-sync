@@ -27,13 +27,13 @@ export default function Dashboard({ loaderData }: Route.ComponentProps) {
 
   const todoist = useQuery(trpc.todoist.status.queryOptions())
   const glassfrog = useQuery(trpc.glassfrog.status.queryOptions())
-  const config = useQuery(trpc.config.get.queryOptions())
+
+  const rootTodoistProjectId = todoist.data?.connected ? todoist.data.rootTodoistProjectId : null
 
   const steps = [
     { label: 'Connect your Todoist account', done: Boolean(todoist.data?.connected) },
     { label: 'Save your Glassfrog API key', done: Boolean(glassfrog.data?.connected) },
-    { label: 'Choose a root Todoist project', done: Boolean(config.data?.rootTodoistProjectId) },
-    { label: 'Turn sync on', done: Boolean(config.data?.enabled) },
+    { label: 'Choose a root Todoist project', done: Boolean(rootTodoistProjectId) },
   ]
 
   const setupComplete = steps.every((step) => step.done)
@@ -52,7 +52,7 @@ export default function Dashboard({ loaderData }: Route.ComponentProps) {
         <Card>
           <Card.Header>
             <Card.Title>Setup</Card.Title>
-            <Card.Description>Nothing syncs until all four steps are done.</Card.Description>
+            <Card.Description>Nothing syncs until all three steps are done.</Card.Description>
           </Card.Header>
           <Card.Content>
             <ol className="flex flex-col gap-2 text-sm">

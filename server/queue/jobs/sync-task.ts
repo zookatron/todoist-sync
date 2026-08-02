@@ -119,7 +119,11 @@ async function syncOne(data: TaskJobData): Promise<void> {
         hash: contentHash(snapshot),
       })
 
-      await record(userId, 'task', glassfrog.action.id, 'create', 'Created Todoist task')
+      await record(userId, 'Created Todoist task', {
+        entity: 'task',
+        action: 'create',
+        glassfrogActionId: glassfrog.action.id,
+      })
       return
     }
 
@@ -161,7 +165,11 @@ async function syncOne(data: TaskJobData): Promise<void> {
         hash: contentHash(snapshot),
       })
 
-      await record(userId, 'task', action.id, 'create', 'Created Glassfrog action')
+      await record(userId, 'Created Glassfrog action', {
+        entity: 'task',
+        action: 'create',
+        glassfrogActionId: action.id,
+      })
       return
     }
 
@@ -196,7 +204,11 @@ async function syncOne(data: TaskJobData): Promise<void> {
         hash: contentHash(decision.snapshot),
       })
 
-      await record(userId, 'task', glassfrog.action.id, 'update', 'Updated Todoist task')
+      await record(userId, 'Updated Todoist task', {
+        entity: 'task',
+        action: 'update',
+        glassfrogActionId: glassfrog.action.id,
+      })
       return
     }
 
@@ -253,7 +265,11 @@ async function syncOne(data: TaskJobData): Promise<void> {
         hash: contentHash(decision.snapshot),
       })
 
-      await record(userId, 'task', glassfrogActionId, 'update', 'Updated Glassfrog action')
+      await record(userId, 'Updated Glassfrog action', {
+        entity: 'task',
+        action: 'update',
+        glassfrogActionId,
+      })
       return
     }
 
@@ -261,8 +277,12 @@ async function syncOne(data: TaskJobData): Promise<void> {
       if (todoistTaskId) {
         await callTodoist(userId, (api) => api.deleteTask(todoistTaskId))
       }
-      await tombstone(mapping?.id)
-      await record(userId, 'task', todoistTaskId, 'delete', 'Deleted Todoist task')
+      await deleteMapping(mapping?.id)
+      await record(userId, 'Deleted Todoist task', {
+        entity: 'task',
+        action: 'delete',
+        todoistTaskId,
+      })
       return
     }
 
@@ -270,8 +290,12 @@ async function syncOne(data: TaskJobData): Promise<void> {
       if (glassfrogActionId) {
         await deleteAction({ client, path: { id: glassfrogActionId }, throwOnError: true })
       }
-      await tombstone(mapping?.id)
-      await record(userId, 'task', glassfrogActionId, 'delete', 'Deleted Glassfrog action')
+      await deleteMapping(mapping?.id)
+      await record(userId, 'Deleted Glassfrog action', {
+        entity: 'task',
+        action: 'delete',
+        glassfrogActionId,
+      })
       return
     }
   }
@@ -435,7 +459,6 @@ async function upsertMapping(args: {
     glassfrogUpdatedAt: args.glassfrogUpdatedAt,
     todoistUpdatedAt: args.todoistUpdatedAt,
     contentHash: args.hash,
-    deletedAt: null,
     lastSyncedAt: new Date(),
   }
 
@@ -447,20 +470,15 @@ async function upsertMapping(args: {
   await db.insert(taskMapping).values(values)
 }
 
-async function tombstone(mappingId?: string): Promise<void> {
+async function deleteMapping(mappingId?: string): Promise<void> {
   if (!mappingId) return
-  await db
-    .update(taskMapping)
-    .set({ deletedAt: new Date(), lastSyncedAt: new Date() })
-    .where(eq(taskMapping.id, mappingId))
+  await db.delete(taskMapping).where(eq(taskMapping.id, mappingId))
 }
 
 async function record(
   userId: string,
-  entity: string,
-  entityId: string | null,
-  action: string,
-  message: string,
+  description: string,
+  metadata?: Record<string, unknown>,
 ): Promise<void> {
-  await db.insert(syncLog).values({ userId, entity, entityId, action, message })
+  await db.insert(syncLog).values({ userId, description, metadata })
 }

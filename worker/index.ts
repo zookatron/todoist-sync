@@ -1,7 +1,6 @@
 import { Worker } from 'bullmq'
-import { eq } from 'drizzle-orm'
 import { db, pool } from '../server/db/index.js'
-import { syncConfig } from '../server/db/schema/sync.js'
+import { todoistIntegration } from '../server/db/schema/integrations.js'
 import { env } from '../server/env.js'
 import { cleanupExpiredLocks } from '../server/lock.js'
 import { logger } from '../server/logger.js'
@@ -20,23 +19,20 @@ import {
 const log = logger.child({ process: 'worker' })
 
 /**
- * Registers a recurring poll for every user who has sync switched on.
+ * Registers a recurring poll for every user who has connected Todoist.
  *
  * Re-run at boot so schedulers survive a Redis flush, and so an interval change in the
  * environment takes effect (upsertJobScheduler updates an existing entry in place).
  */
 async function registerSchedulers(): Promise<void> {
-  const enabled = await db
-    .select({ userId: syncConfig.userId })
-    .from(syncConfig)
-    .where(eq(syncConfig.enabled, true))
+  const connected = await db.select({ userId: todoistIntegration.userId }).from(todoistIntegration)
 
-  for (const { userId } of enabled) {
+  for (const { userId } of connected) {
     await schedulePollForUser(userId)
   }
 
   log.info(
-    { users: enabled.length, intervalMs: env.SYNC_INTERVAL_MS },
+    { users: connected.length, intervalMs: env.SYNC_INTERVAL_MS },
     'Registered poll schedulers',
   )
 }

@@ -1,6 +1,7 @@
-import { and, eq, isNull } from 'drizzle-orm'
+import { and, eq } from 'drizzle-orm'
 import { db } from '../../db/index.js'
-import { projectMapping, syncConfig, taskMapping } from '../../db/schema/sync.js'
+import { glassfrogIntegration, todoistIntegration } from '../../db/schema/integrations.js'
+import { projectMapping, taskMapping } from '../../db/schema/sync.js'
 import { env } from '../../env.js'
 import { getGlassfrogClient, paginateAll } from '../../glassfrog/client.js'
 import { diffGlassfrogActions } from '../../glassfrog/delta.js'
@@ -16,7 +17,7 @@ import { type TaskJobData, taskJobId, taskQueue } from '../queues.js'
 export type PollResult = {
   hierarchy: Awaited<ReturnType<typeof syncHierarchy>>
   enqueued: number
-  skipped?: 'locked' | 'disabled' | 'not-configured'
+  skipped?: 'locked' | 'not-configured'
 }
 
 const EMPTY_HIERARCHY = { created: 0, renamed: 0, moved: 0, archived: 0, skipped: 0 }
@@ -49,10 +50,19 @@ export async function runPoll(userId: string): Promise<PollResult> {
 async function poll(userId: string): Promise<PollResult> {
   const log = logger.child({ userId, job: 'poll' })
 
-  const config = await db.query.syncConfig.findFirst({ where: eq(syncConfig.userId, userId) })
+  const integration = await db.query.todoistIntegration.findFirst({
+    where: eq(todoistIntegration.userId, userId),
+  })
 
-  if (!config?.enabled) return { hierarchy: EMPTY_HIERARCHY, enqueued: 0, skipped: 'disabled' }
-  if (!config.rootTodoistProjectId) {
+  if (!integration?.rootTodoistProjectId) {
+    return { hierarchy: EMPTY_HIERARCHY, enqueued: 0, skipped: 'not-configured' }
+  }
+
+  const glassfrog = await db.query.glassfrogIntegration.findFirst({
+    where: eq(glassfrogIntegration.userId, userId),
+  })
+
+  if (!glassfrog) {
     return { hierarchy: EMPTY_HIERARCHY, enqueued: 0, skipped: 'not-configured' }
   }
 
@@ -95,11 +105,9 @@ async function poll(userId: string): Promise<PollResult> {
   // this point re-delivers those changes rather than dropping them.
   if (todoist.syncToken) {
     await db
-      .update(syncConfig)
-      .set({ todoistSyncToken: todoist.syncToken, lastPollAt: new Date() })
-      .where(eq(syncConfig.userId, userId))
-  } else {
-    await db.update(syncConfig).set({ lastPollAt: new Date() }).where(eq(syncConfig.userId, userId))
+      .update(todoistIntegration)
+      .set({ todoistSyncToken: todoist.syncToken })
+      .where(eq(todoistIntegration.userId, userId))
   }
 
   if (jobs.size > 0) log.info({ enqueued: jobs.size }, 'Queued task sync jobs')
@@ -126,7 +134,7 @@ async function detectGlassfrogChanges(userId: string) {
       glassfrogUpdatedAt: taskMapping.glassfrogUpdatedAt,
     })
     .from(taskMapping)
-    .where(and(eq(taskMapping.userId, userId), isNull(taskMapping.deletedAt)))
+    .where(eq(taskMapping.userId, userId))
 
   return diffGlassfrogActions({
     actions: actions.map((action) => ({ id: action.id, updated_at: action.updated_at })),
@@ -143,12 +151,14 @@ async function detectGlassfrogChanges(userId: string) {
 
 /** Pulls the incremental Todoist delta and narrows it to the mirrored tree. */
 async function detectTodoistChanges(userId: string) {
-  const config = await db.query.syncConfig.findFirst({ where: eq(syncConfig.userId, userId) })
+  const integration = await db.query.todoistIntegration.findFirst({
+    where: eq(todoistIntegration.userId, userId),
+  })
 
   const response = await callTodoist(userId, (api) =>
     api.sync({
       // '*' asks for a full sync, which is what we want on the very first poll.
-      syncToken: config?.todoistSyncToken ?? '*',
+      syncToken: integration?.todoistSyncToken ?? '*',
       resourceTypes: ['items'],
     }),
   )
@@ -167,7 +177,7 @@ async function detectTodoistChanges(userId: string) {
       await db
         .select({ todoistTaskId: taskMapping.todoistTaskId })
         .from(taskMapping)
-        .where(and(eq(taskMapping.userId, userId), isNull(taskMapping.deletedAt)))
+        .where(eq(taskMapping.userId, userId))
     )
       .map((row) => row.todoistTaskId)
       .filter((id): id is string => Boolean(id)),
