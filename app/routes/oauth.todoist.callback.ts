@@ -24,7 +24,7 @@ async function failed(reason: string) {
 
 /**
  * Step 2 of the Todoist OAuth flow: verify `state`, exchange the code for tokens, and
- * store them (encrypted at rest by the `encryptedText` column type).
+ * store them.
  */
 export async function loader({ request, context }: Route.LoaderArgs) {
   const user = context.get(userContext)

@@ -39,8 +39,6 @@ jobs:
       REDIS_URL: redis://localhost:6379
       BETTER_AUTH_SECRET: ci-secret-value-that-is-at-least-32-chars
       BETTER_AUTH_URL: http://localhost:5173
-      # Deterministic throwaway key for CI only.
-      ENCRYPTION_KEY: AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=
       TODOIST_CLIENT_ID: ci-client-id
       TODOIST_CLIENT_SECRET: ci-client-secret
       TODOIST_REDIRECT_URI: http://localhost:5173/oauth/todoist/callback

@@ -13,11 +13,6 @@ const EnvSchema = z.object({
   BETTER_AUTH_SECRET: z.string().min(32, 'BETTER_AUTH_SECRET must be at least 32 characters'),
   BETTER_AUTH_URL: z.string().url(),
 
-  /** 32 raw bytes, base64-encoded. Generate with: openssl rand -base64 32 */
-  ENCRYPTION_KEY: z.string().refine((value) => Buffer.from(value, 'base64').length === 32, {
-    message: 'ENCRYPTION_KEY must be 32 bytes encoded as base64 (openssl rand -base64 32)',
-  }),
-
   TODOIST_CLIENT_ID: z.string().min(1),
   TODOIST_CLIENT_SECRET: z.string().min(1),
   TODOIST_REDIRECT_URI: z.string().url(),

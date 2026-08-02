@@ -45,9 +45,8 @@ Read `docs/ARCHITECTURE.md` for the sync data flow.
   generated from the vendored `openapi/glassfrog.json`. To change it, run
   `yarn gen:glassfrog:fetch` and review the diff. Generated files are committed, and are
   excluded from ESLint and from `prettier --write` (the generator formats them itself).
-- **Never log credentials.** Todoist tokens and the Glassfrog API key are encrypted at rest via
-  the `encryptedText` Drizzle column type (`server/crypto.ts`). The pino logger has a redaction
-  list; keep it current.
+- **Never log credentials.** Todoist tokens and the Glassfrog API key are stored in plaintext in
+  the database. The pino logger has a redaction list; keep it current.
 - **Always get Todoist tokens via `getValidAccessToken(userId)`** (`server/todoist/tokens.ts`).
   Never read the token column directly — access tokens expire hourly and refresh tokens
   **rotate**, so a bypassed refresh path will brick the connection.

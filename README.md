@@ -47,18 +47,16 @@ Note the client ID and client secret. The app requests the `data:read_write`, `d
 ### 3. Glassfrog API key
 
 Generate an **API v5** key from your Glassfrog profile. You paste it into the dashboard after
-signing in — it is encrypted before being stored.
+signing in.
 
 ### 4. Environment
 
 ```bash
 cp .env.example .env
 openssl rand -base64 32    # → BETTER_AUTH_SECRET
-openssl rand -base64 32    # → ENCRYPTION_KEY
 ```
 
-Fill in the Todoist client ID and secret. `ENCRYPTION_KEY` must be exactly 32 bytes, base64
-encoded — **changing it later makes every stored credential unreadable.**
+Fill in the Todoist client ID and secret.
 
 ### 5. Install and run
 

@@ -1,5 +1,4 @@
 import { pgTable, text, timestamp } from 'drizzle-orm/pg-core'
-import { encryptedText } from '../../crypto.js'
 import { user } from './auth.js'
 
 /**
@@ -13,9 +12,9 @@ export const todoistIntegration = pgTable('todoist_integration', {
   userId: text('user_id')
     .primaryKey()
     .references(() => user.id, { onDelete: 'cascade' }),
-  accessToken: encryptedText('access_token').notNull(),
+  accessToken: text('access_token').notNull(),
   /** Absent only for legacy Todoist apps that issue long-lived tokens. */
-  refreshToken: encryptedText('refresh_token'),
+  refreshToken: text('refresh_token'),
   /** Null means the token does not expire (legacy long-lived token). */
   expiresAt: timestamp('expires_at', { withTimezone: true }),
   scope: text('scope'),
@@ -37,7 +36,7 @@ export const glassfrogIntegration = pgTable('glassfrog_integration', {
   userId: text('user_id')
     .primaryKey()
     .references(() => user.id, { onDelete: 'cascade' }),
-  apiKey: encryptedText('api_key').notNull(),
+  apiKey: text('api_key').notNull(),
   /** Populated from GET /me when the key is saved, so the UI can confirm the identity. */
   personId: text('person_id'),
   personName: text('person_name'),

@@ -26,7 +26,7 @@ export function createGlassfrogClient(apiKey: string): Client {
   )
 }
 
-/** Builds a client from the user's stored (encrypted) key. */
+/** Builds a client from the user's stored key. */
 export async function getGlassfrogClient(userId: string): Promise<Client> {
   const integration = await db.query.glassfrogIntegration.findFirst({
     where: eq(glassfrogIntegration.userId, userId),

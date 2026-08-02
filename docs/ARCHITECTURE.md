@@ -102,8 +102,7 @@ so a crashed worker cannot deadlock the system.
 
 ## Credentials
 
-Todoist tokens and the Glassfrog API key are encrypted with AES-256-GCM before they reach the
-database, via a Drizzle `customType` (`server/crypto.ts`) — call sites read and write plaintext.
+Todoist tokens and the Glassfrog API key are stored in plaintext in the database.
 
 Todoist access tokens expire after an hour and **the refresh token rotates on every refresh**,
 with the previous one dying after ~60 seconds. `getValidAccessToken()` therefore takes the token
