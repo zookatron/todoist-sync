@@ -11,4 +11,5 @@ export default [
 
   // Resource routes (no UI).
   route('api/auth/*', 'routes/api.auth.$.ts'),
+  route('api/trpc/*', 'routes/api.trpc.$.ts'),
 ] satisfies RouteConfig
