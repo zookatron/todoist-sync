@@ -1,0 +1,12 @@
+pre-commit:
+  parallel: true
+  jobs:
+    - name: biome
+      glob: "*.{js,ts,jsx,tsx,json,jsonc,css}"
+      run: node scripts/biome.mjs check --write --no-errors-on-unmatched {staged_files}
+      stage_fixed: true
+
+pre-push:
+  jobs:
+    - name: typecheck
+      run: npm run typecheck

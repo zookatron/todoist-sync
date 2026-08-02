@@ -1,0 +1,68 @@
+name: CI
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: todoist_sync
+          POSTGRES_PASSWORD: todoist_sync
+          POSTGRES_DB: todoist_sync
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U todoist_sync"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+      redis:
+        image: redis:8-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      DATABASE_URL: postgres://todoist_sync:todoist_sync@localhost:5432/todoist_sync
+      REDIS_URL: redis://localhost:6379
+      BETTER_AUTH_SECRET: ci-secret-value-that-is-at-least-32-chars
+      BETTER_AUTH_URL: http://localhost:5173
+      # Deterministic throwaway key for CI only.
+      ENCRYPTION_KEY: AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=
+      TODOIST_CLIENT_ID: ci-client-id
+      TODOIST_CLIENT_SECRET: ci-client-secret
+      TODOIST_REDIRECT_URI: http://localhost:5173/oauth/todoist/callback
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          cache: npm
+
+      - run: npm ci
+
+      - name: Apply migrations
+        run: npm run db:migrate
+
+      - name: Lint and typecheck
+        run: npm run check
+
+      - name: Test
+        run: npm run test
+
+      - name: Build
+        run: npm run build
