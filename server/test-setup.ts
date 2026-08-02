@@ -7,3 +7,8 @@ import { existsSync } from 'node:fs'
 if (existsSync('.env')) {
   process.loadEnvFile('.env')
 }
+
+// Tests deliberately exercise failure paths, so real log output is just noise.
+// Override with LOG_LEVEL=debug when diagnosing a test.
+process.env.LOG_LEVEL = process.env.VITEST_LOG_LEVEL ?? 'silent'
+process.env.NODE_ENV = 'test'

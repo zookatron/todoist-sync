@@ -37,7 +37,7 @@ const EnvSchema = z.object({
     .default('true')
     .transform((value) => value === 'true'),
 
-  LOG_LEVEL: z.enum(['trace', 'debug', 'info', 'warn', 'error', 'fatal']).default('info'),
+  LOG_LEVEL: z.enum(['trace', 'debug', 'info', 'warn', 'error', 'fatal', 'silent']).default('info'),
 })
 
 export type Env = z.infer<typeof EnvSchema>
