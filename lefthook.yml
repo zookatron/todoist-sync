@@ -1,15 +1,11 @@
 pre-commit:
   parallel: false
   jobs:
-    - name: prettier
-      glob: '*.{js,mjs,ts,tsx,json,jsonc,css,md,yml,yaml}'
-      run: yarn prettier --write --ignore-unknown {staged_files}
-      stage_fixed: true
+    - name: format
+      run: yarn format:check
 
-    - name: eslint
-      glob: '*.{js,mjs,ts,tsx}'
-      run: yarn eslint --fix --no-warn-ignored {staged_files}
-      stage_fixed: true
+    - name: lint
+      run: yarn lint
 
 pre-push:
   jobs:
