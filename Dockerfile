@@ -1,3 +1,4 @@
+# One image runs both processes; `command` in docker-compose picks which.
 FROM node:24-alpine AS development-dependencies-env
 COPY . /app
 WORKDIR /app
@@ -12,11 +13,16 @@ FROM node:24-alpine AS build-env
 COPY . /app/
 COPY --from=development-dependencies-env /app/node_modules /app/node_modules
 WORKDIR /app
+# Builds the React Router app and bundles worker/index.ts into build/worker/.
 RUN npm run build
 
 FROM node:24-alpine
 COPY ./package.json package-lock.json /app/
 COPY --from=production-dependencies-env /app/node_modules /app/node_modules
 COPY --from=build-env /app/build /app/build
+# Migrations are applied by the web container at startup.
+COPY --from=build-env /app/drizzle /app/drizzle
+COPY --from=build-env /app/drizzle.config.ts /app/drizzle.config.ts
 WORKDIR /app
+EXPOSE 3000
 CMD ["npm", "run", "start"]

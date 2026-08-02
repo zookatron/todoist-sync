@@ -10,3 +10,5 @@
 # Tooling
 /coverage/
 *.log
+
+# Bundled worker output lives under /build (already ignored)

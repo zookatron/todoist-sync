@@ -107,6 +107,18 @@ the client is generated from that file. To pick up upstream changes:
 npm run gen:glassfrog:fetch   # re-download the spec + regenerate, then review the diff
 ```
 
+## Running it in Docker
+
+`docker compose up -d` starts only Postgres and Redis, which is what you want while
+developing. To run the app itself in containers as well:
+
+```bash
+docker compose --profile app up -d --build
+```
+
+That starts two services from one image — `web` (applies migrations, then serves on port 3000)
+and `worker` — and reads your `.env`. `GET /healthz` reports the status of both datastores.
+
 ## Architecture
 
 See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md). Contributors using Claude Code should also read

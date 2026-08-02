@@ -30,6 +30,39 @@ services:
       timeout: 5s
       retries: 10
 
+  # The app itself. Behind the `app` profile so plain `docker compose up -d` still
+  # brings up only the datastores for local development:
+  #   docker compose --profile app up -d --build
+  web:
+    profiles: ["app"]
+    build: .
+    restart: unless-stopped
+    command: sh -c "npx drizzle-kit migrate && npm run start"
+    env_file: .env
+    environment:
+      DATABASE_URL: postgres://todoist_sync:todoist_sync@postgres:5432/todoist_sync
+      REDIS_URL: redis://redis:6379
+    ports:
+      - "3000:3000"
+    depends_on:
+      postgres: { condition: service_healthy }
+      redis: { condition: service_healthy }
+
+  worker:
+    profiles: ["app"]
+    build: .
+    restart: unless-stopped
+    command: npm run worker
+    env_file: .env
+    environment:
+      DATABASE_URL: postgres://todoist_sync:todoist_sync@postgres:5432/todoist_sync
+      REDIS_URL: redis://redis:6379
+    depends_on:
+      postgres: { condition: service_healthy }
+      redis: { condition: service_healthy }
+      # Migrations run in `web`; the worker must not start against an old schema.
+      web: { condition: service_started }
+
 volumes:
   postgres_data:
   redis_data:

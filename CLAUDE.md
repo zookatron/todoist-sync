@@ -77,6 +77,14 @@ npm run test              # vitest (needs postgres up)
 npm run db:generate       # after editing server/db/schema/
 ```
 
+Two notes on this machine specifically:
+
+- **Biome cannot run its prebuilt binary on NixOS.** Always invoke it through
+  `npm run lint` / `scripts/biome.mjs`, which falls back to `nix run nixpkgs#biome`. A bare
+  `npx biome` will fail. For the same reason `openapi-ts` has no `format` post-processor.
+- **The worker is bundled for production** (`npm run build:worker` → `build/worker/index.js`)
+  so `tsx` stays a dev dependency. `npm run dev:worker` still runs the TypeScript directly.
+
 ## API constraints worth remembering
 
 - **Glassfrog v5 is beta.** It has **no org-wide action list** and **no `updated_since` filter**.
