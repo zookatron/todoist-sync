@@ -1,7 +1,6 @@
 import { getAuthToken } from '@doist/todoist-sdk'
 import { db } from '@server/db/index.js'
 import { todoistIntegration } from '@server/db/schema/integrations.js'
-import { schedulePollForUser } from '@server/queue/queues.js'
 import { todoistOAuthStateCookie } from '@server/todoist/oauth.js'
 import { todoistTransport } from '@server/todoist/transport.js'
 import { env } from '@server/utils/env.js'
@@ -82,8 +81,6 @@ export async function loader({ request, context }: Route.LoaderArgs) {
     .insert(todoistIntegration)
     .values(values)
     .onConflictDoUpdate({ target: todoistIntegration.userId, set: values })
-
-  await schedulePollForUser(user.id)
 
   logger.info(
     { userId: user.id, expiresIn: token.expiresIn, hasRefreshToken: Boolean(token.refreshToken) },

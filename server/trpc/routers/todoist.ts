@@ -3,7 +3,6 @@ import { TRPCError } from '@trpc/server'
 import { eq } from 'drizzle-orm'
 import { z } from 'zod'
 import { todoistIntegration } from '../../db/schema/integrations.js'
-import { unschedulePollForUser } from '../../queue/queues.js'
 import { callTodoist } from '../../todoist/client.js'
 import { todoistTransport } from '../../todoist/transport.js'
 import { env } from '../../utils/env.js'
@@ -87,7 +86,6 @@ export const todoistRouter = router({
       }
     }
 
-    await unschedulePollForUser(ctx.user.id)
     await ctx.db.delete(todoistIntegration).where(eq(todoistIntegration.userId, ctx.user.id))
 
     return { ok: true }

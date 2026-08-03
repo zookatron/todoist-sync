@@ -113,7 +113,6 @@ export class QueueSimulator {
         this.schedulers.set(id, template?.data)
         return Promise.resolve(undefined)
       },
-      removeJobScheduler: (id) => Promise.resolve(this.schedulers.delete(id)),
     }
 
     const taskQueue: TaskQueueLike = { add: this.task.add, close: this.task.close }

@@ -2,49 +2,35 @@
 import '../server/utils/load-env.js'
 
 import { Worker } from 'bullmq'
-import { db, pool } from '../server/db/index.js'
-import { todoistIntegration } from '../server/db/schema/integrations.js'
+import { pool } from '../server/db/index.js'
 import { cleanupExpiredLocks } from '../server/utils/lock.js'
 import { env } from '../server/utils/env.js'
 import { logger } from '../server/utils/logger.js'
 import { runPoll } from '../server/queue/jobs/poll.js'
+import { runPollTick } from '../server/queue/jobs/poll-tick.js'
 import { runTaskSync } from '../server/queue/jobs/sync-task.js'
 import {
   closeQueues,
   getConnection,
   POLL_QUEUE,
+  POLL_TICK_JOB,
   type PollJobData,
-  schedulePollForUser,
+  scheduleGlobalPoll,
   TASK_QUEUE,
   type TaskJobData,
 } from '../server/queue/queues.js'
 
 const log = logger.child({ process: 'worker' })
 
-/**
- * Registers a recurring poll for every user who has connected Todoist.
- *
- * Re-run at boot so schedulers survive a Redis flush, and so an interval change in the
- * environment takes effect (upsertJobScheduler updates an existing entry in place).
- */
-async function registerSchedulers(): Promise<void> {
-  const connected = await db.select({ userId: todoistIntegration.userId }).from(todoistIntegration)
-
-  for (const { userId } of connected) {
-    await schedulePollForUser(userId)
-  }
-
-  log.info(
-    { users: connected.length, intervalMs: env.SYNC_INTERVAL_MS },
-    'Registered poll schedulers',
-  )
-}
-
-const pollWorker = new Worker<PollJobData>(POLL_QUEUE, async (job) => runPoll(job.data.userId), {
-  connection: getConnection(),
-  // One poll at a time: they are per-user and already lock-protected.
-  concurrency: 1,
-})
+const pollWorker = new Worker<PollJobData>(
+  POLL_QUEUE,
+  async (job) => (job.name === POLL_TICK_JOB ? runPollTick() : runPoll(job.data.userId)),
+  {
+    connection: getConnection(),
+    // One poll at a time: ticks are cheap, and per-user polls are already lock-protected.
+    concurrency: 1,
+  },
+)
 
 const taskWorker = new Worker<TaskJobData>(
   TASK_QUEUE,
@@ -98,5 +84,6 @@ async function shutdown(signal: string): Promise<void> {
 process.on('SIGTERM', () => void shutdown('SIGTERM'))
 process.on('SIGINT', () => void shutdown('SIGINT'))
 
-await registerSchedulers()
+await scheduleGlobalPoll()
+log.info({ intervalMs: env.SYNC_INTERVAL_MS }, 'Registered global poll scheduler')
 log.info('Worker ready')

@@ -39,7 +39,6 @@ export type PollQueueLike = {
     repeatOpts: Omit<RepeatOptions, 'key'>,
     jobTemplate?: { name?: string; data?: PollJobData; opts?: JobSchedulerTemplateOptions },
   ): Promise<unknown>
-  removeJobScheduler(jobSchedulerId: string): Promise<boolean>
 }
 
 const defaultJobOptions: JobsOptions = {
@@ -113,17 +112,23 @@ export function taskJobId(data: TaskJobData): string {
   return `task:${data.userId}:${key}`
 }
 
-/** Registers (or updates) the recurring poll for a user. */
-export async function schedulePollForUser(userId: string): Promise<void> {
-  await getPollQueue().upsertJobScheduler(
-    `poll:${userId}`,
-    { every: env.SYNC_INTERVAL_MS },
-    { name: 'poll', data: { userId } },
-  )
-}
+export const POLL_TICK_JOB = 'poll-tick'
 
-export async function unschedulePollForUser(userId: string): Promise<void> {
-  await getPollQueue().removeJobScheduler(`poll:${userId}`)
+const GLOBAL_POLL_SCHEDULER_ID = 'global-poll'
+
+/**
+ * Registers (or updates) the single recurring tick that fans out to per-user poll jobs.
+ *
+ * There is exactly one of these, ever — it does not enumerate users itself, so a newly
+ * signed-up user starts getting polled on the next tick rather than needing a worker
+ * restart. See `runPollTick` for the fan-out.
+ */
+export async function scheduleGlobalPoll(): Promise<void> {
+  await getPollQueue().upsertJobScheduler(
+    GLOBAL_POLL_SCHEDULER_ID,
+    { every: env.SYNC_INTERVAL_MS },
+    { name: POLL_TICK_JOB },
+  )
 }
 
 /** Closes only what was actually built, so this is safe to call in any process. */
