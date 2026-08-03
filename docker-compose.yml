@@ -30,17 +30,29 @@ services:
       timeout: 5s
       retries: 10
 
-  # The app itself. Behind the `app` profile so plain `docker compose up -d` still
-  # brings up only the datastores for local development:
-  #   docker compose --profile app up -d --build
-  web:
-    profiles: ['app']
+  # Applies drizzle migrations and, if INITIAL_USER_EMAIL/INITIAL_USER_PASSWORD are set,
+  # seeds the single user — then serves a health check indefinitely so `web` and `worker`
+  # can depend on schema readiness without racing each other to migrate.
+  migrate:
     build: .
     restart: unless-stopped
-    # drizzle-kit is a runtime dependency, not a dev one: this container applies
-    # migrations at startup, so `workspaces focus --production` has to keep it in
-    # the image. Running the local binary means no network fetch on boot.
-    command: sh -c "yarn drizzle-kit migrate && yarn start"
+    command: yarn migrate
+    env_file: .env
+    environment:
+      DATABASE_URL: postgres://todoist_sync:todoist_sync@postgres:5432/todoist_sync
+      REDIS_URL: redis://redis:6379
+    depends_on:
+      postgres: { condition: service_healthy }
+    healthcheck:
+      test: ['CMD', 'wget', '--quiet', '--tries=1', '--spider', 'http://localhost:3001/healthz']
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  web:
+    build: .
+    restart: unless-stopped
+    command: yarn start
     env_file: .env
     environment:
       DATABASE_URL: postgres://todoist_sync:todoist_sync@postgres:5432/todoist_sync
@@ -48,11 +60,10 @@ services:
     ports:
       - '3000:3000'
     depends_on:
-      postgres: { condition: service_healthy }
+      migrate: { condition: service_healthy }
       redis: { condition: service_healthy }
 
   worker:
-    profiles: ['app']
     build: .
     restart: unless-stopped
     command: yarn worker
@@ -61,10 +72,8 @@ services:
       DATABASE_URL: postgres://todoist_sync:todoist_sync@postgres:5432/todoist_sync
       REDIS_URL: redis://redis:6379
     depends_on:
-      postgres: { condition: service_healthy }
+      migrate: { condition: service_healthy }
       redis: { condition: service_healthy }
-      # Migrations run in `web`; the worker must not start against an old schema.
-      web: { condition: service_started }
 
 volumes:
   postgres_data:

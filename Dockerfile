@@ -1,4 +1,4 @@
-# One image runs both processes; `command` in docker-compose picks which.
+# One image runs all three processes; `command` in docker-compose picks which.
 # Yarn 4 comes from Corepack, pinned by the `packageManager` field in package.json.
 FROM node:24-alpine AS yarn-env
 ENV COREPACK_ENABLE_DOWNLOAD_PROMPT=0
@@ -23,8 +23,8 @@ RUN yarn build
 FROM yarn-env
 COPY --from=production-dependencies-env /app/node_modules /app/node_modules
 COPY --from=build-env /app/build /app/build
-# Migrations are applied by the web container at startup.
+# Raw SQL migrations, applied at startup by the `migrate` container via drizzle-orm's
+# programmatic migrator — drizzle-kit itself is a dev-only dependency, not shipped here.
 COPY --from=build-env /app/drizzle /app/drizzle
-COPY --from=build-env /app/drizzle.config.ts /app/drizzle.config.ts
 EXPOSE 3000
 CMD ["yarn", "start"]

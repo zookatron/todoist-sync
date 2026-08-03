@@ -27,6 +27,18 @@ const EnvSchema = z.object({
     .transform((value) => value === 'true'),
 
   LOG_LEVEL: z.enum(['trace', 'debug', 'info', 'warn', 'error', 'fatal', 'silent']).default('info'),
+
+  /**
+   * Optional one-time account seed, read only by the `migrate` container. Lets a fresh
+   * deployment provision its single user from CI/CD variables without ever opening
+   * public signup — set these instead of flipping ALLOW_SIGNUP to true.
+   */
+  INITIAL_USER_EMAIL: z.string().email().optional(),
+  INITIAL_USER_PASSWORD: z.string().min(12).optional(),
+  INITIAL_USER_NAME: z.string().min(1).default('Admin'),
+
+  /** Health server port for the `migrate` container; unused by the web/worker processes. */
+  MIGRATE_HEALTH_PORT: z.coerce.number().int().positive().default(3001),
 })
 
 export type Env = z.infer<typeof EnvSchema>
@@ -39,6 +51,13 @@ function parseEnv(): Env {
       .map((issue) => `  - ${issue.path.join('.') || '(root)'}: ${issue.message}`)
       .join('\n')
     throw new Error(`Invalid environment configuration:\n${issues}\n\nSee .env.example.`)
+  }
+
+  if (result.data.INITIAL_USER_EMAIL && !result.data.INITIAL_USER_PASSWORD) {
+    throw new Error('INITIAL_USER_PASSWORD is required when INITIAL_USER_EMAIL is set.')
+  }
+  if (result.data.INITIAL_USER_PASSWORD && !result.data.INITIAL_USER_EMAIL) {
+    throw new Error('INITIAL_USER_EMAIL is required when INITIAL_USER_PASSWORD is set.')
   }
 
   return result.data

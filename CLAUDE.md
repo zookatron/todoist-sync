@@ -73,18 +73,19 @@ Read `docs/ARCHITECTURE.md` for the sync data flow.
 ## Commands
 
 ```bash
-corepack enable           # once per machine — provisions the pinned Yarn
-docker compose up -d      # postgres + redis
-yarn install              # `yarn install --immutable` in CI
-yarn db:migrate           # apply migrations
-yarn dev                  # web (5173) + worker together
-yarn check                # prettier --check + eslint + tsc  ← run before finishing work
-yarn format               # prettier --write
-yarn lint:fix             # eslint --fix
-yarn test                 # vitest — needs no postgres, redis or network
-yarn db:generate          # after editing server/db/schema/
-yarn gen:glassfrog:fetch  # re-vendor + regenerate the Glassfrog client
-yarn gen:todoist:fetch    # re-vendor + regenerate the Todoist wire types
+corepack enable                        # once per machine — provisions the pinned Yarn
+docker compose up -d postgres redis    # datastores only, for local dev (`yarn dev`)
+docker compose up -d --build           # full production stack: migrate + web + worker too
+yarn install                           # `yarn install --immutable` in CI
+yarn db:migrate                        # apply migrations
+yarn dev                               # web (5173) + worker together
+yarn check                             # prettier --check + eslint + tsc  ← run before finishing work
+yarn format                            # prettier --write
+yarn lint:fix                          # eslint --fix
+yarn test                              # vitest — needs no postgres, redis or network
+yarn db:generate                       # after editing server/db/schema/
+yarn gen:glassfrog:fetch               # re-vendor + regenerate the Glassfrog client
+yarn gen:todoist:fetch                 # re-vendor + regenerate the Todoist wire types
 ```
 
 ## Testing

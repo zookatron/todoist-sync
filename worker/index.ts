@@ -1,5 +1,5 @@
 // Must stay first: it populates process.env, and the imports below validate it on load.
-import './load-env.js'
+import '../server/utils/load-env.js'
 
 import { Worker } from 'bullmq'
 import { db, pool } from '../server/db/index.js'

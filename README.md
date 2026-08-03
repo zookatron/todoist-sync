@@ -29,8 +29,11 @@ Built for personal use: one account, self-hosted, polling-based.
 
 ### 1. Datastores
 
+For local development you run the web server and worker directly with `yarn dev`, so start
+only Postgres and Redis in Docker:
+
 ```bash
-docker compose up -d
+docker compose up -d postgres redis
 ```
 
 ### 2. Todoist OAuth app
@@ -112,15 +115,20 @@ yarn gen:glassfrog:fetch   # re-download the spec + regenerate, then review the 
 
 ## Running it in Docker
 
-`docker compose up -d` starts only Postgres and Redis, which is what you want while
-developing. To run the app itself in containers as well:
+Plain `docker compose up -d` runs the full production stack: Postgres, Redis, and three
+services built from one image — `migrate`, `web`, and `worker`. (For local development,
+where you run `web`/`worker` directly with `yarn dev`, start only the datastores — see
+[Setup](#1-datastores).)
+
+`migrate` applies drizzle migrations, then seeds the single user account if
+`INITIAL_USER_EMAIL`/`INITIAL_USER_PASSWORD` are set (see `.env.example`), then serves a
+health check indefinitely — `web` and `worker` both wait on it being healthy before they
+start, so migrations only ever run once per deploy. `web` serves on port 3000; `GET
+/healthz` reports the status of both datastores.
 
 ```bash
-docker compose --profile app up -d --build
+docker compose up -d --build
 ```
-
-That starts two services from one image — `web` (applies migrations, then serves on port 3000)
-and `worker` — and reads your `.env`. `GET /healthz` reports the status of both datastores.
 
 ## Architecture
 
