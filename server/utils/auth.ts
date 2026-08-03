@@ -22,7 +22,7 @@ export const auth = betterAuth({
     enabled: true,
     disableSignUp: !env.ALLOW_SIGNUP,
     requireEmailVerification: false,
-    minPasswordLength: 12,
+    minPasswordLength: 8,
   },
   session: {
     expiresIn: 60 * 60 * 24 * 30, // 30 days
