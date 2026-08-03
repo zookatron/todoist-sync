@@ -2,10 +2,11 @@ import { randomUUID } from 'node:crypto'
 import { TodoistApi, TodoistRequestError } from '@doist/todoist-sdk'
 import { logger } from '../utils/logger.js'
 import { getValidAccessToken } from './oauth.js'
+import { todoistTransport } from './transport.js'
 
 /** Builds a client bound to the user's current access token. */
 export async function getTodoistApi(userId: string): Promise<TodoistApi> {
-  return new TodoistApi(await getValidAccessToken(userId))
+  return new TodoistApi(await getValidAccessToken(userId), todoistTransport())
 }
 
 function retryAfterMs(error: TodoistRequestError): number | null {
@@ -35,7 +36,7 @@ export async function callTodoist<T>(
   let refreshed = false
 
   for (let attempt = 0; ; attempt++) {
-    const api = new TodoistApi(await getValidAccessToken(userId, refreshed))
+    const api = new TodoistApi(await getValidAccessToken(userId, refreshed), todoistTransport())
 
     try {
       return await fn(api)

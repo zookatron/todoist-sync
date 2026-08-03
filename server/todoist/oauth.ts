@@ -7,6 +7,7 @@ import { todoistIntegration } from '../db/schema/integrations.js'
 import { env } from '../utils/env.js'
 import { LockUnavailableError, withLock } from '../utils/lock.js'
 import { logger } from '../utils/logger.js'
+import { todoistTransport } from './transport.js'
 
 /**
  * Scopes requested during authorization.
@@ -80,11 +81,14 @@ async function loadIntegration(userId: string) {
  */
 async function refreshAndPersist(userId: string, refreshToken: string): Promise<string> {
   try {
-    const refreshed = await refreshAuthToken({
-      clientId: env.TODOIST_CLIENT_ID,
-      clientSecret: env.TODOIST_CLIENT_SECRET,
-      refreshToken,
-    })
+    const refreshed = await refreshAuthToken(
+      {
+        clientId: env.TODOIST_CLIENT_ID,
+        clientSecret: env.TODOIST_CLIENT_SECRET,
+        refreshToken,
+      },
+      todoistTransport(),
+    )
 
     await db
       .update(todoistIntegration)

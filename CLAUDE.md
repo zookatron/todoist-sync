@@ -45,14 +45,18 @@ Read `docs/ARCHITECTURE.md` for the sync data flow.
   generated from the vendored `openapi/glassfrog.json`. To change it, run
   `yarn gen:glassfrog:fetch` and review the diff. Generated files are committed, and are
   excluded from ESLint and from `prettier --write` (the generator formats them itself).
+  `server/todoist/generated/` is the same arrangement (`yarn gen:todoist:fetch`) but is
+  **types only** — the app talks to Todoist through the SDK, and these types exist to
+  describe the _wire_ format for the test simulator.
 - **Never log credentials.** Todoist tokens and the Glassfrog API key are stored in plaintext in
   the database. The pino logger has a redaction list; keep it current.
 - **Always get Todoist tokens via `getValidAccessToken(userId)`** (`server/todoist/oauth.ts`).
   Never read the token column directly — access tokens expire hourly and refresh tokens
   **rotate**, so a bypassed refresh path will brick the connection.
 - **Sync decision logic must stay pure.** `server/sync/resolve.ts` and the hierarchy diff take
-  plain data and return operations, with no I/O. That is what makes them testable; keep API calls
-  in the callers.
+  plain data and return operations, with no I/O. That is what makes them unit-testable; keep API
+  calls in the callers. (The stateful callers around them are covered end to end instead — see
+  Testing below. Neither approach replaces the other.)
 - Environment access goes through `server/utils/env.ts` (zod-validated at import), never
   `process.env` directly.
 
@@ -77,9 +81,30 @@ yarn dev                  # web (5173) + worker together
 yarn check                # prettier --check + eslint + tsc  ← run before finishing work
 yarn format               # prettier --write
 yarn lint:fix             # eslint --fix
-yarn test                 # vitest (needs postgres up)
+yarn test                 # vitest — needs no postgres, redis or network
 yarn db:generate          # after editing server/db/schema/
+yarn gen:glassfrog:fetch  # re-vendor + regenerate the Glassfrog client
+yarn gen:todoist:fetch    # re-vendor + regenerate the Todoist wire types
 ```
+
+## Testing
+
+**Read `docs/TESTING.md` before writing tests.** The short version:
+
+- The suite needs **no Postgres, no Redis and no network**. `yarn test` passes with
+  `docker compose down`; anything reaching a real service is a setup bug.
+- Stateful in-memory simulators stand in at the process boundary — `DatabaseSimulator`
+  (PGlite running the real migrations), `GlassfrogSimulator` and `TodoistSimulator` (msw),
+  `QueueSimulator`. Code under test runs **unmodified**: prefer this over `vi.mock`, which
+  would replace the layer where the bugs actually live.
+- Pure logic (`resolve.ts`, `hierarchy-diff.ts`, the `delta.ts` files) still gets plain unit
+  tests.
+- Four production seams exist only for this — `setDatabase`, `setTodoistTransport`,
+  `setTaskQueue`, `setPollQueue`. They are inert until a simulator sets them. Never call
+  them from application code.
+- The Todoist SDK **bypasses msw** on Node (npm-undici's own `fetch`, not `globalThis.fetch`).
+  `server/todoist/transport.ts` is the required workaround; a new Todoist call path that
+  skips it will hit the real API.
 
 ## Linting
 

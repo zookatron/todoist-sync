@@ -12,7 +12,7 @@ import { filterTodoistChanges } from '../../todoist/delta.js'
 import { env } from '../../utils/env.js'
 import { LockUnavailableError, withLock } from '../../utils/lock.js'
 import { logger } from '../../utils/logger.js'
-import { type TaskJobData, taskJobId, taskQueue } from '../queues.js'
+import { getTaskQueue, type TaskJobData, taskJobId } from '../queues.js'
 
 export type PollResult = {
   hierarchy: Awaited<ReturnType<typeof syncHierarchy>>
@@ -98,7 +98,7 @@ async function poll(userId: string): Promise<PollResult> {
   }
 
   for (const [jobId, data] of jobs) {
-    await taskQueue.add('sync-task', data, { jobId })
+    await getTaskQueue().add('sync-task', data, { jobId })
   }
 
   // Only advance the cursor once the work it produced is safely queued: a crash before

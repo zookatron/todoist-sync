@@ -27,8 +27,10 @@
     "db:migrate": "drizzle-kit migrate",
     "db:push": "drizzle-kit push",
     "db:studio": "drizzle-kit studio",
-    "gen:glassfrog": "openapi-ts",
+    "gen:glassfrog": "openapi-ts -f openapi-ts.glassfrog.config.ts",
     "gen:glassfrog:fetch": "curl -fsS https://app.glassfrog.com/api/v5/openapi.json -o openapi/glassfrog.json && yarn gen:glassfrog",
+    "gen:todoist": "openapi-ts -f openapi-ts.todoist.config.ts",
+    "gen:todoist:fetch": "curl -fsS https://developer.todoist.com/openapi.json -o openapi/todoist.json && yarn gen:todoist",
     "prepare": "lefthook install"
   },
   "dependencies": {
@@ -63,6 +65,7 @@
     "zod": "^4.4.3"
   },
   "devDependencies": {
+    "@electric-sql/pglite": "^0.5.4",
     "@eslint/js": "^10.0.1",
     "@hey-api/openapi-ts": "^0.99.0",
     "@react-router/dev": "^8",
@@ -77,6 +80,7 @@
     "eslint-plugin-react-hooks": "^7.1.1",
     "globals": "^17.8.0",
     "lefthook": "^2.1.10",
+    "msw": "^2.15.0",
     "npm-run-all2": "^9.0.3",
     "prettier": "^3.9.6",
     "tailwindcss": "^4.2.2",

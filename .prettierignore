@@ -1,5 +1,6 @@
 # Generated or vendored — never hand-formatted.
 server/glassfrog/generated/
+server/todoist/generated/
 openapi/
 drizzle/
 .react-router/

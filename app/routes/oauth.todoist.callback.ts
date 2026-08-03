@@ -3,6 +3,7 @@ import { db } from '@server/db/index.js'
 import { todoistIntegration } from '@server/db/schema/integrations.js'
 import { schedulePollForUser } from '@server/queue/queues.js'
 import { todoistOAuthStateCookie } from '@server/todoist/oauth.js'
+import { todoistTransport } from '@server/todoist/transport.js'
 import { env } from '@server/utils/env.js'
 import { logger } from '@server/utils/logger.js'
 import { redirect } from 'react-router'
@@ -55,11 +56,14 @@ export async function loader({ request, context }: Route.LoaderArgs) {
 
   let token: Awaited<ReturnType<typeof getAuthToken>>
   try {
-    token = await getAuthToken({
-      clientId: env.TODOIST_CLIENT_ID,
-      clientSecret: env.TODOIST_CLIENT_SECRET,
-      code,
-    })
+    token = await getAuthToken(
+      {
+        clientId: env.TODOIST_CLIENT_ID,
+        clientSecret: env.TODOIST_CLIENT_SECRET,
+        code,
+      },
+      todoistTransport(),
+    )
   } catch (err) {
     logger.error({ userId: user.id, err }, 'Todoist token exchange failed')
     return failed('token_exchange_failed')

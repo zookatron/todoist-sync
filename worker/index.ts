@@ -8,7 +8,7 @@ import { runPoll } from '../server/queue/jobs/poll.js'
 import { runTaskSync } from '../server/queue/jobs/sync-task.js'
 import {
   closeQueues,
-  connection,
+  getConnection,
   POLL_QUEUE,
   type PollJobData,
   schedulePollForUser,
@@ -38,7 +38,7 @@ async function registerSchedulers(): Promise<void> {
 }
 
 const pollWorker = new Worker<PollJobData>(POLL_QUEUE, async (job) => runPoll(job.data.userId), {
-  connection,
+  connection: getConnection(),
   // One poll at a time: they are per-user and already lock-protected.
   concurrency: 1,
 })
@@ -47,7 +47,7 @@ const taskWorker = new Worker<TaskJobData>(
   TASK_QUEUE,
   async (job) => runTaskSync(job.data, job.id ?? job.name),
   {
-    connection,
+    connection: getConnection(),
     concurrency: 4,
     // Stay well inside both APIs' rate limits.
     limiter: { max: 30, duration: 1000 },

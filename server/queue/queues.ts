@@ -1,16 +1,11 @@
-import { type JobsOptions, Queue } from 'bullmq'
+import {
+  type JobSchedulerTemplateOptions,
+  type JobsOptions,
+  Queue,
+  type RepeatOptions,
+} from 'bullmq'
 import IORedis from 'ioredis'
 import { env } from '../utils/env.js'
-
-/**
- * Shared Redis connection.
- *
- * `maxRetriesPerRequest: null` is required by BullMQ: its blocking commands must not be
- * aborted by ioredis's retry cap.
- */
-export const connection = new IORedis(env.REDIS_URL, {
-  maxRetriesPerRequest: null,
-})
 
 export const POLL_QUEUE = 'sync-poll'
 export const TASK_QUEUE = 'sync-task'
@@ -23,6 +18,30 @@ export type TaskJobData = {
   todoistTaskId?: string
 }
 
+/*
+ * The slice of a BullMQ queue the application actually uses.
+ *
+ * Written out structurally rather than as `Pick<Queue, …>` so the return types stay
+ * `unknown`: the app awaits these calls and discards the result, and a test substitute
+ * should not have to fabricate a whole `Job` to satisfy the signature. A real `Queue` is
+ * still assignable to both.
+ */
+export type TaskQueueLike = {
+  add(name: string, data: TaskJobData, opts?: JobsOptions): Promise<unknown>
+  close(): Promise<void>
+}
+
+export type PollQueueLike = {
+  add(name: string, data: PollJobData, opts?: JobsOptions): Promise<unknown>
+  close(): Promise<void>
+  upsertJobScheduler(
+    jobSchedulerId: string,
+    repeatOpts: Omit<RepeatOptions, 'key'>,
+    jobTemplate?: { name?: string; data?: PollJobData; opts?: JobSchedulerTemplateOptions },
+  ): Promise<unknown>
+  removeJobScheduler(jobSchedulerId: string): Promise<boolean>
+}
+
 const defaultJobOptions: JobsOptions = {
   attempts: 3,
   backoff: { type: 'exponential', delay: 5_000 },
@@ -30,15 +49,58 @@ const defaultJobOptions: JobsOptions = {
   removeOnFail: 1_000,
 }
 
-export const pollQueue = new Queue<PollJobData>(POLL_QUEUE, {
-  connection,
-  defaultJobOptions,
-})
+/*
+ * Everything below is built on first use rather than at import.
+ *
+ * Constructing an ioredis client — or a BullMQ Queue over one — opens a socket
+ * immediately, even with `lazyConnect`. Since `server/queue/jobs/poll.ts` imports this
+ * module, an eager connection meant that merely importing the poll job reached for Redis,
+ * which made the sync path impossible to test without a live server. Deferring the
+ * construction keeps production behaviour identical (the first `add` connects, as before)
+ * while letting tests substitute a queue before anything is built.
+ */
 
-export const taskQueue = new Queue<TaskJobData>(TASK_QUEUE, {
-  connection,
-  defaultJobOptions,
-})
+let redis: IORedis | undefined
+let realPollQueue: Queue<PollJobData> | undefined
+let realTaskQueue: Queue<TaskJobData> | undefined
+
+let pollQueueOverride: PollQueueLike | undefined
+let taskQueueOverride: TaskQueueLike | undefined
+
+/**
+ * Shared Redis connection.
+ *
+ * `maxRetriesPerRequest: null` is required by BullMQ: its blocking commands must not be
+ * aborted by ioredis's retry cap.
+ */
+export function getConnection(): IORedis {
+  return (redis ??= new IORedis(env.REDIS_URL, { maxRetriesPerRequest: null }))
+}
+
+export function getPollQueue(): PollQueueLike {
+  if (pollQueueOverride) return pollQueueOverride
+  return (realPollQueue ??= new Queue<PollJobData>(POLL_QUEUE, {
+    connection: getConnection(),
+    defaultJobOptions,
+  }))
+}
+
+export function getTaskQueue(): TaskQueueLike {
+  if (taskQueueOverride) return taskQueueOverride
+  return (realTaskQueue ??= new Queue<TaskJobData>(TASK_QUEUE, {
+    connection: getConnection(),
+    defaultJobOptions,
+  }))
+}
+
+/** Test seams. Pass null to restore the real queue. */
+export function setPollQueue(next: PollQueueLike | null): void {
+  pollQueueOverride = next ?? undefined
+}
+
+export function setTaskQueue(next: TaskQueueLike | null): void {
+  taskQueueOverride = next ?? undefined
+}
 
 /**
  * Stable identifier for a task sync job.
@@ -53,7 +115,7 @@ export function taskJobId(data: TaskJobData): string {
 
 /** Registers (or updates) the recurring poll for a user. */
 export async function schedulePollForUser(userId: string): Promise<void> {
-  await pollQueue.upsertJobScheduler(
+  await getPollQueue().upsertJobScheduler(
     `poll:${userId}`,
     { every: env.SYNC_INTERVAL_MS },
     { name: 'poll', data: { userId } },
@@ -61,10 +123,11 @@ export async function schedulePollForUser(userId: string): Promise<void> {
 }
 
 export async function unschedulePollForUser(userId: string): Promise<void> {
-  await pollQueue.removeJobScheduler(`poll:${userId}`)
+  await getPollQueue().removeJobScheduler(`poll:${userId}`)
 }
 
+/** Closes only what was actually built, so this is safe to call in any process. */
 export async function closeQueues(): Promise<void> {
-  await Promise.all([pollQueue.close(), taskQueue.close()])
-  await connection.quit()
+  await Promise.all([realPollQueue?.close(), realTaskQueue?.close()])
+  await redis?.quit()
 }

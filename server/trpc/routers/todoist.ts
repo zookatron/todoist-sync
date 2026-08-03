@@ -5,6 +5,7 @@ import { z } from 'zod'
 import { todoistIntegration } from '../../db/schema/integrations.js'
 import { unschedulePollForUser } from '../../queue/queues.js'
 import { callTodoist } from '../../todoist/client.js'
+import { todoistTransport } from '../../todoist/transport.js'
 import { env } from '../../utils/env.js'
 import { protectedProcedure, router } from '../init.js'
 
@@ -73,11 +74,14 @@ export const todoistRouter = router({
     if (integration) {
       // Best effort: a failed revoke must not block local disconnection.
       try {
-        await revokeToken({
-          clientId: env.TODOIST_CLIENT_ID,
-          clientSecret: env.TODOIST_CLIENT_SECRET,
-          token: integration.accessToken,
-        })
+        await revokeToken(
+          {
+            clientId: env.TODOIST_CLIENT_ID,
+            clientSecret: env.TODOIST_CLIENT_SECRET,
+            token: integration.accessToken,
+          },
+          todoistTransport(),
+        )
       } catch (error) {
         ctx.logger.warn({ userId: ctx.user.id, err: error }, 'Todoist token revocation failed')
       }

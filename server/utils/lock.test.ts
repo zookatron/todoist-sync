@@ -1,7 +1,8 @@
 import { sql } from 'drizzle-orm'
-import { afterAll, beforeEach, describe, expect, it } from 'vitest'
-import { db, pool } from '../db/index.js'
+import { describe, expect, it } from 'vitest'
+import { db } from '../db/index.js'
 import { locks } from '../db/schema/locks.js'
+import { DatabaseSimulator } from '../testing/index.js'
 import {
   acquireLock,
   cleanupExpiredLocks,
@@ -10,14 +11,10 @@ import {
   withLock,
 } from './lock.js'
 
-beforeEach(async () => {
-  await db.delete(locks)
-})
-
-afterAll(async () => {
-  await db.delete(locks)
-  await pool.end()
-})
+// A private in-memory Postgres, emptied between tests. These assertions depend on real
+// Postgres semantics — a conditional `ON CONFLICT` that returns no row under contention —
+// which is why the database is PGlite rather than a fake.
+new DatabaseSimulator()
 
 describe('acquireLock', () => {
   it('grants the lock when it is free', async () => {

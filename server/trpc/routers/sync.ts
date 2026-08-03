@@ -1,7 +1,7 @@
 import { count, desc, eq } from 'drizzle-orm'
 import { z } from 'zod'
 import { projectMapping, syncLog, taskMapping } from '../../db/schema/sync.js'
-import { pollQueue } from '../../queue/queues.js'
+import { getPollQueue } from '../../queue/queues.js'
 import { protectedProcedure, router } from '../init.js'
 
 export const syncRouter = router({
@@ -29,7 +29,7 @@ export const syncRouter = router({
    * A fixed job id makes repeated clicks idempotent while one is still pending.
    */
   triggerNow: protectedProcedure.mutation(async ({ ctx }) => {
-    await pollQueue.add(
+    await getPollQueue().add(
       'poll',
       { userId: ctx.user.id },
       { jobId: `manual-poll:${ctx.user.id}:${Date.now()}` },

@@ -64,6 +64,9 @@ jobs:
       - name: Lint and typecheck
         run: yarn check
 
+      # Uses neither service container: every test runs against an in-memory Postgres and
+      # in-memory API simulators. The services above are still needed by `db:migrate`,
+      # which is what verifies the migrations actually apply to real Postgres.
       - name: Test
         run: yarn test
 

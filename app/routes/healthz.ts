@@ -1,5 +1,5 @@
 import { db } from '@server/db/index.js'
-import { connection } from '@server/queue/queues.js'
+import { getConnection } from '@server/queue/queues.js'
 import { sql } from 'drizzle-orm'
 import type { Route } from './+types/healthz'
 
@@ -18,7 +18,7 @@ export async function loader(_: Route.LoaderArgs) {
   }
 
   try {
-    await connection.ping()
+    await getConnection().ping()
     checks.redis = 'ok'
   } catch {
     checks.redis = 'error'
