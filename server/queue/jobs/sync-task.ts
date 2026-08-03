@@ -6,7 +6,6 @@ import type { Client } from '../../glassfrog/generated/client/index.js'
 import {
   completeAction,
   createAction,
-  deleteAction,
   getAction,
   uncompleteAction,
   updateAction,
@@ -86,6 +85,11 @@ async function syncOne(data: TaskJobData): Promise<void> {
       // Actions that are cancelled or archived should not appear in Todoist at all.
       if (GLASSFROG_DEAD_STATUSES.has(glassfrog.action.status)) return
 
+      // An existing mapping here means the linked task was deleted in Todoist. That does
+      // not delete the action: Glassfrog is the system of record, so the task is rebuilt
+      // from it and the mapping is repointed at the new task id below.
+      const recreating = Boolean(mapping)
+
       const projectId = await resolveDestinationProject(userId, glassfrog.action)
       if (!projectId) {
         log.warn(
@@ -119,9 +123,9 @@ async function syncOne(data: TaskJobData): Promise<void> {
         hash: contentHash(snapshot),
       })
 
-      await record(userId, 'Created Todoist task', {
+      await record(userId, recreating ? 'Recreated Todoist task' : 'Created Todoist task', {
         entity: 'task',
-        action: 'create',
+        action: recreating ? 'recreate' : 'create',
         glassfrogActionId: glassfrog.action.id,
       })
       return
@@ -282,19 +286,6 @@ async function syncOne(data: TaskJobData): Promise<void> {
         entity: 'task',
         action: 'delete',
         todoistTaskId,
-      })
-      return
-    }
-
-    case 'delete-glassfrog': {
-      if (glassfrogActionId) {
-        await deleteAction({ client, path: { id: glassfrogActionId }, throwOnError: true })
-      }
-      await deleteMapping(mapping?.id)
-      await record(userId, 'Deleted Glassfrog action', {
-        entity: 'task',
-        action: 'delete',
-        glassfrogActionId,
       })
       return
     }

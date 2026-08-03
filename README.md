@@ -10,8 +10,11 @@ Built for personal use: one account, self-hosted, polling-based.
 - **Hierarchy (one-way, Glassfrog → Todoist).** Every Glassfrog role you fill becomes a Todoist
   project under a root project you choose. Glassfrog projects and sub-projects nest beneath their
   role. Todoist projects under the root with no Glassfrog counterpart are archived.
-- **Tasks (two-way).** Each Glassfrog Action maps to a Todoist Task. Edits, completions, and
-  deletions propagate in both directions; the more recently modified side wins.
+- **Tasks (two-way).** Each Glassfrog Action maps to a Todoist Task. Edits and completions
+  propagate in both directions; the more recently modified side wins.
+- **Deletion (one-way).** Deleting or cancelling an Action deletes its Todoist task. Deleting the
+  task in Todoist does _not_ delete the Action — the task is re-created from it on the next sync.
+  Glassfrog is the system of record.
 - **Polling.** A scheduled job runs every 60 seconds (configurable), reconciles the hierarchy,
   then queues one job per changed task.
 

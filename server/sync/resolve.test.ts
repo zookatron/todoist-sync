@@ -39,10 +39,11 @@ describe('resolve — existence', () => {
     })
   })
 
-  it('deletes the Glassfrog action when a linked Todoist task was deleted', () => {
-    // Deletion is two-way by configuration, so removing the task removes the action.
+  it('re-creates the Todoist task when a linked one was deleted', () => {
+    // Deleting in Todoist does not delete the action: Glassfrog is the system of record,
+    // so the task comes back from the action's data.
     expect(resolve({ glassfrog: present(), todoist: absent, mapping: linked })).toEqual({
-      type: 'delete-glassfrog',
+      type: 'create-todoist',
     })
   })
 

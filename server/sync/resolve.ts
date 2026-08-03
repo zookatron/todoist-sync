@@ -43,7 +43,6 @@ export type SyncDecision =
   /** Todoist is newer; overwrite the Glassfrog action. */
   | { type: 'update-glassfrog'; snapshot: TaskSnapshot }
   | { type: 'delete-todoist' }
-  | { type: 'delete-glassfrog' }
 
 /**
  * Stable fingerprint of the synced fields.
@@ -74,6 +73,10 @@ function timeOf(snapshot: TaskSnapshot): number {
  * Existence is resolved first, then content. When both sides changed, the more recently
  * modified one wins; an exact tie resolves in Glassfrog's favour, since it is the system
  * of record for the organization.
+ *
+ * Deletion is deliberately **one-way** for the same reason: an action that disappears from
+ * Glassfrog takes its Todoist task with it, but deleting the task in Todoist does not touch
+ * the action — the task is re-created from it instead.
  */
 export function resolve(input: ResolveInput): SyncDecision {
   const { glassfrog, todoist, mapping } = input
@@ -83,9 +86,10 @@ export function resolve(input: ResolveInput): SyncDecision {
   }
 
   if (glassfrog.present && !todoist.present) {
-    // Previously linked, now gone from Todoist: the user deleted the task, and deletion
-    // is two-way, so the Glassfrog action goes too.
-    return mapping.linked ? { type: 'delete-glassfrog' } : { type: 'create-todoist' }
+    // Either the action is new, or a previously linked task was deleted in Todoist.
+    // Both resolve the same way: Glassfrog is the system of record, so a live action
+    // must have a task, and a deleted one is rebuilt from the action.
+    return { type: 'create-todoist' }
   }
 
   if (!glassfrog.present && todoist.present) {

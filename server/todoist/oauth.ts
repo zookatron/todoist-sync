@@ -13,7 +13,7 @@ import { todoistTransport } from './transport.js'
  * Scopes requested during authorization.
  *
  * - `data:read_write` — read and write tasks and projects
- * - `data:delete`     — delete tasks (deletion is two-way in this app)
+ * - `data:delete`     — delete tasks whose Glassfrog action is gone
  * - `project:delete`  — archive projects that no longer map to Glassfrog
  */
 export const TODOIST_SCOPES: readonly Permission[] = [

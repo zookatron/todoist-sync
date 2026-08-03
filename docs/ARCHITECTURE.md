@@ -83,6 +83,21 @@ mistake is recoverable.
 Conflicts resolve by comparing `updated_at` on both sides — the more recently modified side wins
 and overwrites the other.
 
+### Deletion is one-way
+
+Glassfrog is the system of record, so deletion only travels Glassfrog → Todoist:
+
+| What happened                              | What the sync does                                  |
+| ------------------------------------------ | --------------------------------------------------- |
+| Action deleted, cancelled or archived      | The linked Todoist task is deleted, mapping dropped |
+| Task deleted in Todoist, action still live | The task is **re-created** from the action's data   |
+
+Re-creation reuses the existing `task_mapping` row, repointing it at the new Todoist task id, so
+the rebuilt task is not mistaken for a brand-new one on the next poll. The task reappears in the
+project its action currently maps to, which may differ from where it was deleted.
+
+To make a task go away for good, delete or cancel the action in Glassfrog.
+
 ## Concurrency
 
 A single generic lock utility (`server/utils/lock.ts`) backed by a `locks` table, acquired with one

@@ -18,7 +18,7 @@ import { runTaskSync } from './sync-task.js'
 /**
  * `runTaskSync` end to end, one test per `resolve` branch.
  *
- * This is the module the infrastructure was built for: 484 lines interleaving Postgres,
+ * This is the module the infrastructure was built for: 476 lines interleaving Postgres,
  * both APIs and a lock, previously untested because the only alternatives were mocking the
  * layer where its bugs live or dismantling it into pure functions. Here it runs unmodified
  * and the assertions read the real resulting state on both sides.
@@ -309,9 +309,39 @@ describe('runTaskSync', () => {
     })
   })
 
-  describe('delete-glassfrog', () => {
-    it('deletes the action when its linked Todoist task is gone', async () => {
-      glassfrog.addActions([{ id: 'action-1', description: 'Task', role_id: ROLE_GF }])
+  describe('recreate after a Todoist deletion', () => {
+    it('rebuilds the task from the action and leaves Glassfrog untouched', async () => {
+      glassfrog.addActions([
+        { id: 'action-1', description: 'Task', note: 'body', role_id: ROLE_GF },
+      ])
+      await new TaskMappingFactory()
+        .override({ userId })
+        .linked('action-1', 'td-task-vanished')
+        .converged({ content: 'Task', description: 'body', completed: false })
+        .make()
+
+      await runTaskSync({ userId, glassfrogActionId: 'action-1' }, 'job-1')
+
+      // The action survives; the task comes back from its data.
+      expect(glassfrog.deletedActionIds.has('action-1')).toBe(false)
+      expect(glassfrog.action('action-1')?.description).toBe('Task')
+
+      const recreated = todoist.tasks.find((task) => task.content === 'Task')
+      expect(recreated).toBeDefined()
+      expect(recreated?.project_id).toBe(ROLE_TD)
+      expect(recreated?.description).toBe('body')
+
+      // The mapping is repointed at the new task rather than dropped, so the next poll
+      // does not treat it as a second brand-new task.
+      const row = await mapping({ glassfrogActionId: 'action-1' })
+      expect(row?.todoistTaskId).toBe(recreated?.id)
+      expect(await mapping({ todoistTaskId: 'td-task-vanished' })).toBeUndefined()
+    })
+
+    it('re-creates it completed when the action is already done', async () => {
+      glassfrog.addActions([
+        { id: 'action-1', description: 'Done', role_id: ROLE_GF, status: 'completed' },
+      ])
       await new TaskMappingFactory()
         .override({ userId })
         .linked('action-1', 'td-task-vanished')
@@ -319,8 +349,39 @@ describe('runTaskSync', () => {
 
       await runTaskSync({ userId, glassfrogActionId: 'action-1' }, 'job-1')
 
-      expect(glassfrog.deletedActionIds.has('action-1')).toBe(true)
-      expect(await mapping({ glassfrogActionId: 'action-1' })).toBeUndefined()
+      expect(todoist.tasks.find((task) => task.content === 'Done')?.checked).toBe(true)
+    })
+
+    it('does not resurrect the task when the action is cancelled', async () => {
+      // A cancelled action counts as gone on both sides, so there is nothing to rebuild.
+      glassfrog.addActions([
+        { id: 'action-1', description: 'Dropped', role_id: ROLE_GF, status: 'cancelled' },
+      ])
+      await new TaskMappingFactory()
+        .override({ userId })
+        .linked('action-1', 'td-task-vanished')
+        .make()
+
+      await runTaskSync({ userId, glassfrogActionId: 'action-1' }, 'job-1')
+
+      expect(todoist.tasks).toHaveLength(0)
+    })
+
+    it('settles after one round trip instead of re-creating on every poll', async () => {
+      glassfrog.addActions([{ id: 'action-1', description: 'Persistent', role_id: ROLE_GF }])
+      await new TaskMappingFactory()
+        .override({ userId })
+        .linked('action-1', 'td-task-vanished')
+        .make()
+
+      await runTaskSync({ userId, glassfrogActionId: 'action-1' }, 'job-1')
+      const afterFirst = todoist.tasks.length
+      const logsAfterFirst = (await logs()).length
+
+      await runTaskSync({ userId, glassfrogActionId: 'action-1' }, 'job-2')
+
+      expect(todoist.tasks).toHaveLength(afterFirst)
+      expect(await logs()).toHaveLength(logsAfterFirst)
     })
   })
 
