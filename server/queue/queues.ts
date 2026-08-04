@@ -1,9 +1,4 @@
-import {
-  type JobSchedulerTemplateOptions,
-  type JobsOptions,
-  Queue,
-  type RepeatOptions,
-} from 'bullmq'
+import { type JobsOptions, Queue } from 'bullmq'
 import IORedis from 'ioredis'
 import { env } from '../utils/env.js'
 
@@ -16,29 +11,6 @@ export type TaskJobData = {
   userId: string
   glassfrogActionId?: string
   todoistTaskId?: string
-}
-
-/*
- * The slice of a BullMQ queue the application actually uses.
- *
- * Written out structurally rather than as `Pick<Queue, …>` so the return types stay
- * `unknown`: the app awaits these calls and discards the result, and a test substitute
- * should not have to fabricate a whole `Job` to satisfy the signature. A real `Queue` is
- * still assignable to both.
- */
-export type TaskQueueLike = {
-  add(name: string, data: TaskJobData, opts?: JobsOptions): Promise<unknown>
-  close(): Promise<void>
-}
-
-export type PollQueueLike = {
-  add(name: string, data: PollJobData, opts?: JobsOptions): Promise<unknown>
-  close(): Promise<void>
-  upsertJobScheduler(
-    jobSchedulerId: string,
-    repeatOpts: Omit<RepeatOptions, 'key'>,
-    jobTemplate?: { name?: string; data?: PollJobData; opts?: JobSchedulerTemplateOptions },
-  ): Promise<unknown>
 }
 
 const defaultJobOptions: JobsOptions = {
@@ -63,8 +35,8 @@ let redis: IORedis | undefined
 let realPollQueue: Queue<PollJobData> | undefined
 let realTaskQueue: Queue<TaskJobData> | undefined
 
-let pollQueueOverride: PollQueueLike | undefined
-let taskQueueOverride: TaskQueueLike | undefined
+let pollQueueOverride: Queue<PollJobData> | undefined
+let taskQueueOverride: Queue<TaskJobData> | undefined
 
 /**
  * Shared Redis connection.
@@ -76,7 +48,7 @@ export function getConnection(): IORedis {
   return (redis ??= new IORedis(env.REDIS_URL, { maxRetriesPerRequest: null }))
 }
 
-export function getPollQueue(): PollQueueLike {
+export function getPollQueue(): Queue<PollJobData> {
   if (pollQueueOverride) return pollQueueOverride
   return (realPollQueue ??= new Queue<PollJobData>(POLL_QUEUE, {
     connection: getConnection(),
@@ -84,7 +56,7 @@ export function getPollQueue(): PollQueueLike {
   }))
 }
 
-export function getTaskQueue(): TaskQueueLike {
+export function getTaskQueue(): Queue<TaskJobData> {
   if (taskQueueOverride) return taskQueueOverride
   return (realTaskQueue ??= new Queue<TaskJobData>(TASK_QUEUE, {
     connection: getConnection(),
@@ -93,11 +65,11 @@ export function getTaskQueue(): TaskQueueLike {
 }
 
 /** Test seams. Pass null to restore the real queue. */
-export function setPollQueue(next: PollQueueLike | null): void {
+export function setPollQueue(next: Queue<PollJobData> | null): void {
   pollQueueOverride = next ?? undefined
 }
 
-export function setTaskQueue(next: TaskQueueLike | null): void {
+export function setTaskQueue(next: Queue<TaskJobData> | null): void {
   taskQueueOverride = next ?? undefined
 }
 

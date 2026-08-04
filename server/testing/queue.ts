@@ -1,13 +1,6 @@
-import type { JobsOptions } from 'bullmq'
+import type { JobsOptions, Queue } from 'bullmq'
 import { afterAll, beforeEach } from 'vitest'
-import {
-  type PollJobData,
-  type PollQueueLike,
-  setPollQueue,
-  setTaskQueue,
-  type TaskJobData,
-  type TaskQueueLike,
-} from '../queue/queues.js'
+import { type PollJobData, setPollQueue, setTaskQueue, type TaskJobData } from '../queue/queues.js'
 
 export type RecordedJob<T> = {
   name: string
@@ -106,16 +99,23 @@ export class QueueSimulator {
   }
 
   private install(): void {
-    const pollQueue: PollQueueLike = {
+    const pollQueue = {
       add: this.poll.add,
       close: this.poll.close,
-      upsertJobScheduler: (id, _repeatOpts, template) => {
+      upsertJobScheduler: (
+        id: string,
+        _repeatOpts: unknown,
+        template: { name?: string; data?: PollJobData },
+      ) => {
         this.schedulers.set(id, template?.data)
         return Promise.resolve(undefined)
       },
-    }
+    } as unknown as Queue<PollJobData>
 
-    const taskQueue: TaskQueueLike = { add: this.task.add, close: this.task.close }
+    const taskQueue = {
+      add: this.task.add,
+      close: this.task.close,
+    } as unknown as Queue<PollJobData>
 
     setPollQueue(pollQueue)
     setTaskQueue(taskQueue)
