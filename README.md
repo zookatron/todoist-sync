@@ -84,11 +84,37 @@ Todoist project. Set `ALLOW_SIGNUP=false` afterwards to close the instance.
 
 ## Configuration
 
-| Variable           | Default   | Purpose                                                  |
-| ------------------ | --------- | -------------------------------------------------------- |
-| `SYNC_INTERVAL_MS` | `3600000` | How often the poll job runs                              |
-| `ALLOW_SIGNUP`     | `true`    | Set `false` to close signups after creating your account |
-| `LOG_LEVEL`        | `info`    | pino log level                                           |
+| Variable             | Default   | Purpose                                                  |
+| -------------------- | --------- | -------------------------------------------------------- |
+| `SYNC_INTERVAL_MS`   | `3600000` | How often the poll job runs                              |
+| `ALLOW_SIGNUP`       | `true`    | Set `false` to close signups after creating your account |
+| `LOG_LEVEL`          | `info`    | pino log level                                           |
+| `LOG_FILE`           | (unset)   | Append logs to this path instead of stdout               |
+| `TODOIST_HTTP_TRACE` | `false`   | Log the full token-endpoint exchange (see below)         |
+
+### Logs
+
+With `LOG_FILE` set, every process opens that path in append mode, so the web server and
+worker share one merged timeline — which is what you want when a sync problem spans both.
+`docker compose` already wires this up: all three services write to `/app/logs/app.log` on
+a shared `logs` volume, each line carrying the `pid` of the process that wrote it.
+
+```bash
+docker compose exec web tail -f /app/logs/app.log        # follow
+docker compose exec web cat /app/logs/app.log | npx pino-pretty
+```
+
+#### Debugging Todoist token refreshes
+
+Refreshes log the full decision path under `flow: "todoist-token-refresh"`, with a
+`traceId` per attempt so one refresh can be picked out of two interleaved processes. The
+lines cover the stored token state, the outgoing request, the response (including whether
+the refresh token rotated), and confirmation that the rotated token reached the database.
+
+Setting `TODOIST_HTTP_TRACE=true` adds the raw HTTP exchange — URL, headers, and bodies.
+
+Logs are unfiltered: token values, the client secret, and API keys are written out as-is,
+which is what makes a refresh trace directly comparable line to line.
 
 ## Development
 

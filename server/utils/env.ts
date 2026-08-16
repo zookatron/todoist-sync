@@ -29,6 +29,23 @@ const EnvSchema = z.object({
   LOG_LEVEL: z.enum(['trace', 'debug', 'info', 'warn', 'error', 'fatal', 'silent']).default('info'),
 
   /**
+   * Write logs to this path instead of stdout. Every process that sets it appends to the
+   * same file, so point the web and worker at one path to get a single merged timeline.
+   */
+  LOG_FILE: z.string().min(1).optional(),
+
+  /**
+   * Logs the full HTTP exchange with Todoist's token endpoint — URL, headers, and bodies.
+   *
+   * Off by default because it routes that one request through the global `fetch` instead
+   * of the SDK's own transport.
+   */
+  TODOIST_HTTP_TRACE: z
+    .enum(['true', 'false'])
+    .default('false')
+    .transform((value) => value === 'true'),
+
+  /**
    * Optional one-time account seed, read only by the `migrate` container. Lets a fresh
    * deployment provision its single user from CI/CD variables without ever opening
    * public signup — set these instead of flipping ALLOW_SIGNUP to true.

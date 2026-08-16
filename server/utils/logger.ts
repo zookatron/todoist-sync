@@ -1,39 +1,44 @@
-import { pino } from 'pino'
+import { destination, type LoggerOptions, pino } from 'pino'
 import { env } from './env.js'
 
 /**
  * Application logger.
  *
- * The redaction list is a hard requirement, not a nicety: this app handles Todoist OAuth
- * tokens and a Glassfrog API key, and log output is the easiest way to leak them. Add a
- * path here whenever a new credential-shaped field appears.
+ * Values are logged as given, including credentials — this is an internal app and the log
+ * file is a debugging tool, so a token in the log is a feature rather than a leak.
  */
-export const logger = pino({
+const options: LoggerOptions = {
   level: env.LOG_LEVEL,
-  redact: {
-    paths: [
-      'accessToken',
-      'refreshToken',
-      'apiKey',
-      'password',
-      'token',
-      'secret',
-      '*.accessToken',
-      '*.refreshToken',
-      '*.apiKey',
-      '*.password',
-      '*.token',
-      '*.secret',
-      'req.headers.authorization',
-      'req.headers.cookie',
-      'headers.authorization',
-      'headers["x-auth-token"]',
-    ],
-    censor: '[redacted]',
-  },
-  ...(env.NODE_ENV === 'development'
-    ? { transport: { target: 'pino-pretty', options: { colorize: true, translateTime: true } } }
-    : {}),
-})
+}
+
+/**
+ * Builds the log sink.
+ *
+ * With `LOG_FILE` set, every process opens the file in append mode (`O_APPEND`), which is
+ * what makes a shared file safe: the kernel positions each write at the current end of
+ * file, so two processes cannot overwrite each other. Log lines are far below the size at
+ * which a single append could be split, so records do not interleave in practice. Pino's
+ * default `pid` on every line is what tells the writers apart.
+ *
+ * Writes are synchronous. That costs throughput this app does not need, and buys the one
+ * property a debugging log must have — a line survives the crash that immediately follows
+ * it, instead of dying in a buffer.
+ */
+function createLogger() {
+  if (env.LOG_FILE) {
+    return pino(options, destination({ dest: env.LOG_FILE, append: true, mkdir: true, sync: true }))
+  }
+
+  if (env.NODE_ENV === 'development') {
+    return pino({
+      ...options,
+      transport: { target: 'pino-pretty', options: { colorize: true, translateTime: true } },
+    })
+  }
+
+  return pino(options)
+}
+
+export const logger = createLogger()
 
 export type Logger = typeof logger

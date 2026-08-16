@@ -44,7 +44,17 @@ export async function callTodoist<T>(
       if (!(error instanceof TodoistRequestError)) throw error
 
       if (error.httpStatusCode === 401 && !refreshed) {
-        logger.warn({ userId }, 'Todoist returned 401; forcing a token refresh')
+        // The 401 body says whether the token was expired, revoked, or never valid —
+        // which is the difference between a refresh that will help and one that will not.
+        logger.warn(
+          {
+            userId,
+            attempt,
+            status: error.httpStatusCode,
+            responseData: error.responseData,
+          },
+          'Todoist returned 401; forcing a token refresh',
+        )
         refreshed = true
         continue
       }

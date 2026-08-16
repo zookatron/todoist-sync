@@ -41,6 +41,12 @@ services:
     environment:
       DATABASE_URL: postgres://todoist_sync:todoist_sync@postgres:5432/todoist_sync
       REDIS_URL: redis://redis:6379
+      # All three services append to this one file on a shared volume, so a sync problem
+      # reads as a single timeline instead of two you have to correlate by hand. Each line
+      # carries its writer's pid.
+      LOG_FILE: /app/logs/app.log
+    volumes:
+      - logs:/app/logs
     depends_on:
       postgres: { condition: service_healthy }
     healthcheck:
@@ -57,6 +63,9 @@ services:
     environment:
       DATABASE_URL: postgres://todoist_sync:todoist_sync@postgres:5432/todoist_sync
       REDIS_URL: redis://redis:6379
+      LOG_FILE: /app/logs/app.log
+    volumes:
+      - logs:/app/logs
     ports:
       - '3000:3000'
     depends_on:
@@ -71,6 +80,9 @@ services:
     environment:
       DATABASE_URL: postgres://todoist_sync:todoist_sync@postgres:5432/todoist_sync
       REDIS_URL: redis://redis:6379
+      LOG_FILE: /app/logs/app.log
+    volumes:
+      - logs:/app/logs
     depends_on:
       migrate: { condition: service_healthy }
       redis: { condition: service_healthy }
@@ -78,3 +90,4 @@ services:
 volumes:
   postgres_data:
   redis_data:
+  logs:

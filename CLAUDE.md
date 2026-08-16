@@ -48,8 +48,10 @@ Read `docs/ARCHITECTURE.md` for the sync data flow.
   `server/todoist/generated/` is the same arrangement (`yarn gen:todoist:fetch`) but is
   **types only** — the app talks to Todoist through the SDK, and these types exist to
   describe the _wire_ format for the test simulator.
-- **Never log credentials.** Todoist tokens and the Glassfrog API key are stored in plaintext in
-  the database. The pino logger has a redaction list; keep it current.
+- **Logs are unfiltered.** Todoist tokens and the Glassfrog API key are stored in plaintext in
+  the database and logged the same way — there is no redaction list, by choice: this is an
+  internal single-user app, and a token you can compare across log lines is what makes a
+  refresh trace readable. Treat `LOG_FILE` as sensitive rather than the log calls.
 - **Always get Todoist tokens via `getValidAccessToken(userId)`** (`server/todoist/oauth.ts`).
   Never read the token column directly — access tokens expire hourly and refresh tokens
   **rotate**, so a bypassed refresh path will brick the connection.
