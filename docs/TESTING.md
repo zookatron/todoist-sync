@@ -17,7 +17,7 @@ So instead the _process boundary_ is replaced with stateful in-memory doubles:
 | Postgres  | `DatabaseSimulator`  | PGlite — real Postgres (WASM), real migrations         |
 | Glassfrog | `GlassfrogSimulator` | In-memory entities behind msw handlers                 |
 | Todoist   | `TodoistSimulator`   | Same, plus OAuth tokens and a sync-token version clock |
-| BullMQ    | `QueueSimulator`     | Records `add()` calls, honours duplicate-`jobId`       |
+| BullMQ    | `QueueSimulator`     | Records `add()` calls                                  |
 
 Code under test runs **unmodified and unmocked**. A test reads: seed both worlds, run the
 real function, assert on both worlds afterwards.

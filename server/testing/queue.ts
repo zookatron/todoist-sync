@@ -1,37 +1,25 @@
-import type { JobsOptions, Queue } from 'bullmq'
+import type { Queue } from 'bullmq'
 import { afterAll, beforeEach } from 'vitest'
 import { type PollJobData, setPollQueue, setTaskQueue, type TaskJobData } from '../queue/queues.js'
 
 export type RecordedJob<T> = {
   name: string
   data: T
-  jobId?: string
 }
 
 /**
  * Records what would have been enqueued, instead of talking to Redis.
  *
- * Enough of BullMQ to make the poll path meaningful without a broker: the one behaviour
- * that carries real logic is duplicate-`jobId` rejection, which is what collapses a task
- * that changed on both sides into a single job (see `taskJobId` in
- * `server/queue/queues.ts`). Modelling it here means that collapse is actually tested
- * rather than assumed.
+ * Deliberately dumb: every `add` is recorded. Nothing passes a job id any more, so BullMQ
+ * has no dedupe behaviour left to model — collapsing a task that changed on both sides is
+ * done by the caller before it enqueues (see `taskJobKey` in `server/queue/queues.ts`),
+ * and a test that asserts on `taskJobs` is therefore testing that collapse directly.
  */
 class RecordingQueue<T> {
   readonly jobs: RecordedJob<T>[] = []
-  private readonly liveIds = new Set<string>()
 
-  add = (name: string, data: T, opts?: JobsOptions): Promise<unknown> => {
-    const jobId = opts?.jobId
-
-    // BullMQ refuses a job whose id is already queued. Silently, as here — the caller
-    // gets a Job back either way, so nothing downstream can tell.
-    if (jobId !== undefined && this.liveIds.has(jobId)) {
-      return Promise.resolve(undefined)
-    }
-    if (jobId !== undefined) this.liveIds.add(jobId)
-
-    this.jobs.push({ name, data, jobId })
+  add = (name: string, data: T): Promise<unknown> => {
+    this.jobs.push({ name, data })
     return Promise.resolve(undefined)
   }
 
@@ -39,7 +27,6 @@ class RecordingQueue<T> {
 
   reset(): void {
     this.jobs.length = 0
-    this.liveIds.clear()
   }
 }
 

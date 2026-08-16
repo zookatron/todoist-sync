@@ -12,7 +12,7 @@ import { filterTodoistChanges } from '../../todoist/delta.js'
 import { env } from '../../utils/env.js'
 import { LockUnavailableError, withLock } from '../../utils/lock.js'
 import { logger } from '../../utils/logger.js'
-import { getTaskQueue, type TaskJobData, taskJobId } from '../queues.js'
+import { getTaskQueue, type TaskJobData, taskJobKey } from '../queues.js'
 
 export type PollResult = {
   hierarchy: Awaited<ReturnType<typeof syncHierarchy>>
@@ -73,7 +73,7 @@ async function poll(userId: string): Promise<PollResult> {
 
   for (const change of await detectGlassfrogChanges(userId)) {
     const data: TaskJobData = { userId, glassfrogActionId: change.glassfrogActionId }
-    jobs.set(taskJobId(data), data)
+    jobs.set(taskJobKey(data), data)
   }
 
   const todoist = await detectTodoistChanges(userId)
@@ -91,14 +91,16 @@ async function poll(userId: string): Promise<PollResult> {
     // collapses into a single job.
     if (existing?.glassfrogActionId) {
       const merged: TaskJobData = { userId, glassfrogActionId: existing.glassfrogActionId }
-      jobs.set(taskJobId(merged), merged)
+      jobs.set(taskJobKey(merged), merged)
     } else {
-      jobs.set(taskJobId(data), data)
+      jobs.set(taskJobKey(data), data)
     }
   }
 
-  for (const [jobId, data] of jobs) {
-    await getTaskQueue().add('sync-task', data, { jobId })
+  // The map above is what collapses duplicates. BullMQ job ids are not used for this: an
+  // id belonging to a failed job stays taken, which would wedge that task permanently.
+  for (const data of jobs.values()) {
+    await getTaskQueue().add('sync-task', data)
   }
 
   // Only advance the cursor once the work it produced is safely queued: a crash before

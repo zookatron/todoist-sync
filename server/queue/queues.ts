@@ -74,12 +74,13 @@ export function setTaskQueue(next: Queue<TaskJobData> | null): void {
 }
 
 /**
- * Stable identifier for a task sync job.
+ * Stable identity for a task sync job, used to key the pending set within one poll cycle.
  *
- * A task that changed on both sides in the same poll produces one job, not two: BullMQ
- * refuses a duplicate job id while the original is still queued.
+ * A task that changed on both sides produces one job, not two. This is deliberately *not*
+ * passed to BullMQ as a job id — a job that ends up in the failed set keeps its id, and
+ * every later `add` under that id is dropped, so the task would never sync again.
  */
-export function taskJobId(data: TaskJobData): string {
+export function taskJobKey(data: TaskJobData): string {
   const key = data.glassfrogActionId ?? `td:${data.todoistTaskId}`
   return `task:${data.userId}:${key}`
 }

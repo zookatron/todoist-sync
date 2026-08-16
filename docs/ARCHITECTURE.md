@@ -30,7 +30,7 @@ React Router's route-module graph. Both reach it through the `@server/*` alias.
               └──────────────────────┼──────────────────────┘
                                      │
                          one sync-task job per changed task
-                        (jobId dedupes both-sides changes)
+                    (taskJobKey collapses both-sides changes)
                                      │
                           ┌──────────▼───────────┐
                           │  sync-task job       │   lock: task:{userId}:{key}

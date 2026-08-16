@@ -26,14 +26,11 @@ export const syncRouter = router({
   /**
    * Queues an immediate poll instead of waiting for the next tick.
    *
-   * A fixed job id makes repeated clicks idempotent while one is still pending.
+   * Repeated clicks queue repeated jobs; the `poll:{userId}` lock in `runPoll` collapses
+   * them so only one cycle actually runs.
    */
   triggerNow: protectedProcedure.mutation(async ({ ctx }) => {
-    await getPollQueue().add(
-      'poll',
-      { userId: ctx.user.id },
-      { jobId: `manual-poll:${ctx.user.id}:${Date.now()}` },
-    )
+    await getPollQueue().add('poll', { userId: ctx.user.id })
     return { ok: true }
   }),
 

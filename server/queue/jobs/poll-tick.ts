@@ -17,9 +17,10 @@ export async function runPollTick(): Promise<{ users: number }> {
 
   for (const { userId } of connected) {
     const data: PollJobData = { userId }
-    // Stable id: if the previous tick's poll for this user is still queued or running,
-    // this tick's dispatch is a no-op rather than piling up a duplicate.
-    await getPollQueue().add('poll', data, { jobId: `poll:${userId}` })
+    // No explicit job id: a failed job would keep its id alive in the failed set and
+    // silently swallow every later dispatch for that user. Overlap is handled instead by
+    // the `poll:{userId}` lock in `runPoll`, which turns a redundant poll into a no-op.
+    await getPollQueue().add('poll', data)
   }
 
   log.debug({ users: connected.length }, 'Dispatched poll tick')

@@ -100,13 +100,15 @@ describe('TodoistSimulator', () => {
 })
 
 describe('QueueSimulator', () => {
-  it('records jobs and rejects a duplicate job id', async () => {
+  it('records every job it is handed, in order', async () => {
     const { getTaskQueue } = await import('../queue/queues.js')
 
-    await getTaskQueue().add('sync-task', { userId: 'u1', glassfrogActionId: 'a1' }, { jobId: 'j' })
-    await getTaskQueue().add('sync-task', { userId: 'u1', todoistTaskId: 't1' }, { jobId: 'j' })
+    await getTaskQueue().add('sync-task', { userId: 'u1', glassfrogActionId: 'a1' })
+    await getTaskQueue().add('sync-task', { userId: 'u1', todoistTaskId: 't1' })
 
-    expect(queue.taskJobs).toHaveLength(1)
-    expect(queue.taskJobs[0]?.data).toEqual({ userId: 'u1', glassfrogActionId: 'a1' })
+    expect(queue.taskJobs.map((job) => job.data)).toEqual([
+      { userId: 'u1', glassfrogActionId: 'a1' },
+      { userId: 'u1', todoistTaskId: 't1' },
+    ])
   })
 })
