@@ -15,8 +15,8 @@ Built for personal use: one account, self-hosted, polling-based.
 - **Deletion (one-way).** Deleting or cancelling an Action deletes its Todoist task. Deleting the
   task in Todoist does _not_ delete the Action — the task is re-created from it on the next sync.
   Glassfrog is the system of record.
-- **Polling.** A scheduled job runs every 60 seconds (configurable), reconciles the hierarchy,
-  then queues one job per changed task.
+- **Polling.** A scheduled job runs every hour by default (configurable via `SYNC_INTERVAL_MS`),
+  reconciles the hierarchy, then queues one job per changed task.
 
 ## Requirements
 
@@ -84,11 +84,11 @@ Todoist project. Set `ALLOW_SIGNUP=false` afterwards to close the instance.
 
 ## Configuration
 
-| Variable           | Default | Purpose                                                  |
-| ------------------ | ------- | -------------------------------------------------------- |
-| `SYNC_INTERVAL_MS` | `60000` | How often the poll job runs                              |
-| `ALLOW_SIGNUP`     | `true`  | Set `false` to close signups after creating your account |
-| `LOG_LEVEL`        | `info`  | pino log level                                           |
+| Variable           | Default   | Purpose                                                  |
+| ------------------ | --------- | -------------------------------------------------------- |
+| `SYNC_INTERVAL_MS` | `3600000` | How often the poll job runs                              |
+| `ALLOW_SIGNUP`     | `true`    | Set `false` to close signups after creating your account |
+| `LOG_LEVEL`        | `info`    | pino log level                                           |
 
 ## Development
 

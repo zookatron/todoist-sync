@@ -15,7 +15,7 @@ React Router's route-module graph. Both reach it through the `@server/*` alias.
 ## Data flow
 
 ```
-                        every SYNC_INTERVAL_MS (default 60s)
+                        every SYNC_INTERVAL_MS (default 1h)
                                      │
                           ┌──────────▼───────────┐
                           │  sync-poll job       │   lock: poll:{userId}

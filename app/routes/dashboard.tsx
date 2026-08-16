@@ -1,5 +1,4 @@
 import { Alert, Card } from '@heroui/react'
-import { env } from '@server/utils/env.js'
 import { useQuery } from '@tanstack/react-query'
 import { useSearchParams } from 'react-router'
 import {
@@ -16,12 +15,7 @@ export function meta(_: Route.MetaArgs) {
   return [{ title: 'Dashboard · Todoist ⇄ Glassfrog Sync' }]
 }
 
-export function loader(_: Route.LoaderArgs) {
-  // Surfaced in the UI so the poll cadence is visible without reading .env.
-  return { intervalSeconds: Math.round(env.SYNC_INTERVAL_MS / 1000) }
-}
-
-export default function Dashboard({ loaderData }: Route.ComponentProps) {
+export default function Dashboard(_: Route.ComponentProps) {
   const [searchParams] = useSearchParams()
   const trpc = useTRPC()
 
@@ -73,7 +67,7 @@ export default function Dashboard({ loaderData }: Route.ComponentProps) {
         <TodoistCard connectError={searchParams.get('todoist_error')} />
         <GlassfrogCard />
         <RootProjectCard todoistConnected={Boolean(todoist.data?.connected)} />
-        <SyncCard intervalSeconds={loaderData.intervalSeconds} />
+        <SyncCard />
       </div>
 
       <ActivityCard />

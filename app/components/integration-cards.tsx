@@ -219,7 +219,7 @@ export function RootProjectCard({ todoistConnected }: { todoistConnected: boolea
   )
 }
 
-export function SyncCard({ intervalSeconds }: { intervalSeconds: number }) {
+export function SyncCard() {
   const trpc = useTRPC()
   const status = useQuery(trpc.todoist.status.queryOptions())
   const mappings = useQuery({
@@ -236,8 +236,7 @@ export function SyncCard({ intervalSeconds }: { intervalSeconds: number }) {
       <Card.Header>
         <Card.Title>Sync</Card.Title>
         <Card.Description>
-          Polls every {intervalSeconds} seconds once Todoist, Glassfrog, and a root project are set
-          up.
+          Polls in the background once Todoist, Glassfrog, and a root project are set up.
         </Card.Description>
       </Card.Header>
 

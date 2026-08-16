@@ -18,7 +18,7 @@ const EnvSchema = z.object({
   TODOIST_REDIRECT_URI: z.string().url(),
 
   /** Poll cadence for the scheduled sync job. */
-  SYNC_INTERVAL_MS: z.coerce.number().int().positive().default(60_000),
+  SYNC_INTERVAL_MS: z.coerce.number().int().positive().default(3_600_000),
 
   /** Set false after creating your account to close the instance to new signups. */
   ALLOW_SIGNUP: z
