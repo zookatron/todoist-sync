@@ -19,7 +19,7 @@ of truth listed in each row.
 | React Router         | **8**     | Not v7. ESM-only. `react-router-dom` **does not exist** — import from `react-router` / `react-router/dom`. Middleware is **baseline** (no future flag). Needs Node ≥22.22, React ≥19.2.7, Vite ≥7.                                                                                                                                                                                                                                                 | `node_modules/react-router/docs/` (version-matched) + `.agents/skills/react-router/` |
 | HeroUI               | **3**     | Not v2/NextUI. **No `HeroUIProvider`.** No `tailwind.config.js` plugin — setup is two CSS `@import`s. Compound-component API, built on React Aria. `Image` was removed. **There is no `color` prop** — `Button` takes `variant` (`primary`, `secondary`, `tertiary`, `danger`, `danger-soft`, `ghost`, `outline`) and `size` (`sm`/`md`/`lg`). Check `node_modules/@heroui/react/dist/components/<name>/` for the real prop types before guessing. | `node_modules/@heroui/react/dist/components/`                                        |
 | BullMQ               | **6**     | Use **Job Schedulers** (`queue.upsertJobScheduler`), not the deprecated repeatable-jobs API (`repeat` on `add`). v6 introduced pluggable backends; Redis is still the default.                                                                                                                                                                                                                                                                     | `node_modules/bullmq/dist/esm/` typings                                              |
-| `@doist/todoist-sdk` | **13**    | Not `@doist/todoist-api-typescript` v1. Fields are **camelCase** (`updatedAt`, `isDeleted`, `projectId`). Incremental deltas come from `api.sync({ syncToken, resourceTypes })`. OAuth helpers are **free functions**, not methods.                                                                                                                                                                                                                | `node_modules/@doist/todoist-sdk/dist/types/`                                        |
+| `@doist/todoist-sdk` | **13**    | Not `@doist/todoist-api-typescript` v1. Fields are **camelCase** (`updatedAt`, `isDeleted`, `projectId`). Incremental deltas come from `api.sync({ syncToken, resourceTypes })`.                                                                                                                                                                                                                                                                   | `node_modules/@doist/todoist-sdk/dist/types/`                                        |
 | Better Auth          | **1.6**   | `@better-auth/drizzle-adapter` is a **separate package** from `better-auth`. The `@better-auth/cli` publishes at 1.4.x and lags — do not let it dictate schema; verify generated tables against the docs.                                                                                                                                                                                                                                          | https://www.better-auth.com/docs                                                     |
 | Tailwind             | **4**     | CSS-first config. No `tailwind.config.js`. `@theme` / `@custom-variant` in CSS.                                                                                                                                                                                                                                                                                                                                                                    | —                                                                                    |
 | Drizzle              | **0.45**  | Not the 1.0 beta line.                                                                                                                                                                                                                                                                                                                                                                                                                             | —                                                                                    |
@@ -50,11 +50,10 @@ Read `docs/ARCHITECTURE.md` for the sync data flow.
   describe the _wire_ format for the test simulator.
 - **Logs are unfiltered.** Todoist tokens and the Glassfrog API key are stored in plaintext in
   the database and logged the same way — there is no redaction list, by choice: this is an
-  internal single-user app, and a token you can compare across log lines is what makes a
-  refresh trace readable. Treat `LOG_FILE` as sensitive rather than the log calls.
-- **Always get Todoist tokens via `getValidAccessToken(userId)`** (`server/todoist/oauth.ts`).
-  Never read the token column directly — access tokens expire hourly and refresh tokens
-  **rotate**, so a bypassed refresh path will brick the connection.
+  internal single-user app, and a token you can compare across log lines is what makes a trace
+  readable. Treat `LOG_FILE` as sensitive rather than the log calls.
+- **Always get a Todoist client via `getTodoistApi(userId)` / `callTodoist(userId, fn)`**
+  (`server/todoist/client.ts`). Never read `todoistIntegration.apiKey` directly outside there.
 - **Sync decision logic must stay pure.** `server/sync/resolve.ts` and the hierarchy diff take
   plain data and return operations, with no I/O. That is what makes them unit-testable; keep API
   calls in the callers. (The stateful callers around them are covered end to end instead — see
@@ -62,15 +61,12 @@ Read `docs/ARCHITECTURE.md` for the sync data flow.
 - Environment access goes through `server/utils/env.ts` (zod-validated at import), never
   `process.env` directly.
 
-## The two bugs most likely to bite
+## The bug most likely to bite
 
-1. **Sync ping-pong.** Writing to either side bumps that side's `updated_at`, and the next poll
-   will hand our own write back to us as a change. Two defenses, both required: store the
-   post-write timestamp in `task_mapping`, and compare a `contentHash` of the normalized fields
-   to detect echoes.
-2. **Refresh-token rotation loss.** Todoist rotates the refresh token on every refresh and the
-   old one dies after ~60s. Refreshes are serialized with the DB lock and must persist the new
-   refresh token in the same transaction.
+**Sync ping-pong.** Writing to either side bumps that side's `updated_at`, and the next poll
+will hand our own write back to us as a change. Two defenses, both required: store the
+post-write timestamp in `task_mapping`, and compare a `contentHash` of the normalized fields
+to detect echoes.
 
 ## Commands
 

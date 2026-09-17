@@ -12,12 +12,12 @@ the exact layer where their bugs live; extracting more pure functions distorts t
 
 So instead the _process boundary_ is replaced with stateful in-memory doubles:
 
-| Boundary  | Stand-in             | What it really is                                      |
-| --------- | -------------------- | ------------------------------------------------------ |
-| Postgres  | `DatabaseSimulator`  | PGlite — real Postgres (WASM), real migrations         |
-| Glassfrog | `GlassfrogSimulator` | In-memory entities behind msw handlers                 |
-| Todoist   | `TodoistSimulator`   | Same, plus OAuth tokens and a sync-token version clock |
-| BullMQ    | `QueueSimulator`     | Records `add()` calls                                  |
+| Boundary  | Stand-in             | What it really is                              |
+| --------- | -------------------- | ---------------------------------------------- |
+| Postgres  | `DatabaseSimulator`  | PGlite — real Postgres (WASM), real migrations |
+| Glassfrog | `GlassfrogSimulator` | In-memory entities behind msw handlers         |
+| Todoist   | `TodoistSimulator`   | Same, plus a sync-token version clock          |
+| BullMQ    | `QueueSimulator`     | Records `add()` calls                          |
 
 Code under test runs **unmodified and unmocked**. A test reads: seed both worlds, run the
 real function, assert on both worlds afterwards.
@@ -73,7 +73,7 @@ One per table, in `server/testing/factories/entities.ts`. Chainable modifiers de
 _state that matters_, not column values:
 
 ```ts
-await new TodoistIntegrationFactory().withUser().withRoot('td-root').expired().make()
+await new TodoistIntegrationFactory().withUser().withRoot('td-root').make()
 await new TaskMappingFactory().withUser().linked('action-1', 'td-task-1').converged(snapshot).make()
 await new ProjectMappingFactory().override({ userId }).forRole('role-eng', 'td-eng').make()
 ```
@@ -153,21 +153,16 @@ teardown come from the base class. Generate types from the API's OpenAPI spec wi
 configs) so the simulator cannot drift from the published contract without the compiler
 noticing.
 
-## Two behaviours that carry real weight
+## A behaviour that carries real weight
 
-These exist because CLAUDE.md names them as the two bugs most likely to bite. They are
-_reproduced_, not mocked, so the corresponding defences are genuinely tested.
+This exists because CLAUDE.md names it as the bug most likely to bite. It is _reproduced_,
+not mocked, so the corresponding defence is genuinely tested.
 
 **Writes bump `updated_at`.** Both simulators advance the timestamp on every write, and
 guarantee it moves strictly forward even when two writes land in the same millisecond. So
 our own write really does come back looking like a remote change on the next poll, and the
 `contentHash` echo-suppression is what stops the ping-pong — see the ping-pong test in
 `server/queue/jobs/sync-task.e2e.test.ts`.
-
-**Refresh tokens rotate.** `TodoistSimulator` invalidates a refresh token the moment it is
-spent. Persisting the old one instead of the rotated one therefore fails the _next_
-refresh, exactly as it would in production. `todoist.expireAccessToken()` forces the 401
-that drives `callTodoist`'s refresh-and-retry.
 
 Todoist's `/sync` deltas are modelled with a monotonic version counter: every mutation
 stamps the next version, and a sync with token `N` returns only what changed after it. That

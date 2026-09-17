@@ -22,7 +22,7 @@ Built for personal use: one account, self-hosted, polling-based.
 
 - Node.js ≥ 22.22 (developed on 24)
 - Docker (for Postgres + Redis)
-- A Todoist OAuth app
+- A Todoist API token
 - A Glassfrog API v5 key
 
 ## Setup
@@ -36,19 +36,10 @@ only Postgres and Redis in Docker:
 docker compose up -d postgres redis
 ```
 
-### 2. Todoist OAuth app
+### 2. Todoist API token
 
-Create an app at <https://app.todoist.com/app_console/>. Set the redirect URI to:
-
-```
-http://localhost:5173/oauth/todoist/callback
-```
-
-Note the client ID and client secret. The app requests the `data:read_write`, `data:delete`, and
-`project:delete` scopes — needed to write tasks, delete tasks, and archive projects.
-
-> New Todoist OAuth apps issue **access tokens that expire after one hour** along with a rotating
-> refresh token. This app refreshes automatically; you should not need to reconnect.
+Copy your personal API token from Todoist: **Settings → Integrations → Developer**. You paste
+it into the dashboard after signing in — no app registration or redirect URI needed.
 
 ### 3. Glassfrog API key
 
@@ -61,8 +52,6 @@ signing in.
 cp .env.example .env
 openssl rand -base64 32    # → BETTER_AUTH_SECRET
 ```
-
-Fill in the Todoist client ID and secret.
 
 ### 5. Install and run
 
@@ -84,13 +73,12 @@ Todoist project. Set `ALLOW_SIGNUP=false` afterwards to close the instance.
 
 ## Configuration
 
-| Variable             | Default   | Purpose                                                  |
-| -------------------- | --------- | -------------------------------------------------------- |
-| `SYNC_INTERVAL_MS`   | `3600000` | How often the poll job runs                              |
-| `ALLOW_SIGNUP`       | `true`    | Set `false` to close signups after creating your account |
-| `LOG_LEVEL`          | `info`    | pino log level                                           |
-| `LOG_FILE`           | (unset)   | Append logs to this path instead of stdout               |
-| `TODOIST_HTTP_TRACE` | `false`   | Log the full token-endpoint exchange (see below)         |
+| Variable           | Default   | Purpose                                                  |
+| ------------------ | --------- | -------------------------------------------------------- |
+| `SYNC_INTERVAL_MS` | `3600000` | How often the poll job runs                              |
+| `ALLOW_SIGNUP`     | `true`    | Set `false` to close signups after creating your account |
+| `LOG_LEVEL`        | `info`    | pino log level                                           |
+| `LOG_FILE`         | (unset)   | Append logs to this path instead of stdout               |
 
 ### Logs
 
@@ -104,17 +92,8 @@ docker compose exec web tail -f /app/logs/app.log        # follow
 docker compose exec web cat /app/logs/app.log | npx pino-pretty
 ```
 
-#### Debugging Todoist token refreshes
-
-Refreshes log the full decision path under `flow: "todoist-token-refresh"`, with a
-`traceId` per attempt so one refresh can be picked out of two interleaved processes. The
-lines cover the stored token state, the outgoing request, the response (including whether
-the refresh token rotated), and confirmation that the rotated token reached the database.
-
-Setting `TODOIST_HTTP_TRACE=true` adds the raw HTTP exchange — URL, headers, and bodies.
-
-Logs are unfiltered: token values, the client secret, and API keys are written out as-is,
-which is what makes a refresh trace directly comparable line to line.
+Logs are unfiltered: token values and API keys are written out as-is, which is what makes
+a trace directly comparable line to line.
 
 ## Development
 

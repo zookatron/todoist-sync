@@ -1,11 +1,8 @@
-import { revokeToken } from '@doist/todoist-sdk'
 import { TRPCError } from '@trpc/server'
 import { eq } from 'drizzle-orm'
 import { z } from 'zod'
 import { todoistIntegration } from '../../db/schema/integrations.js'
-import { callTodoist } from '../../todoist/client.js'
-import { todoistTransport } from '../../todoist/transport.js'
-import { env } from '../../utils/env.js'
+import { callTodoist, createTodoistClient } from '../../todoist/client.js'
 import { protectedProcedure, router } from '../init.js'
 
 export const todoistRouter = router({
@@ -16,12 +13,7 @@ export const todoistRouter = router({
 
     if (!integration) return { connected: false as const }
 
-    return {
-      connected: true as const,
-      expiresAt: integration.expiresAt,
-      needsReauth: Boolean(integration.needsReauth),
-      rootTodoistProjectId: integration.rootTodoistProjectId,
-    }
+    return { connected: true as const, rootTodoistProjectId: integration.rootTodoistProjectId }
   }),
 
   /** Feeds the root-project dropdown on the dashboard. */
@@ -65,29 +57,37 @@ export const todoistRouter = router({
       return { ok: true }
     }),
 
-  disconnect: protectedProcedure.mutation(async ({ ctx }) => {
-    const integration = await ctx.db.query.todoistIntegration.findFirst({
-      where: eq(todoistIntegration.userId, ctx.user.id),
-    })
+  /**
+   * Validates the token against GET /user before storing it. Saving an unverified
+   * token would only surface as a confusing failure in a background job later.
+   */
+  setApiKey: protectedProcedure
+    .input(z.object({ apiKey: z.string().min(1) }))
+    .mutation(async ({ ctx, input }) => {
+      const apiKey = input.apiKey.trim()
 
-    if (integration) {
-      // Best effort: a failed revoke must not block local disconnection.
       try {
-        await revokeToken(
-          {
-            clientId: env.TODOIST_CLIENT_ID,
-            clientSecret: env.TODOIST_CLIENT_SECRET,
-            token: integration.accessToken,
-          },
-          todoistTransport(),
-        )
+        await createTodoistClient(apiKey).getUser()
       } catch (error) {
-        ctx.logger.warn({ userId: ctx.user.id, err: error }, 'Todoist token revocation failed')
+        ctx.logger.warn({ userId: ctx.user.id, err: error }, 'Todoist API token rejected')
+        throw new TRPCError({
+          code: 'BAD_REQUEST',
+          message: 'Todoist rejected that token. Check it and try again.',
+        })
       }
-    }
 
+      const values = { userId: ctx.user.id, apiKey, updatedAt: new Date() }
+
+      await ctx.db
+        .insert(todoistIntegration)
+        .values(values)
+        .onConflictDoUpdate({ target: todoistIntegration.userId, set: values })
+
+      return { ok: true }
+    }),
+
+  disconnect: protectedProcedure.mutation(async ({ ctx }) => {
     await ctx.db.delete(todoistIntegration).where(eq(todoistIntegration.userId, ctx.user.id))
-
     return { ok: true }
   }),
 })

@@ -8,6 +8,13 @@
       "when": 1785697984212,
       "tag": "0000_panoramic_menace",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1789430400000,
+      "tag": "0001_todoist_personal_token",
+      "breakpoints": true
     }
   ]
 }

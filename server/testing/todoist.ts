@@ -6,11 +6,9 @@ import { nextSequence } from './factories/sequence.js'
 import { type DeepPartial, deepMerge, Simulator } from './simulator.js'
 
 const API = 'https://api.todoist.com/api/v1'
-const OAUTH = 'https://todoist.com/oauth'
 
 /** The token seeded integrations should present. */
-export const TODOIST_TEST_ACCESS_TOKEN = 'test-todoist-access-token'
-export const TODOIST_TEST_REFRESH_TOKEN = 'test-todoist-refresh-token'
+export const TODOIST_TEST_API_KEY = 'test-todoist-api-key'
 
 const DEFAULT_PAGE_SIZE = 50
 
@@ -29,15 +27,12 @@ type SyncCommand = {
  * camelCase conversion, zod validation and error mapping on the way through. Tests
  * therefore cover the SDK boundary rather than replacing it.
  *
- * Three behaviours here carry the weight:
+ * Two behaviours here carry the weight:
  *
  * - **A monotonic version counter.** Every mutation stamps the next version on the entity,
  *   and `/sync` with a token returns only what changed since. That is a faithful model of
  *   Todoist's incremental delta, so `poll.ts`'s cursor handling — including deferring the
  *   token write until jobs are queued — is genuinely exercised.
- * - **Token expiry and refresh-token rotation.** An expired bearer token is rejected with
- *   401, and refreshing invalidates the old refresh token. This is one of the two bugs
- *   CLAUDE.md names, reproduced rather than mocked.
  * - **Per-command sync status.** `project_move` reports failure in the body with HTTP 200,
  *   which is the case `moveTodoistProject` exists to catch.
  *
@@ -55,9 +50,8 @@ export class TodoistSimulator extends Simulator {
   private versions = new Map<string, number>()
   private clock = 0
 
-  /** access token → expiry (null never expires); refresh token → its access token. */
-  private accessTokens = new Map<string, { expiresAt: number | null }>()
-  private refreshTokens = new Map<string, string>()
+  /** The set of API keys that authorize requests. */
+  private apiKeys = new Set<string>()
 
   constructor() {
     super()
@@ -72,8 +66,7 @@ export class TodoistSimulator extends Simulator {
     this.versions.clear()
     this.clock = 0
 
-    this.accessTokens = new Map([[TODOIST_TEST_ACCESS_TOKEN, { expiresAt: null }]])
-    this.refreshTokens = new Map([[TODOIST_TEST_REFRESH_TOKEN, TODOIST_TEST_ACCESS_TOKEN]])
+    this.apiKeys = new Set([TODOIST_TEST_API_KEY])
 
     this.installTransport()
   }
@@ -104,23 +97,16 @@ export class TodoistSimulator extends Simulator {
     return this.projects.find((project) => project.id === id)
   }
 
-  /**
-   * Expires an access token so the next call gets a 401.
-   *
-   * Drives `callTodoist`'s refresh-and-retry without any mocking: the retry really
-   * refreshes, really receives a rotated refresh token, and really succeeds on the retry.
-   */
-  expireAccessToken(token = TODOIST_TEST_ACCESS_TOKEN): void {
-    this.accessTokens.set(token, { expiresAt: Date.now() - 1000 })
-  }
-
-  /** Whether a refresh token is still usable — false once rotated away. */
-  isRefreshTokenValid(token: string): boolean {
-    return this.refreshTokens.has(token)
-  }
-
   protected handlers(): RequestHandler[] {
     return [
+      // ---- User -------------------------------------------------------------------
+      http.get(`${API}/user`, ({ request }) => {
+        const denied = this.authorize(request)
+        if (denied) return denied
+
+        return HttpResponse.json(currentUser())
+      }),
+
       // ---- Projects -------------------------------------------------------------
       http.get(`${API}/projects`, ({ request }) => {
         const denied = this.authorize(request)
@@ -295,52 +281,7 @@ export class TodoistSimulator extends Simulator {
 
         return HttpResponse.json(response)
       }),
-
-      // ---- OAuth ----------------------------------------------------------------
-      http.post(`${OAUTH}/access_token`, async ({ request }) => {
-        const body = (await request.json()) as {
-          grant_type?: string
-          code?: string
-          refresh_token?: string
-        }
-
-        if (body.grant_type === 'refresh_token') {
-          const presented = body.refresh_token ?? ''
-          // An already-rotated refresh token is dead. Rejecting it here is what makes a
-          // lost rotation fail a test instead of silently working.
-          if (!this.refreshTokens.has(presented)) {
-            return HttpResponse.json({ error: 'invalid_grant' }, { status: 401 })
-          }
-          this.refreshTokens.delete(presented)
-          return HttpResponse.json(this.issueTokens())
-        }
-
-        if (!body.code) {
-          return HttpResponse.json({ error: 'invalid_request' }, { status: 400 })
-        }
-        return HttpResponse.json(this.issueTokens())
-      }),
-
-      http.post(`${OAUTH}/revoke`, () => new HttpResponse(null, { status: 204 })),
     ]
-  }
-
-  /** Mints a fresh access token plus a **new** refresh token, as Todoist does. */
-  private issueTokens(): Record<string, unknown> {
-    const n = nextSequence('todoist-token')
-    const accessToken = `access-token-${n}`
-    const refreshToken = `refresh-token-${n}`
-    const expiresIn = 3600
-
-    this.accessTokens.set(accessToken, { expiresAt: Date.now() + expiresIn * 1000 })
-    this.refreshTokens.set(refreshToken, accessToken)
-
-    return {
-      access_token: accessToken,
-      refresh_token: refreshToken,
-      expires_in: expiresIn,
-      token_type: 'Bearer',
-    }
   }
 
   private runCommands(commands: SyncCommand[]): Record<string, 'ok' | Record<string, unknown>> {
@@ -395,13 +336,9 @@ export class TodoistSimulator extends Simulator {
   private authorize(request: Request): Response | null {
     const header = request.headers.get('Authorization') ?? ''
     const token = header.startsWith('Bearer ') ? header.slice(7) : ''
-    const record = this.accessTokens.get(token)
 
-    if (!record) {
+    if (!this.apiKeys.has(token)) {
       return HttpResponse.json({ error: 'Invalid token' }, { status: 401 })
-    }
-    if (record.expiresAt !== null && record.expiresAt < Date.now()) {
-      return HttpResponse.json({ error: 'Token expired' }, { status: 401 })
     }
     return null
   }
@@ -451,6 +388,38 @@ function syncError(message: string): Record<string, unknown> {
     error_extra: {},
     error_tag: 'COMMAND_FAILED',
     http_code: 400,
+  }
+}
+
+/** A minimal `GET /user` response — just enough to satisfy the SDK's `CurrentUserSchema`. */
+function currentUser(): Record<string, unknown> {
+  return {
+    id: 'user-1',
+    email: 'user@example.com',
+    full_name: 'Test User',
+    avatar_big: null,
+    avatar_medium: null,
+    avatar_s640: null,
+    avatar_small: null,
+    business_account_id: null,
+    is_premium: false,
+    premium_status: 'not_premium',
+    date_format: 0,
+    time_format: 0,
+    weekly_goal: 0,
+    daily_goal: 0,
+    completed_count: 0,
+    completed_today: 0,
+    karma: 0,
+    karma_trend: 'stable',
+    lang: 'en',
+    next_week: 1,
+    start_day: 1,
+    start_page: 'inbox',
+    tz_info: { gmt_string: 'UTC', hours: 0, is_dst: 0, minutes: 0, timezone: 'UTC' },
+    inbox_project_id: 'td-project-inbox',
+    days_off: [],
+    weekend_start_day: 6,
   }
 }
 

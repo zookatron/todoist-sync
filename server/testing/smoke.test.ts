@@ -45,7 +45,7 @@ describe('DatabaseSimulator', () => {
 
   it('enforces the real schema, including foreign keys', async () => {
     await expect(
-      db.insert(todoistIntegration).values({ userId: 'ghost', accessToken: 'x' }),
+      db.insert(todoistIntegration).values({ userId: 'ghost', apiKey: 'x' }),
     ).rejects.toThrow()
   })
 })
@@ -65,7 +65,7 @@ describe('GlassfrogSimulator', () => {
     const { user } = await connectedUser()
     await db
       .update(todoistIntegration)
-      .set({ accessToken: 'unused' })
+      .set({ apiKey: 'unused' })
       .where(eq(todoistIntegration.userId, user.id))
 
     const client = await getGlassfrogClient(user.id)

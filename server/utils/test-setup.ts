@@ -26,9 +26,6 @@ const defaults: Record<string, string> = {
   REDIS_URL: 'redis://127.0.0.1:1',
   BETTER_AUTH_SECRET: 'test-secret-at-least-thirty-two-characters-long',
   BETTER_AUTH_URL: 'http://localhost:5173',
-  TODOIST_CLIENT_ID: 'test-client-id',
-  TODOIST_CLIENT_SECRET: 'test-client-secret',
-  TODOIST_REDIRECT_URI: 'http://localhost:5173/oauth/todoist/callback',
 }
 
 for (const [key, value] of Object.entries(defaults)) {

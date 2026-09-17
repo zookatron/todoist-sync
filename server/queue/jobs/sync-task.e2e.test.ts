@@ -1,7 +1,6 @@
 import { and, eq } from 'drizzle-orm'
 import { beforeEach, describe, expect, it } from 'vitest'
 import { db } from '../../db/index.js'
-import { todoistIntegration } from '../../db/schema/integrations.js'
 import { syncLog, taskMapping } from '../../db/schema/sync.js'
 import { contentHash } from '../../sync/resolve.js'
 import {
@@ -488,22 +487,6 @@ describe('runTaskSync', () => {
 
       const lock = await acquireLock(`task:${userId}:action-1`, { owner: 'next', ttlMs: 1000 })
       expect(lock).not.toBeNull()
-    })
-  })
-
-  describe('token expiry', () => {
-    it('refreshes after a 401 and completes the write', async () => {
-      glassfrog.addActions([{ id: 'action-1', description: 'Needs a token', role_id: ROLE_GF }])
-      todoist.expireAccessToken()
-
-      await runTaskSync({ userId, glassfrogActionId: 'action-1' }, 'job-1')
-
-      expect(todoist.tasks.find((task) => task.content === 'Needs a token')).toBeDefined()
-
-      const integration = await db.query.todoistIntegration.findFirst({
-        where: eq(todoistIntegration.userId, userId),
-      })
-      expect(integration?.accessToken).toBe('access-token-1')
     })
   })
 })

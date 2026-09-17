@@ -1,12 +1,25 @@
 import { randomUUID } from 'node:crypto'
 import { TodoistApi, TodoistRequestError } from '@doist/todoist-sdk'
+import { eq } from 'drizzle-orm'
+import { db } from '../db/index.js'
+import { todoistIntegration } from '../db/schema/integrations.js'
 import { logger } from '../utils/logger.js'
-import { getValidAccessToken } from './oauth.js'
 import { todoistTransport } from './transport.js'
 
-/** Builds a client bound to the user's current access token. */
+/** Builds a client authenticated with a specific personal API token. */
+export function createTodoistClient(apiKey: string): TodoistApi {
+  return new TodoistApi(apiKey, todoistTransport())
+}
+
+/** Builds a client from the user's stored token. */
 export async function getTodoistApi(userId: string): Promise<TodoistApi> {
-  return new TodoistApi(await getValidAccessToken(userId), todoistTransport())
+  const integration = await db.query.todoistIntegration.findFirst({
+    where: eq(todoistIntegration.userId, userId),
+  })
+
+  if (!integration) throw new Error(`User ${userId} has not connected Todoist`)
+
+  return createTodoistClient(integration.apiKey)
 }
 
 function retryAfterMs(error: TodoistRequestError): number | null {
@@ -19,11 +32,11 @@ function retryAfterMs(error: TodoistRequestError): number | null {
 }
 
 /**
- * Runs a Todoist call with token and rate-limit recovery.
+ * Runs a Todoist call with rate-limit recovery.
  *
- * - **401**: our expiry bookkeeping disagreed with the server (clock skew, a token
- *   revoked early). Force a refresh and retry once with a fresh client.
- * - **429**: back off for `Retry-After` and retry, up to `maxRetries`.
+ * **429/5xx**: back off for `Retry-After` (or exponentially) and retry, up to
+ * `maxRetries`. Anything else — including a 401, which means the stored token is
+ * simply bad — is not retryable.
  *
  * Prefer this over calling a raw {@link TodoistApi} in background jobs.
  */
@@ -32,32 +45,14 @@ export async function callTodoist<T>(
   fn: (api: TodoistApi) => Promise<T>,
   options: { maxRetries?: number } = {},
 ): Promise<T> {
+  const api = await getTodoistApi(userId)
   const maxRetries = options.maxRetries ?? 3
-  let refreshed = false
 
   for (let attempt = 0; ; attempt++) {
-    const api = new TodoistApi(await getValidAccessToken(userId, refreshed), todoistTransport())
-
     try {
       return await fn(api)
     } catch (error) {
       if (!(error instanceof TodoistRequestError)) throw error
-
-      if (error.httpStatusCode === 401 && !refreshed) {
-        // The 401 body says whether the token was expired, revoked, or never valid —
-        // which is the difference between a refresh that will help and one that will not.
-        logger.warn(
-          {
-            userId,
-            attempt,
-            status: error.httpStatusCode,
-            responseData: error.responseData,
-          },
-          'Todoist returned 401; forcing a token refresh',
-        )
-        refreshed = true
-        continue
-      }
 
       const isRetryable = error.httpStatusCode === 429 || (error.httpStatusCode ?? 0) >= 500
       if (!isRetryable || attempt >= maxRetries) throw error

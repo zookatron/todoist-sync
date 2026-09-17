@@ -4,7 +4,7 @@ import { locks } from '../../db/schema/locks.js'
 import { projectMapping, syncLog, taskMapping, user } from '../../db/schema/index.js'
 import { contentHash, type TaskSnapshot } from '../../sync/resolve.js'
 import { GLASSFROG_TEST_API_KEY } from '../glassfrog.js'
-import { TODOIST_TEST_ACCESS_TOKEN, TODOIST_TEST_REFRESH_TOKEN } from '../todoist.js'
+import { TODOIST_TEST_API_KEY } from '../todoist.js'
 import { Factory, FactoryContext } from './factory.js'
 import { nextSequence } from './sequence.js'
 
@@ -47,11 +47,7 @@ export class UserFactory extends Factory<User> {
 export class TodoistIntegrationFactory extends Factory<TodoistIntegration> {
   protected defaults(): Partial<TodoistIntegration> {
     return {
-      accessToken: TODOIST_TEST_ACCESS_TOKEN,
-      refreshToken: TODOIST_TEST_REFRESH_TOKEN,
-      // Null means "never expires", which keeps the happy path off the refresh code.
-      expiresAt: null,
-      needsReauth: null,
+      apiKey: TODOIST_TEST_API_KEY,
       rootTodoistProjectId: null,
       todoistSyncToken: null,
     }
@@ -73,21 +69,6 @@ export class TodoistIntegrationFactory extends Factory<TodoistIntegration> {
 
   withSyncToken(todoistSyncToken: string): this {
     return this.override({ todoistSyncToken })
-  }
-
-  /** An access token already past expiry, so the next call must refresh first. */
-  expired(): this {
-    return this.override({ expiresAt: new Date(Date.now() - 60_000) })
-  }
-
-  /** A connection the user must re-authorize by hand; all API use should refuse. */
-  needsReauth(): this {
-    return this.override({ needsReauth: new Date() })
-  }
-
-  /** A legacy long-lived token: no refresh token, so no rotation to lose. */
-  withoutRefreshToken(): this {
-    return this.override({ refreshToken: null, expiresAt: null })
   }
 }
 

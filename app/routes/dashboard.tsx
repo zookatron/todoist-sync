@@ -1,6 +1,5 @@
-import { Alert, Card } from '@heroui/react'
+import { Card } from '@heroui/react'
 import { useQuery } from '@tanstack/react-query'
-import { useSearchParams } from 'react-router'
 import {
   ActivityCard,
   GlassfrogCard,
@@ -16,7 +15,6 @@ export function meta(_: Route.MetaArgs) {
 }
 
 export default function Dashboard(_: Route.ComponentProps) {
-  const [searchParams] = useSearchParams()
   const trpc = useTRPC()
 
   const todoist = useQuery(trpc.todoist.status.queryOptions())
@@ -34,14 +32,6 @@ export default function Dashboard(_: Route.ComponentProps) {
 
   return (
     <div className="flex flex-col gap-6">
-      {searchParams.get('todoist') === 'connected' && (
-        <Alert status="success">
-          <Alert.Content>
-            <Alert.Description>Todoist connected.</Alert.Description>
-          </Alert.Content>
-        </Alert>
-      )}
-
       {!setupComplete && (
         <Card>
           <Card.Header>
@@ -64,7 +54,7 @@ export default function Dashboard(_: Route.ComponentProps) {
       )}
 
       <div className="grid gap-6 md:grid-cols-2">
-        <TodoistCard connectError={searchParams.get('todoist_error')} />
+        <TodoistCard />
         <GlassfrogCard />
         <RootProjectCard todoistConnected={Boolean(todoist.data?.connected)} />
         <SyncCard />

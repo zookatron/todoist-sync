@@ -6,7 +6,7 @@ Two processes share one codebase and one database:
 
 | Process | Entry                         | Responsibility                                                  |
 | ------- | ----------------------------- | --------------------------------------------------------------- |
-| Web     | `react-router-serve` → `app/` | UI, auth, tRPC API, Todoist OAuth callback                      |
+| Web     | `react-router-serve` → `app/` | UI, auth, tRPC API                                              |
 | Worker  | `worker/index.ts`             | BullMQ scheduler + job execution. **All syncing happens here.** |
 
 Shared logic lives in `server/`, outside `app/`, so the worker can import it without dragging in
@@ -104,25 +104,22 @@ A single generic lock utility (`server/utils/lock.ts`) backed by a `locks` table
 atomic `INSERT ... ON CONFLICT DO UPDATE ... WHERE expires_at < now()`. A row comes back only if
 the caller won.
 
-It is used for three distinct jobs:
+It is used for two distinct jobs:
 
 1. `poll:{userId}` — a slow poll must not overlap the next tick. Contention is normal; the job
    exits cleanly.
 2. `task:{userId}:{key}` — two jobs must never sync the same task at once. Contention is an
    error; the job **fails** and BullMQ retries with backoff.
-3. `todoist-token:{userId}` — refresh-token rotation must be serialized (see below).
 
 Locks carry a TTL and an owner. Only the owner can release one, and an expired lock can be stolen,
 so a crashed worker cannot deadlock the system.
 
 ## Credentials
 
-Todoist tokens and the Glassfrog API key are stored in plaintext in the database.
-
-Todoist access tokens expire after an hour and **the refresh token rotates on every refresh**,
-with the previous one dying after ~60 seconds. `getValidAccessToken()` therefore takes the token
-lock, re-reads inside it (another process may have just refreshed), refreshes, and persists the
-new refresh token. Bypassing it risks permanently breaking the connection.
+Both integrations authenticate with a static, long-lived personal token: a Todoist API token and
+a Glassfrog API v5 key, each pasted into the dashboard and stored in plaintext in the database.
+Neither expires, carries scopes, or needs to be refreshed — `getTodoistApi()`/`callTodoist()` and
+`getGlassfrogClient()` just read the stored token and build a client from it.
 
 ## Avoiding sync ping-pong
 

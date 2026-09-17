@@ -18,10 +18,20 @@ function formatDate(value: Date | string | null | undefined): string {
   return new Date(value).toLocaleString()
 }
 
-export function TodoistCard({ connectError }: { connectError: string | null }) {
+export function TodoistCard() {
   const trpc = useTRPC()
   const queryClient = useQueryClient()
   const status = useQuery(trpc.todoist.status.queryOptions())
+  const [apiKey, setApiKey] = useState('')
+
+  const save = useMutation(
+    trpc.todoist.setApiKey.mutationOptions({
+      onSuccess: () => {
+        setApiKey('')
+        return queryClient.invalidateQueries()
+      },
+    }),
+  )
 
   const disconnect = useMutation(
     trpc.todoist.disconnect.mutationOptions({
@@ -34,49 +44,48 @@ export function TodoistCard({ connectError }: { connectError: string | null }) {
       <Card.Header>
         <Card.Title>Todoist</Card.Title>
         <Card.Description>
-          Authorize access so tasks and projects can be read and written.
+          Paste an API token. It is verified against your account before being stored.
         </Card.Description>
       </Card.Header>
 
       <Card.Content className="flex flex-col gap-4">
-        {connectError && (
+        {save.error && (
           <Alert status="danger">
             <Alert.Content>
-              <Alert.Title>Could not connect Todoist</Alert.Title>
-              <Alert.Description>{connectError}</Alert.Description>
-            </Alert.Content>
-          </Alert>
-        )}
-
-        {status.data?.connected && status.data.needsReauth && (
-          <Alert status="danger">
-            <Alert.Content>
-              <Alert.Title>Reconnection required</Alert.Title>
-              <Alert.Description>
-                The refresh token was rejected. Syncing is paused until you reconnect.
-              </Alert.Description>
+              <Alert.Description>{save.error.message}</Alert.Description>
             </Alert.Content>
           </Alert>
         )}
 
         {status.data?.connected ? (
-          <dl className="grid grid-cols-2 gap-2 text-sm">
-            <dt className="text-foreground-secondary">Token expires</dt>
-            <dd>{formatDate(status.data.expiresAt)}</dd>
-          </dl>
+          <p className="text-foreground-secondary text-sm">Connected.</p>
         ) : (
-          <p className="text-foreground-secondary text-sm">Not connected.</p>
+          <TextField
+            name="apiKey"
+            type="password"
+            value={apiKey}
+            onChange={setApiKey}
+            autoComplete="off"
+          >
+            <Label>API token</Label>
+            <Input placeholder="Paste your Todoist API token" />
+            <ErrorMessage />
+          </TextField>
         )}
       </Card.Content>
 
       <Card.Footer>
         {status.data?.connected ? (
           <Button variant="danger-soft" onPress={() => disconnect.mutate()}>
-            Disconnect
+            Remove token
           </Button>
         ) : (
-          <Button variant="primary">
-            <a href="/oauth/todoist/start">Connect Todoist</a>
+          <Button
+            variant="primary"
+            isDisabled={apiKey.trim().length === 0 || save.isPending}
+            onPress={() => save.mutate({ apiKey })}
+          >
+            {save.isPending ? 'Verifying…' : 'Test & save'}
           </Button>
         )}
       </Card.Footer>

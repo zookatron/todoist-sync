@@ -13,10 +13,6 @@ const EnvSchema = z.object({
   BETTER_AUTH_SECRET: z.string().min(32, 'BETTER_AUTH_SECRET must be at least 32 characters'),
   BETTER_AUTH_URL: z.string().url(),
 
-  TODOIST_CLIENT_ID: z.string().min(1),
-  TODOIST_CLIENT_SECRET: z.string().min(1),
-  TODOIST_REDIRECT_URI: z.string().url(),
-
   /** Poll cadence for the scheduled sync job. */
   SYNC_INTERVAL_MS: z.coerce.number().int().positive().default(3_600_000),
 
@@ -33,17 +29,6 @@ const EnvSchema = z.object({
    * same file, so point the web and worker at one path to get a single merged timeline.
    */
   LOG_FILE: z.string().min(1).optional(),
-
-  /**
-   * Logs the full HTTP exchange with Todoist's token endpoint — URL, headers, and bodies.
-   *
-   * Off by default because it routes that one request through the global `fetch` instead
-   * of the SDK's own transport.
-   */
-  TODOIST_HTTP_TRACE: z
-    .enum(['true', 'false'])
-    .default('false')
-    .transform((value) => value === 'true'),
 
   /**
    * Optional one-time account seed, read only by the `migrate` container. Lets a fresh
