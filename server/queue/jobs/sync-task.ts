@@ -61,10 +61,18 @@ async function syncOne(data: TaskJobData): Promise<void> {
   const glassfrog = await readGlassfrogSide(client, glassfrogActionId)
   const todoist = await readTodoistSide(userId, todoistTaskId)
 
+  // The project the action says this task belongs in. Doubles as the destination for a
+  // create and as the yardstick `resolve` measures the task's current project against.
+  const expectedProjectId =
+    glassfrog.state.present && glassfrog.action
+      ? await resolveDestinationProject(userId, glassfrog.action)
+      : null
+
   const decision = resolve({
     glassfrog: glassfrog.state,
     todoist: todoist.state,
     mapping: { linked: Boolean(mapping), contentHash: mapping?.contentHash ?? null },
+    placement: { expectedProjectId, actualProjectId: todoist.task?.projectId ?? null },
   })
 
   log.debug({ decision: decision.type, glassfrogActionId, todoistTaskId }, 'Resolved task sync')
@@ -90,8 +98,7 @@ async function syncOne(data: TaskJobData): Promise<void> {
       // from it and the mapping is repointed at the new task id below.
       const recreating = Boolean(mapping)
 
-      const projectId = await resolveDestinationProject(userId, glassfrog.action)
-      if (!projectId) {
+      if (!expectedProjectId) {
         log.warn(
           { glassfrogActionId },
           'No mapped Todoist project for this action; skipping until the hierarchy catches up',
@@ -100,17 +107,7 @@ async function syncOne(data: TaskJobData): Promise<void> {
       }
 
       const snapshot = toGlassfrogSnapshot(glassfrog.action)
-      const created = await callTodoist(userId, (api) =>
-        api.addTask({
-          content: snapshot.content || 'Untitled action',
-          description: snapshot.description,
-          projectId,
-        }),
-      )
-
-      if (snapshot.completed) {
-        await callTodoist(userId, (api) => api.closeTask(created.id))
-      }
+      const created = await createTodoistTask(userId, snapshot, expectedProjectId)
 
       await upsertMapping({
         userId,
@@ -277,6 +274,37 @@ async function syncOne(data: TaskJobData): Promise<void> {
       return
     }
 
+    case 'recreate-todoist': {
+      if (!glassfrog.action || !todoistTaskId || !expectedProjectId) return
+
+      const created = await createTodoistTask(userId, decision.snapshot, expectedProjectId)
+
+      // Repoint the mapping before removing the old copy. Should the delete fail, the
+      // leftover is unmapped and sits outside the mirrored tree, so `filterTodoistChanges`
+      // ignores it — whereas an unmapped *new* task inside the tree would be mistaken for
+      // a hand-made one and spawn a duplicate action.
+      await upsertMapping({
+        userId,
+        mappingId: mapping?.id,
+        glassfrogActionId: glassfrog.action.id,
+        todoistTaskId: created.id,
+        glassfrogUpdatedAt: toGlassfrogSnapshot(glassfrog.action).updatedAt,
+        todoistUpdatedAt: created.updatedAt ?? new Date(),
+        hash: contentHash(decision.snapshot),
+      })
+
+      await callTodoist(userId, (api) => api.deleteTask(todoistTaskId))
+
+      await record(userId, 'Rebuilt Todoist task in its mapped project', {
+        entity: 'task',
+        action: 'recreate',
+        glassfrogActionId: glassfrog.action.id,
+        fromProjectId: todoist.task?.projectId,
+        toProjectId: expectedProjectId,
+      })
+      return
+    }
+
     case 'delete-todoist': {
       if (todoistTaskId) {
         await callTodoist(userId, (api) => api.deleteTask(todoistTaskId))
@@ -364,6 +392,32 @@ async function readTodoistSide(
   } catch {
     return { state: { present: false }, task: null }
   }
+}
+
+/**
+ * Adds a Todoist task in `projectId`, closing it when the snapshot is already complete.
+ *
+ * Shared by the create and rebuild paths, which differ only in where the content comes
+ * from and whether an older copy has to be cleaned up afterwards.
+ */
+async function createTodoistTask(
+  userId: string,
+  snapshot: TaskSnapshot,
+  projectId: string,
+): Promise<{ id: string; updatedAt: Date | null }> {
+  const created = await callTodoist(userId, (api) =>
+    api.addTask({
+      content: snapshot.content || 'Untitled action',
+      description: snapshot.description,
+      projectId,
+    }),
+  )
+
+  if (snapshot.completed) {
+    await callTodoist(userId, (api) => api.closeTask(created.id))
+  }
+
+  return { id: created.id, updatedAt: created.updatedAt ?? null }
 }
 
 /** Finds the Todoist project an action belongs in: its parent project, else its role. */

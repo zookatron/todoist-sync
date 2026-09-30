@@ -384,6 +384,121 @@ describe('runTaskSync', () => {
     })
   })
 
+  describe('recreate after drifting out of its project', () => {
+    const ARCHIVED_TD = 'td-project-archived'
+
+    /**
+     * Strands a task the way archiving a Todoist project does: the project is archived so
+     * it drops out of `GET /projects`, the hierarchy pass recreates it empty elsewhere, and
+     * the task is left addressable by id but invisible and outside the mirrored tree.
+     */
+    async function strandedTask(overrides: { content: string; description?: string }) {
+      todoist.addProjects([
+        { id: ARCHIVED_TD, name: 'Engineering', parent_id: ROOT, is_archived: true },
+      ])
+      const [task] = todoist.addTasks([
+        {
+          content: overrides.content,
+          description: overrides.description ?? '',
+          project_id: ARCHIVED_TD,
+        },
+      ])
+      return task!
+    }
+
+    it('rebuilds a task stranded in an archived project inside its mapped project', async () => {
+      const stranded = await strandedTask({ content: 'Stranded work', description: 'details' })
+      glassfrog.addActions([
+        { id: 'action-1', description: 'Stranded work', note: 'details', role_id: ROLE_GF },
+      ])
+      // Both sides agree on content, so only the placement check can catch this.
+      await new TaskMappingFactory()
+        .override({ userId })
+        .linked('action-1', stranded.id)
+        .converged({ content: 'Stranded work', description: 'details', completed: false })
+        .make()
+
+      await runTaskSync({ userId, glassfrogActionId: 'action-1' }, 'job-1')
+
+      const rebuilt = todoist.tasks.find((task) => !task.is_deleted && task.id !== stranded.id)
+      expect(rebuilt?.project_id).toBe(ROLE_TD)
+      expect(rebuilt?.content).toBe('Stranded work')
+      expect(rebuilt?.description).toBe('details')
+
+      // The stale copy goes, and the mapping follows the replacement.
+      expect(todoist.deletedTaskIds.has(stranded.id)).toBe(true)
+      expect(await mapping({ glassfrogActionId: 'action-1' })).toMatchObject({
+        todoistTaskId: rebuilt?.id,
+      })
+    })
+
+    it('keeps an edit made before the task was stranded', async () => {
+      const stranded = await strandedTask({ content: 'Renamed in Todoist' })
+      glassfrog.addActions([
+        {
+          id: 'action-1',
+          description: 'Original name',
+          role_id: ROLE_GF,
+          updated_at: '2020-01-01T00:00:00Z',
+        },
+      ])
+      await new TaskMappingFactory()
+        .override({ userId })
+        .linked('action-1', stranded.id)
+        .converged({ content: 'Original name', description: '', completed: false })
+        .make()
+
+      await runTaskSync({ userId, glassfrogActionId: 'action-1' }, 'job-1')
+
+      const rebuilt = todoist.tasks.find((task) => !task.is_deleted && task.id !== stranded.id)
+      expect(rebuilt?.content).toBe('Renamed in Todoist')
+      expect(rebuilt?.project_id).toBe(ROLE_TD)
+    })
+
+    it('preserves completion when rebuilding', async () => {
+      const stranded = await strandedTask({ content: 'Done elsewhere' })
+      glassfrog.addActions([
+        {
+          id: 'action-1',
+          description: 'Done elsewhere',
+          role_id: ROLE_GF,
+          status: 'completed',
+        },
+      ])
+      await new TaskMappingFactory()
+        .override({ userId })
+        .linked('action-1', stranded.id)
+        .converged({ content: 'Done elsewhere', description: '', completed: true })
+        .make()
+
+      await runTaskSync({ userId, glassfrogActionId: 'action-1' }, 'job-1')
+
+      const rebuilt = todoist.tasks.find((task) => !task.is_deleted && task.id !== stranded.id)
+      expect(rebuilt?.project_id).toBe(ROLE_TD)
+      expect(rebuilt?.checked).toBe(true)
+    })
+
+    it('leaves the task alone when the action has no mapped project yet', async () => {
+      // Nothing to relocate it to: moving it on a guess is worse than waiting for the
+      // hierarchy pass to create the destination.
+      const stranded = await strandedTask({ content: 'Homeless' })
+      glassfrog.addActions([{ id: 'action-1', description: 'Homeless', role_id: 'role-unmapped' }])
+      await new TaskMappingFactory()
+        .override({ userId })
+        .linked('action-1', stranded.id)
+        .converged({ content: 'Homeless', description: '', completed: false })
+        .make()
+
+      await runTaskSync({ userId, glassfrogActionId: 'action-1' }, 'job-1')
+
+      expect(todoist.deletedTaskIds.has(stranded.id)).toBe(false)
+      expect(todoist.task(stranded.id)?.project_id).toBe(ARCHIVED_TD)
+      expect(await mapping({ glassfrogActionId: 'action-1' })).toMatchObject({
+        todoistTaskId: stranded.id,
+      })
+    })
+  })
+
   describe('noop', () => {
     it('does nothing when neither side exists', async () => {
       await runTaskSync({ userId, glassfrogActionId: 'never-existed' }, 'job-1')

@@ -83,6 +83,29 @@ mistake is recoverable.
 Conflicts resolve by comparing `updated_at` on both sides — the more recently modified side wins
 and overwrites the other.
 
+### Placement is one-way
+
+Content is two-way, but _which project a task sits in_ is Glassfrog's call alone. Every task sync
+compares the task's current Todoist project with the one its action maps to, and a mismatch
+rebuilds the task in the right place: add the replacement, repoint the `task_mapping` row, then
+delete the stale copy.
+
+The case this exists for is a **task stranded in an archived project**. Archiving a Todoist project
+drops it out of `GET /projects`, so the hierarchy pass sees its mapping pointing at nothing and
+recreates the project empty — leaving the tasks that were inside it addressable by id but invisible
+in the app and outside the mirrored tree. Without a placement check their content still agrees with
+Glassfrog, so `resolve` returns `already-converged` and they stay lost.
+
+Two consequences worth knowing:
+
+- Dragging a task between mirrored projects in Todoist is **reverted** on the next poll. Move the
+  action's role or parent project in Glassfrog instead.
+- The rebuild is an add plus a delete, not a move, so Todoist-only extras on the task (comments,
+  subtasks, labels) do not survive it. Placement is only corrected when it is actually wrong.
+
+An unknown destination is never treated as a mismatch: if the action has no mapped project yet, the
+task is left alone until the hierarchy pass creates one.
+
 ### Deletion is one-way
 
 Glassfrog is the system of record, so deletion only travels Glassfrog → Todoist:
