@@ -1,6 +1,12 @@
 import { http, HttpResponse, type RequestHandler } from 'msw'
 import { GLASSFROG_BASE_URL } from '../glassfrog/client.js'
-import type { Action, ActionInput, Project, Role } from '../glassfrog/generated/types.gen.js'
+import type {
+  Action,
+  ActionInput,
+  Project,
+  ProjectInput,
+  Role,
+} from '../glassfrog/generated/types.gen.js'
 import { nextSequence } from './factories/sequence.js'
 import { type DeepPartial, deepMerge, Simulator } from './simulator.js'
 
@@ -45,15 +51,17 @@ export class GlassfrogSimulator extends Simulator {
   addProjects(projects: DeepPartial<Project>[]): Project[] {
     const created = projects.map((project) => deepMerge(defaultProject(), project))
     this.projects.push(...created)
+    this.refreshSubProjectFlags()
+    return created
+  }
 
-    // Keep the flag the tree crawl relies on honest, so tests never have to set it.
+  /** Keeps the flag the tree crawl relies on honest, so tests never have to set it. */
+  private refreshSubProjectFlags(): void {
     for (const project of this.projects) {
       project.has_sub_projects = this.projects.some(
         (candidate) => candidate.parent_project_id === project.id,
       )
     }
-
-    return created
   }
 
   addActions(actions: DeepPartial<Action>[]): Action[] {
@@ -64,6 +72,10 @@ export class GlassfrogSimulator extends Simulator {
 
   action(id: string): Action | undefined {
     return this.actions.find((action) => action.id === id)
+  }
+
+  project(id: string): Project | undefined {
+    return this.projects.find((project) => project.id === id)
   }
 
   protected handlers(): RequestHandler[] {
@@ -109,6 +121,49 @@ export class GlassfrogSimulator extends Simulator {
         const parentId = String(params.id)
         const children = this.projects.filter((p) => p.parent_project_id === parentId)
         return this.page(request, children)
+      }),
+
+      http.post(url('/roles/:roleId/projects'), async ({ request, params }) => {
+        const denied = this.authorize(request)
+        if (denied) return denied
+
+        const roleId = String(params.roleId)
+        if (!this.roles.some((role) => role.id === roleId)) return notFound('Role')
+
+        const body = (await request.json()) as ProjectInput
+
+        const [project] = this.addProjects([{ role_id: roleId }])
+        if (!project) return notFound('Project')
+
+        applyProjectInput(project, body)
+        // After the input, because that is what sets the parent — and the crawl will not
+        // descend into a parent whose flag says it is a leaf.
+        this.refreshSubProjectFlags()
+
+        return HttpResponse.json({ data: project }, { status: 201 })
+      }),
+
+      http.get(url('/projects/:id'), ({ request, params }) => {
+        const denied = this.authorize(request)
+        if (denied) return denied
+
+        const project = this.project(String(params.id))
+        if (!project) return notFound('Project')
+        return HttpResponse.json({ data: project })
+      }),
+
+      http.patch(url('/projects/:id'), async ({ request, params }) => {
+        const denied = this.authorize(request)
+        if (denied) return denied
+
+        const project = this.project(String(params.id))
+        if (!project) return notFound('Project')
+
+        const body = (await request.json()) as ProjectInput
+        applyProjectInput(project, body)
+        this.touch(project)
+
+        return HttpResponse.json({ data: project })
       }),
 
       http.get(url('/me/actions'), ({ request }) => {
@@ -268,6 +323,23 @@ function applyActionInput(action: Action, body: ActionInput): void {
   if (input.parent_project_id !== undefined) action.parent_project_id = input.parent_project_id
   if (input.individual_initiative !== undefined) {
     action.individual_initiative = input.individual_initiative
+  }
+}
+
+/** The project counterpart of {@link applyActionInput}, and field by field for the same reason. */
+function applyProjectInput(project: Project, body: ProjectInput): void {
+  const input = body.project
+  if (!input) return
+
+  if (input.description !== undefined) project.description = input.description
+  if (input.status !== undefined) project.status = input.status
+  if (input.note !== undefined) project.note = input.note
+  if (input.link !== undefined) project.link = input.link
+  if (input.value !== undefined) project.value = input.value
+  if (input.effort !== undefined) project.effort = input.effort
+  if (input.parent_project_id !== undefined) project.parent_project_id = input.parent_project_id
+  if (input.individual_initiative !== undefined) {
+    project.individual_initiative = input.individual_initiative
   }
 }
 

@@ -2,7 +2,8 @@ import { TRPCError } from '@trpc/server'
 import { eq } from 'drizzle-orm'
 import { z } from 'zod'
 import { todoistIntegration } from '../../db/schema/integrations.js'
-import { callTodoist, createTodoistClient } from '../../todoist/client.js'
+import { createTodoistClient } from '../../todoist/client.js'
+import { listActiveProjects } from '../../todoist/projects.js'
 import { protectedProcedure, router } from '../init.js'
 
 export const todoistRouter = router({
@@ -18,27 +19,13 @@ export const todoistRouter = router({
 
   /** Feeds the root-project dropdown on the dashboard. */
   listProjects: protectedProcedure.query(async ({ ctx }) => {
-    const projects = await callTodoist(ctx.user.id, async (api) => {
-      const collected: { id: string; name: string; parentId: string | null }[] = []
-      let cursor: string | null = null
+    const projects = await listActiveProjects(ctx.user.id)
 
-      do {
-        const page = await api.getProjects(cursor ? { cursor } : {})
-        collected.push(
-          ...page.results.map((project) => ({
-            id: project.id,
-            name: project.name,
-            // Workspace projects have no parent; only personal projects nest.
-            parentId: 'parentId' in project ? (project.parentId ?? null) : null,
-          })),
-        )
-        cursor = page.nextCursor ?? null
-      } while (cursor)
-
-      return collected
-    })
-
-    return projects
+    return projects.map((project) => ({
+      id: project.id,
+      name: project.name,
+      parentId: project.parentId,
+    }))
   }),
 
   setRootProject: protectedProcedure

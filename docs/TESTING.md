@@ -135,9 +135,12 @@ msw matches the **first** handler, which is why overrides go in front.
 
 1. Find the real request. For Glassfrog read the URL and verb out of
    `server/glassfrog/generated/sdk.gen.ts` — several are non-obvious (`createAction` is
-   `POST /roles/{role_id}/actions`; completion is a sub-resource, `POST` and `DELETE` on
-   `/actions/{id}/completion`). For Todoist read the client in
-   `node_modules/@doist/todoist-sdk/dist/esm/clients/`.
+   `POST /roles/{role_id}/actions`; action completion is a sub-resource, `POST` and `DELETE`
+   on `/actions/{id}/completion`, but **project** completion is not — it is a status field on
+   `PATCH /projects/{id}`, and creation is `POST /roles/{role_id}/projects`). For Todoist read
+   the client in `node_modules/@doist/todoist-sdk/dist/esm/clients/`; note that archived
+   projects have their own listing (`GET /projects/archived`) because `GET /projects` omits
+   them entirely.
 2. Add a handler in the simulator's `handlers()`, typed against the generated types.
 3. **Answer in the wire format.** Todoist is snake_case (`ItemSyncView`,
    `PersonalProjectSyncView`); the SDK does the camelCase conversion and validates the

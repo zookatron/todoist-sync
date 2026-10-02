@@ -6,7 +6,7 @@ import { getGlassfrogClient, paginateAll } from '../../glassfrog/client.js'
 import { diffGlassfrogActions } from '../../glassfrog/delta.js'
 import { listMyActions } from '../../glassfrog/generated/sdk.gen.js'
 import type { Action } from '../../glassfrog/generated/types.gen.js'
-import { syncHierarchy } from '../../sync/hierarchy.js'
+import { emptyHierarchyResult, type HierarchyResult, syncHierarchy } from '../../sync/hierarchy.js'
 import { callTodoist } from '../../todoist/client.js'
 import { filterTodoistChanges } from '../../todoist/delta.js'
 import { env } from '../../utils/env.js'
@@ -15,12 +15,10 @@ import { logger } from '../../utils/logger.js'
 import { getTaskQueue, type TaskJobData, taskJobKey } from '../queues.js'
 
 export type PollResult = {
-  hierarchy: Awaited<ReturnType<typeof syncHierarchy>>
+  hierarchy: HierarchyResult
   enqueued: number
   skipped?: 'locked' | 'not-configured'
 }
-
-const EMPTY_HIERARCHY = { created: 0, renamed: 0, moved: 0, archived: 0, skipped: 0 }
 
 /**
  * One polling cycle for a user: reconcile the project tree, find changed tasks on both
@@ -41,7 +39,7 @@ export async function runPoll(userId: string): Promise<PollResult> {
   } catch (error) {
     if (error instanceof LockUnavailableError) {
       log.warn('Previous poll still running; skipping this tick')
-      return { hierarchy: EMPTY_HIERARCHY, enqueued: 0, skipped: 'locked' }
+      return { hierarchy: emptyHierarchyResult(), enqueued: 0, skipped: 'locked' }
     }
     throw error
   }
@@ -55,7 +53,7 @@ async function poll(userId: string): Promise<PollResult> {
   })
 
   if (!integration?.rootTodoistProjectId) {
-    return { hierarchy: EMPTY_HIERARCHY, enqueued: 0, skipped: 'not-configured' }
+    return { hierarchy: emptyHierarchyResult(), enqueued: 0, skipped: 'not-configured' }
   }
 
   const glassfrog = await db.query.glassfrogIntegration.findFirst({
@@ -63,7 +61,7 @@ async function poll(userId: string): Promise<PollResult> {
   })
 
   if (!glassfrog) {
-    return { hierarchy: EMPTY_HIERARCHY, enqueued: 0, skipped: 'not-configured' }
+    return { hierarchy: emptyHierarchyResult(), enqueued: 0, skipped: 'not-configured' }
   }
 
   // Hierarchy first: task jobs must be able to find their destination project.

@@ -14,8 +14,13 @@ import { user } from './auth.js'
 export const mappingKindEnum = pgEnum('mapping_kind', ['role', 'project'])
 
 /**
- * Glassfrog role/project → Todoist project. One-way mirror, so there is exactly one
- * Todoist project per Glassfrog node and vice versa.
+ * Glassfrog role/project ↔ Todoist project. Exactly one Todoist project per Glassfrog node
+ * and vice versa, whichever side it originated on.
+ *
+ * A row **outlives completion**: when a project is finished, the Glassfrog node goes to
+ * `completed` and the Todoist project is archived, but the row stays as a tombstone. That is
+ * what lets a later unarchive reopen the Glassfrog project instead of creating a second one.
+ * Rows are only dropped once the node is gone from both sides.
  */
 export const projectMapping = pgTable(
   'project_mapping',

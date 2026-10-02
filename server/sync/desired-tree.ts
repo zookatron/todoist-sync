@@ -20,11 +20,17 @@ export function isActive(status: string): boolean {
 }
 
 /**
- * Builds the tree Todoist should mirror, from the roles the user personally fills.
+ * Reads the Glassfrog side of the mirror, from the roles the user personally fills.
  *
  * Scope is deliberately `/me/roles` rather than the whole organization: Glassfrog has no
  * org-wide action listing, so a full-org mirror would cost one request per role on every
  * poll and produce hundreds of Todoist projects.
+ *
+ * This is a **faithful** read, not a filtered one: inactive projects are reported with
+ * `active: false` rather than dropped. The distinction matters because the diff has to tell
+ * "completed in Glassfrog" from "gone from Glassfrog" — the first means the Todoist mirror
+ * should be archived (or, if the user archived it first, that the two agree), the second
+ * means the mapping is dead. Dropping them here would collapse both into "absent".
  *
  * Sub-projects are followed recursively, guarded against cycles and runaway depth.
  */
@@ -48,6 +54,10 @@ export async function buildDesiredTree(
     glassfrogId: role.id,
     name: toProjectName(role.name),
     parentGlassfrogId: null,
+    // A role cannot be completed, so it is always active.
+    active: true,
+    // Roles carry no timestamps at all in v5, which is why their names stay one-way.
+    updatedAt: null,
   }))
 
   const seen = new Set<string>()
@@ -64,25 +74,22 @@ export async function buildDesiredTree(
     })
 
     for (const project of projects) {
-      if (!isActive(project.status)) continue
-      await collectProject(client, project, role.id, nodes, seen, 1, maxDepth)
+      collectProject(project, role.id, nodes, seen)
+      await collectSubProjects(client, project, nodes, seen, 1, maxDepth)
     }
   }
 
   return nodes
 }
 
-async function collectProject(
-  client: Client,
+function collectProject(
   project: Project,
   parentGlassfrogId: string,
   nodes: DesiredNode[],
   seen: Set<string>,
-  depth: number,
-  maxDepth: number,
-): Promise<void> {
+): boolean {
   // A project reachable by two paths, or a malformed cycle, must not be added twice.
-  if (seen.has(project.id)) return
+  if (seen.has(project.id)) return false
   seen.add(project.id)
 
   nodes.push({
@@ -90,10 +97,29 @@ async function collectProject(
     glassfrogId: project.id,
     name: toProjectName(project.description),
     parentGlassfrogId,
+    active: isActive(project.status),
+    updatedAt: project.updated_at ? new Date(project.updated_at) : null,
   })
 
+  return true
+}
+
+/**
+ * Descends into a project's children.
+ *
+ * An inactive project is reported but never recursed into: its sub-tree is finished work,
+ * and crawling it would cost a request per node for something the mirror will not build.
+ */
+async function collectSubProjects(
+  client: Client,
+  project: Project,
+  nodes: DesiredNode[],
+  seen: Set<string>,
+  depth: number,
+  maxDepth: number,
+): Promise<void> {
   // `has_sub_projects` lets us skip a request for the common leaf case.
-  if (!project.has_sub_projects || depth >= maxDepth) return
+  if (!isActive(project.status) || !project.has_sub_projects || depth >= maxDepth) return
 
   const children = await paginateAll<Project>(async ({ cursor, perPage }) => {
     const response = await listSubProjects({
@@ -106,7 +132,7 @@ async function collectProject(
   })
 
   for (const child of children) {
-    if (!isActive(child.status)) continue
-    await collectProject(client, child, project.id, nodes, seen, depth + 1, maxDepth)
+    if (!collectProject(child, project.id, nodes, seen)) continue
+    await collectSubProjects(client, child, nodes, seen, depth + 1, maxDepth)
   }
 }

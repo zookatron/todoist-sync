@@ -5,8 +5,9 @@ Guidance for Claude Code when working in this repository.
 ## What this is
 
 A personal-use web app that two-way syncs Glassfrog **Actions** with Todoist **Tasks**, and
-mirrors the Glassfrog role/project hierarchy into a Todoist project tree. Single user per
-account, self-hosted, polling-based.
+keeps the Glassfrog role/project hierarchy in step with a Todoist project tree. **Roles** come
+from Glassfrog alone; **projects** travel both ways — created, completed and renamed from either
+side. Single user per account, self-hosted, polling-based.
 
 ## ⚠️ Version traps — read this before writing any code
 

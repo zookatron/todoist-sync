@@ -34,7 +34,7 @@ type SyncCommand = {
  *   Todoist's incremental delta, so `poll.ts`'s cursor handling — including deferring the
  *   token write until jobs are queued — is genuinely exercised.
  * - **Per-command sync status.** `project_move` reports failure in the body with HTTP 200,
- *   which is the case `moveTodoistProject` exists to catch.
+ *   which is the case `moveProject` exists to catch.
  *
  * Installed by handing the SDK a `customFetch` that goes through the global `fetch` msw
  * patches — see `server/todoist/transport.ts` for why that indirection is required.
@@ -116,6 +116,19 @@ export class TodoistSimulator extends Simulator {
         return this.page(request, live)
       }),
 
+      /**
+       * Archived projects are absent from `GET /projects` entirely, so this endpoint is the
+       * only way to tell an archive from a deletion — which is what lets the mirror treat
+       * the first as "completed" and the second as "rebuild it".
+       */
+      http.get(`${API}/projects/archived`, ({ request }) => {
+        const denied = this.authorize(request)
+        if (denied) return denied
+
+        const archived = this.projects.filter((p) => !p.is_deleted && p.is_archived)
+        return this.page(request, archived)
+      }),
+
       http.post(`${API}/projects`, async ({ request }) => {
         const denied = this.authorize(request)
         if (denied) return denied
@@ -139,6 +152,19 @@ export class TodoistSimulator extends Simulator {
 
         project.is_archived = true
         this.archivedProjectIds.add(project.id)
+        this.touch(project)
+        return HttpResponse.json(project)
+      }),
+
+      http.post(`${API}/projects/:id/unarchive`, ({ request, params }) => {
+        const denied = this.authorize(request)
+        if (denied) return denied
+
+        const project = this.project(String(params.id))
+        if (!project) return notFound('Project')
+
+        project.is_archived = false
+        this.archivedProjectIds.delete(project.id)
         this.touch(project)
         return HttpResponse.json(project)
       }),
