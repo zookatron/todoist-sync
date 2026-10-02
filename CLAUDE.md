@@ -130,5 +130,15 @@ TypeScript directly.
 - **Glassfrog v5 is beta.** It has **no org-wide action list** and **no `updated_since` filter**.
   Change detection is enumerate-and-diff over `/me/actions` (cursor-paginated). Auth is a static
   API key in `X-Auth-Token`.
+- **`GET /roles/{id}/projects` returns the role's whole project tree**, not just its top level —
+  nested projects come back carrying their real `parent_project_id`, and a sub-project's own
+  `role_id` may be `null` (the vendored spec says non-nullable; it is wrong). Key nesting off
+  `parent_project_id`, never off which listing a project arrived in.
+- **Glassfrog's rate limit is punishing when hit**: a 429 reports `Try again in ~3000 seconds`.
+  `withRetry` gives up after ~30s by design — there is no point holding a job open for 50
+  minutes — so the work lands on the next poll instead.
+- **Todoist archiving clears `parent_id` and cascades to sub-projects; unarchiving restores
+  neither.** So an archived project can only be found by id, and an unarchived one reappears
+  outside the mirror and has to be moved back. See docs/ARCHITECTURE.md.
 - **Todoist** gives real incremental deltas via `/sync` with a `sync_token`, including deletions
   (`isDeleted`). Use it; do not poll full task lists.

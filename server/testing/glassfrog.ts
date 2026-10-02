@@ -78,6 +78,25 @@ export class GlassfrogSimulator extends Simulator {
     return this.projects.find((project) => project.id === id)
   }
 
+  /** Every project beneath `id`, at any depth. */
+  private subProjectsOf(id: string): Project[] {
+    const collected: Project[] = []
+    const queue = [id]
+    const seen = new Set<string>([id])
+
+    while (queue.length > 0) {
+      const parentId = queue.shift()
+      for (const child of this.projects.filter((p) => p.parent_project_id === parentId)) {
+        if (seen.has(child.id)) continue
+        seen.add(child.id)
+        collected.push(child)
+        queue.push(child.id)
+      }
+    }
+
+    return collected
+  }
+
   protected handlers(): RequestHandler[] {
     const url = (path: string) => `${GLASSFROG_BASE_URL}${path}`
 
@@ -106,12 +125,22 @@ export class GlassfrogSimulator extends Simulator {
         if (denied) return denied
 
         const roleId = String(params.roleId)
-        // Only top-level projects: children are reached through /sub_projects, which is
-        // what makes the recursive crawl and its depth guard reachable.
-        const owned = this.projects.filter(
-          (project) => project.role_id === roleId && project.parent_project_id === null,
-        )
-        return this.page(request, owned)
+
+        // The live API returns the role's whole project tree here, not just its top level —
+        // nested projects come back too, carrying their real `parent_project_id`, and a
+        // sub-project's own `role_id` may even be null. Verified against the real
+        // organization. The crawl must therefore key nesting off `parent_project_id` rather
+        // than assuming everything in this response hangs off the role.
+        const owned = this.projects.filter((project) => project.role_id === roleId)
+        const withDescendants = [...owned]
+
+        for (const project of owned) {
+          for (const descendant of this.subProjectsOf(project.id)) {
+            if (!withDescendants.includes(descendant)) withDescendants.push(descendant)
+          }
+        }
+
+        return this.page(request, withDescendants)
       }),
 
       http.get(url('/projects/:id/sub_projects'), ({ request, params }) => {

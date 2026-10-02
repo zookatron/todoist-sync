@@ -121,10 +121,21 @@ it back to `current`. Two consequences worth knowing:
   reopen instead of a second Glassfrog project, and it is why `drop-mapping` is driven by "gone
   from both sides" rather than "gone from Todoist".
 
-Telling an archive from a deletion requires `GET /projects/archived`: archiving removes a project
-from `GET /projects` entirely, so without the second listing the two are indistinguishable. The
-archived flag is then **inherited** down the tree walk, so a sub-tree completes together whether
-or not Todoist flagged each child individually.
+Four Todoist behaviours shape this, all verified against the live API rather than assumed:
+
+| What Todoist does on archive/unarchive                                 | Why it matters                                                                                                                             |
+| ---------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------ |
+| Archiving removes the project from `GET /projects`                     | `GET /projects/archived` is the only way to tell archived from deleted                                                                     |
+| Archiving **clears `parent_id`**                                       | An archived project is unreachable from the root, so it must be matched by **id** through the mapping table, never by position in the tree |
+| Archiving **cascades** to the whole sub-tree                           | Each descendant appears in the archived listing in its own right, so a sub-tree completes together with nothing inferred                   |
+| Unarchiving does **not** restore `parent_id`, and does **not** cascade | An unarchived project reappears at the top level, outside the mirror, so the sync moves it back in the same pass                           |
+
+The second and fourth are the load-bearing ones. Looking for an archived project by walking down
+from the root finds nothing, which reads as a deletion — so the mirror rebuilds the project
+instead of completing it. And because an unarchived project lands outside the root, **mapped**
+projects are resolved against an account-wide listing while **unmapped** ones are only ever
+discovered inside the root subtree. That split is what stops a project the user brings back from
+being treated as deleted and duplicated.
 
 ### Who wins a disagreement
 

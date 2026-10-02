@@ -91,7 +91,7 @@ export async function syncHierarchy(
 
   const glassfrog = await getGlassfrogClient(userId)
 
-  const [desired, actual, mappings] = await Promise.all([
+  const [desired, todoist, mappings] = await Promise.all([
     buildDesiredTree(glassfrog),
     readActualTree(userId, rootId),
     db.select().from(projectMapping).where(eq(projectMapping.userId, userId)),
@@ -99,7 +99,9 @@ export async function syncHierarchy(
 
   const operations = diffHierarchy({
     desired,
-    actual,
+    actual: todoist.live,
+    liveById: todoist.liveById,
+    archived: todoist.archived,
     mappings: mappings.map((m) => ({
       kind: m.kind,
       glassfrogId: m.glassfrogId,
@@ -108,7 +110,7 @@ export async function syncHierarchy(
     rootTodoistProjectId: rootId,
   })
 
-  logUnclaimedRootProjects({ userId, actual, mappings, rootId })
+  logUnclaimedRootProjects({ userId, actual: todoist.live, mappings, rootId })
 
   if (operations.length === 0) return emptyHierarchyResult()
 
@@ -136,10 +138,7 @@ function logUnclaimedRootProjects(args: {
   const mapped = new Set(args.mappings.map((m) => m.todoistProjectId))
 
   const ignored = args.actual.filter(
-    (project) =>
-      project.parentId === args.rootId &&
-      !project.archived &&
-      !mapped.has(project.todoistProjectId),
+    (project) => project.parentId === args.rootId && !mapped.has(project.todoistProjectId),
   )
 
   if (ignored.length === 0) return
@@ -408,6 +407,16 @@ async function applyOperations(args: {
 
         case 'unarchive-todoist': {
           await unarchiveProject(userId, operation.todoistProjectId)
+
+          // Todoist does not restore `parent_id`, so an unarchived project reappears at the
+          // top level — outside the mirrored tree, where the next poll would not find it and
+          // would rebuild a duplicate. Put it back in the same breath.
+          await moveProject(
+            userId,
+            operation.todoistProjectId,
+            resolveParent(operation.toParentGlassfrogId),
+          )
+
           await touchMapping(db, userId, operation.todoistProjectId)
 
           logEntries.push({

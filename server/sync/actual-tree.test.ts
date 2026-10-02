@@ -5,18 +5,18 @@ const p = (
   id: string,
   name: string,
   parentId: string | null,
-  overrides: { archived?: boolean; updatedAt?: Date | null } = {},
-) => ({
-  id,
-  name,
-  parentId,
-  archived: overrides.archived ?? false,
-  updatedAt: overrides.updatedAt ?? null,
-})
+  overrides: { updatedAt?: Date | null } = {},
+) => ({ id, name, parentId, updatedAt: overrides.updatedAt ?? null })
 
 const ids = (projects: { todoistProjectId: string }[]) =>
   projects.map((project) => project.todoistProjectId)
 
+/**
+ * `descendantsOf` walks **live** projects only.
+ *
+ * Archived ones cannot be placed in a tree at all — Todoist clears `parent_id` when it
+ * archives — so they are carried separately, by id, and never reach this function.
+ */
 describe('descendantsOf', () => {
   it('collects children at every depth', () => {
     const projects = [
@@ -62,51 +62,9 @@ describe('descendantsOf', () => {
     const projects = [p('root', 'Root', null), p('a', 'A', 'root'), p('b', 'B', 'a')]
 
     expect(descendantsOf('root', projects)).toEqual([
-      { todoistProjectId: 'a', name: 'A', parentId: 'root', archived: false, updatedAt: null },
-      { todoistProjectId: 'b', name: 'B', parentId: 'a', archived: false, updatedAt: null },
+      { todoistProjectId: 'a', name: 'A', parentId: 'root', updatedAt: null },
+      { todoistProjectId: 'b', name: 'B', parentId: 'a', updatedAt: null },
     ])
-  })
-
-  it('carries each project’s own archived flag', () => {
-    const projects = [
-      p('root', 'Root', null),
-      p('a', 'A', 'root'),
-      p('b', 'B', 'root', { archived: true }),
-    ]
-
-    expect(descendantsOf('root', projects).map((x) => [x.todoistProjectId, x.archived])).toEqual([
-      ['a', false],
-      ['b', true],
-    ])
-  })
-
-  it('inherits archived down the chain from an archived ancestor', () => {
-    // Todoist archives a parent's sub-projects with it, but this must hold either way:
-    // a live-looking child of an archived parent is finished work, not a live project.
-    const projects = [
-      p('root', 'Root', null),
-      p('a', 'A', 'root', { archived: true }),
-      p('b', 'B', 'a'),
-      p('c', 'C', 'b'),
-    ]
-
-    expect(descendantsOf('root', projects).map((x) => [x.todoistProjectId, x.archived])).toEqual([
-      ['a', true],
-      ['b', true],
-      ['c', true],
-    ])
-  })
-
-  it('keeps an archived project reachable so it is not mistaken for a deletion', () => {
-    // This is the whole reason archived projects are fetched at all: dropping them would
-    // orphan the sub-tree below, and the diff would rebuild it empty.
-    const projects = [
-      p('root', 'Root', null),
-      p('a', 'A', 'root', { archived: true }),
-      p('b', 'B', 'a'),
-    ]
-
-    expect(ids(descendantsOf('root', projects))).toEqual(['a', 'b'])
   })
 
   it('records the update timestamp the status and name rules compare', () => {
@@ -114,5 +72,14 @@ describe('descendantsOf', () => {
     const projects = [p('root', 'Root', null), p('a', 'A', 'root', { updatedAt })]
 
     expect(descendantsOf('root', projects)[0]?.updatedAt).toEqual(updatedAt)
+  })
+
+  it('drops a sub-tree whose parent has gone, rather than re-rooting it', () => {
+    // What archiving a parent looks like in the live listing: the parent is absent and the
+    // child's `parent_id` has been cleared, so neither is reachable. The archived listing is
+    // what recognises them; this function must not guess.
+    const projects = [p('root', 'Root', null), p('orphaned-child', 'Child', null)]
+
+    expect(descendantsOf('root', projects)).toEqual([])
   })
 })

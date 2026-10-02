@@ -82,9 +82,18 @@ export async function buildDesiredTree(
   return nodes
 }
 
+/**
+ * Records one project.
+ *
+ * Nesting comes from the project's own `parent_project_id`, with `fallbackParentId` used
+ * only when it has none. That matters because `/roles/{role_id}/projects` returns the role's
+ * **whole tree**, not just its top level — a sub-project listed there would otherwise be
+ * attached straight to the role, and whether it was depended on the order the API happened
+ * to return things in.
+ */
 function collectProject(
   project: Project,
-  parentGlassfrogId: string,
+  fallbackParentId: string,
   nodes: DesiredNode[],
   seen: Set<string>,
 ): boolean {
@@ -96,7 +105,7 @@ function collectProject(
     kind: 'project',
     glassfrogId: project.id,
     name: toProjectName(project.description),
-    parentGlassfrogId,
+    parentGlassfrogId: project.parent_project_id ?? fallbackParentId,
     active: isActive(project.status),
     updatedAt: project.updated_at ? new Date(project.updated_at) : null,
   })

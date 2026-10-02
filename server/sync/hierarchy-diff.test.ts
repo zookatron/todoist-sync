@@ -38,14 +38,28 @@ const actual = (
   id: string,
   name: string,
   parentId: string | null,
-  overrides: { archived?: boolean; updatedAt?: Date | null } = {},
+  overrides: { updatedAt?: Date | null } = {},
 ): ActualProject => ({
   todoistProjectId: id,
   name,
   parentId,
-  archived: overrides.archived ?? false,
   updatedAt: overrides.updatedAt ?? EARLY,
 })
+
+/**
+ * An archived Todoist project.
+ *
+ * Deliberately not part of `actual`: Todoist clears `parent_id` on archive, so an archived
+ * project has no place in the tree and is only ever found by id.
+ */
+const gone = (
+  id: string,
+  name: string,
+  overrides: { updatedAt?: Date | null } = {},
+): [string, { name: string; updatedAt: Date | null }] => [
+  id,
+  { name, updatedAt: overrides.updatedAt ?? EARLY },
+]
 
 const mapped = (
   kind: 'role' | 'project',
@@ -56,11 +70,20 @@ const mapped = (
 function diff(input: {
   desired?: DesiredNode[]
   actual?: ActualProject[]
+  /** Live, but not under the root — where Todoist dumps an unarchived project. */
+  liveOutsideRoot?: ActualProject[]
+  archived?: [string, { name: string; updatedAt: Date | null }][]
   mappings?: ExistingMapping[]
 }) {
+  const actual = input.actual ?? []
+  const outside = input.liveOutsideRoot ?? []
+
   return diffHierarchy({
     desired: input.desired ?? [],
-    actual: input.actual ?? [],
+    actual,
+    // Everything live, wherever it sits — what mapped lookups go through.
+    liveById: new Map([...actual, ...outside].map((p) => [p.todoistProjectId, p])),
+    archived: new Map(input.archived ?? []),
     mappings: input.mappings ?? [],
     rootTodoistProjectId: ROOT,
   })
@@ -187,12 +210,17 @@ describe('diffHierarchy', () => {
     it('unarchives the Todoist project when Glassfrog reopened it more recently', () => {
       const operations = diff({
         desired: [project('proj_1', 'Website', null, { updatedAt: LATE })],
-        actual: [actual('td_1', 'Website', ROOT, { archived: true, updatedAt: EARLY })],
+        archived: [gone('td_1', 'Website', { updatedAt: EARLY })],
         mappings: [mapped('project', 'proj_1', 'td_1')],
       })
 
       expect(operations).toEqual([
-        { type: 'unarchive-todoist', todoistProjectId: 'td_1', name: 'Website' },
+        {
+          type: 'unarchive-todoist',
+          todoistProjectId: 'td_1',
+          name: 'Website',
+          toParentGlassfrogId: null,
+        },
       ])
     })
   })
@@ -263,10 +291,7 @@ describe('diffHierarchy', () => {
     it('ignores an unmapped archived project', () => {
       const operations = diff({
         desired: [role('role_1', 'Marketing')],
-        actual: [
-          actual('td_1', 'Marketing', ROOT),
-          actual('td_old', 'Finished long ago', 'td_1', { archived: true }),
-        ],
+        actual: [actual('td_1', 'Marketing', ROOT)],
         mappings: [mapped('role', 'role_1', 'td_1')],
       })
 
@@ -276,7 +301,7 @@ describe('diffHierarchy', () => {
     it('completes the Glassfrog project when its Todoist mirror is archived', () => {
       const operations = diff({
         desired: [project('proj_1', 'Website', null, { updatedAt: EARLY })],
-        actual: [actual('td_1', 'Website', ROOT, { archived: true, updatedAt: LATE })],
+        archived: [gone('td_1', 'Website', { updatedAt: LATE })],
         mappings: [mapped('project', 'proj_1', 'td_1')],
       })
 
@@ -293,31 +318,52 @@ describe('diffHierarchy', () => {
     it('unarchives a role project instead, since a role cannot be completed', () => {
       const operations = diff({
         desired: [role('role_1', 'Marketing')],
-        actual: [actual('td_1', 'Marketing', ROOT, { archived: true })],
+        archived: [gone('td_1', 'Marketing')],
         mappings: [mapped('role', 'role_1', 'td_1')],
       })
 
       expect(operations).toEqual([
-        { type: 'unarchive-todoist', todoistProjectId: 'td_1', name: 'Marketing' },
+        {
+          type: 'unarchive-todoist',
+          todoistProjectId: 'td_1',
+          name: 'Marketing',
+          toParentGlassfrogId: null,
+        },
       ])
     })
 
-    it('treats a project under an archived parent as archived too', () => {
-      // `descendantsOf` inherits the flag, so the whole sub-tree completes together
-      // whether or not Todoist flagged each child individually.
+    it('completes a whole archived sub-tree together', () => {
+      // Todoist cascades an archive over the sub-tree, so each descendant turns up in the
+      // archived listing in its own right — nothing has to be inferred from parent links,
+      // which archiving has cleared anyway.
       const operations = diff({
         desired: [
           project('proj_1', 'Website', null, { updatedAt: EARLY }),
           project('proj_2', 'Homepage', 'proj_1', { updatedAt: EARLY }),
         ],
-        actual: [
-          actual('td_1', 'Website', ROOT, { archived: true, updatedAt: LATE }),
-          actual('td_2', 'Homepage', 'td_1', { archived: true, updatedAt: LATE }),
+        archived: [
+          gone('td_1', 'Website', { updatedAt: LATE }),
+          gone('td_2', 'Homepage', { updatedAt: LATE }),
         ],
         mappings: [mapped('project', 'proj_1', 'td_1'), mapped('project', 'proj_2', 'td_2')],
       })
 
       expect(operations.map((op) => op.type)).toEqual(['complete-glassfrog', 'complete-glassfrog'])
+    })
+
+    it('does not rebuild an archived project as though it had been deleted', () => {
+      // The regression the live API exposed: because archiving clears `parent_id`, an
+      // archived project is unreachable from the root. Looked for in the tree it reads as
+      // deleted, and the mirror recreates it instead of completing the Glassfrog project.
+      const operations = diff({
+        desired: [project('proj_1', 'Website', null, { updatedAt: EARLY })],
+        actual: [],
+        archived: [gone('td_1', 'Website', { updatedAt: LATE })],
+        mappings: [mapped('project', 'proj_1', 'td_1')],
+      })
+
+      expect(operations.map((op) => op.type)).toEqual(['complete-glassfrog'])
+      expect(operations.some((op) => op.type === 'create-todoist')).toBe(false)
     })
 
     it('reopens a completed Glassfrog project when Todoist unarchives it', () => {
@@ -337,10 +383,46 @@ describe('diffHierarchy', () => {
       ])
     })
 
+    it('reopens and reinstates a project the user unarchived in Todoist', () => {
+      // Todoist does not restore `parent_id` on unarchive, so the project reappears at the
+      // top level, outside the mirrored subtree. Looked for only under the root it reads as
+      // deleted — which dropped the mapping and stranded the project — so mapped lookups go
+      // through the account-wide listing, and the same pass moves it back.
+      const operations = diff({
+        desired: [project('proj_1', 'Website', null, { active: false, updatedAt: EARLY })],
+        actual: [],
+        liveOutsideRoot: [actual('td_1', 'Website', null, { updatedAt: LATE })],
+        mappings: [mapped('project', 'proj_1', 'td_1')],
+      })
+
+      expect(operations.map((op) => op.type)).toEqual(['move-todoist', 'reopen-glassfrog'])
+      expect(operations.some((op) => op.type === 'drop-mapping')).toBe(false)
+      expect(operations.some((op) => op.type === 'create-todoist')).toBe(false)
+    })
+
+    it('moves a mapped project back when it has drifted outside the root', () => {
+      const operations = diff({
+        desired: [project('proj_1', 'Website', null, { updatedAt: EARLY })],
+        actual: [],
+        liveOutsideRoot: [actual('td_1', 'Website', null, { updatedAt: EARLY })],
+        mappings: [mapped('project', 'proj_1', 'td_1')],
+      })
+
+      expect(operations).toEqual([
+        {
+          type: 'move-todoist',
+          todoistProjectId: 'td_1',
+          glassfrogId: 'proj_1',
+          name: 'Website',
+          toParentGlassfrogId: null,
+        },
+      ])
+    })
+
     it('leaves a completed pair alone once both sides agree', () => {
       const operations = diff({
         desired: [project('proj_1', 'Website', null, { active: false })],
-        actual: [actual('td_1', 'Website', ROOT, { archived: true })],
+        archived: [gone('td_1', 'Website')],
         mappings: [mapped('project', 'proj_1', 'td_1')],
       })
 
@@ -401,7 +483,7 @@ describe('diffHierarchy', () => {
     it('drops a mapping without archiving when the Todoist project is already archived', () => {
       const operations = diff({
         desired: [],
-        actual: [actual('td_1', 'Orphan', ROOT, { archived: true })],
+        archived: [gone('td_1', 'Orphan')],
         mappings: [mapped('project', 'proj_gone', 'td_1')],
       })
 

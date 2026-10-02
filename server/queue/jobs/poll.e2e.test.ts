@@ -122,7 +122,8 @@ describe('runPoll', () => {
     const project = glassfrog.projects.find((p) => p.description === 'Rebrand')!
 
     const mirror = todoist.project('td-new')!
-    mirror.is_archived = true
+    todoist.archive(mirror.id)
+
     mirror.updated_at = new Date(Date.now() + 60_000).toISOString()
 
     await runCycle()

@@ -17,9 +17,9 @@
  * - **Deletion** stays one-way. A deleted mirror project is rebuilt, never propagated.
  */
 
-import type { ActualProject } from './actual-tree.js'
+import type { ActualProject, ArchivedProject } from './actual-tree.js'
 
-export type { ActualProject }
+export type { ActualProject, ArchivedProject }
 
 export type MappingKind = 'role' | 'project'
 
@@ -78,12 +78,32 @@ export type HierarchyOperation =
   | { type: 'complete-glassfrog'; glassfrogId: string; todoistProjectId: string; name: string }
   | { type: 'reopen-glassfrog'; glassfrogId: string; todoistProjectId: string; name: string }
   | { type: 'archive-todoist'; todoistProjectId: string; name: string }
-  | { type: 'unarchive-todoist'; todoistProjectId: string; name: string }
+  /**
+   * Bring an archived project back.
+   *
+   * Carries the destination because Todoist does not restore `parent_id` on unarchive — the
+   * project reappears at the top level, outside the mirrored tree, so the applier has to put
+   * it back. Null means directly under the configured root.
+   */
+  | {
+      type: 'unarchive-todoist'
+      todoistProjectId: string
+      name: string
+      toParentGlassfrogId: string | null
+    }
   | { type: 'drop-mapping'; todoistProjectId: string }
 
 export type DiffInput = {
   desired: DesiredNode[]
+  /** Live projects beneath the root. Unmapped projects are only ever adopted from here. */
   actual: ActualProject[]
+  /**
+   * Every live project by id, the root's subtree or not. Mapped projects are resolved through
+   * this, so one that has drifted outside the mirror is moved back rather than rebuilt.
+   */
+  liveById: Map<string, ActualProject>
+  /** Archived projects by id — see {@link ArchivedProject} for why this is not a tree. */
+  archived: Map<string, ArchivedProject>
   mappings: ExistingMapping[]
   rootTodoistProjectId: string
 }
@@ -149,16 +169,26 @@ function timeOf(updatedAt: Date | null): number {
  * A role is the exception: it cannot be completed at all, so Glassfrog always wins and the
  * mirror comes back.
  */
-function resolveStatus(node: DesiredNode, existing: ActualProject): HierarchyOperation {
-  if (node.kind === 'role') {
-    return {
-      type: 'unarchive-todoist',
-      todoistProjectId: existing.todoistProjectId,
-      name: node.name,
-    }
-  }
+function resolveStatus(args: {
+  node: DesiredNode
+  todoistProjectId: string
+  /** The Todoist side's timestamp, whichever listing it came from. */
+  todoistUpdatedAt: Date | null
+  todoistName: string
+}): HierarchyOperation {
+  const { node, todoistProjectId } = args
 
-  const todoistIsNewer = timeOf(existing.updatedAt) > timeOf(node.updatedAt)
+  const unarchive = {
+    type: 'unarchive-todoist',
+    todoistProjectId,
+    name: node.name,
+    toParentGlassfrogId: node.parentGlassfrogId,
+  } satisfies HierarchyOperation
+
+  // A role cannot be completed at all, so Glassfrog always wins and the mirror comes back.
+  if (node.kind === 'role') return unarchive
+
+  const todoistIsNewer = timeOf(args.todoistUpdatedAt) > timeOf(node.updatedAt)
 
   if (node.active) {
     // Archived in Todoist, current in Glassfrog.
@@ -166,10 +196,10 @@ function resolveStatus(node: DesiredNode, existing: ActualProject): HierarchyOpe
       ? {
           type: 'complete-glassfrog',
           glassfrogId: node.glassfrogId,
-          todoistProjectId: existing.todoistProjectId,
+          todoistProjectId,
           name: node.name,
         }
-      : { type: 'unarchive-todoist', todoistProjectId: existing.todoistProjectId, name: node.name }
+      : unarchive
   }
 
   // Open in Todoist, completed in Glassfrog.
@@ -177,10 +207,10 @@ function resolveStatus(node: DesiredNode, existing: ActualProject): HierarchyOpe
     ? {
         type: 'reopen-glassfrog',
         glassfrogId: node.glassfrogId,
-        todoistProjectId: existing.todoistProjectId,
+        todoistProjectId,
         name: node.name,
       }
-    : { type: 'archive-todoist', todoistProjectId: existing.todoistProjectId, name: existing.name }
+    : { type: 'archive-todoist', todoistProjectId, name: args.todoistName }
 }
 
 /**
@@ -232,6 +262,11 @@ function hasMappedAncestor(
  * | absent from Glassfrog | present, archived     | `drop-mapping`                     |
  * | absent from Glassfrog | absent                | `drop-mapping`                     |
  *
+ * "Present, archived" is established by **id**, through the archived listing, not by position
+ * in the tree: Todoist clears `parent_id` when it archives, so an archived project cannot be
+ * reached by walking down from the root. Getting this wrong makes an archive look like a
+ * deletion, and the mirror rebuilds the project instead of completing it.
+ *
  * Status disagreement is settled by timestamp for the same reason names are: the state on
  * its own cannot say whether the user completed the project in Glassfrog or reopened it in
  * Todoist. A mapping row therefore survives completion as a tombstone, which is what makes
@@ -247,7 +282,7 @@ function hasMappedAncestor(
  * mapping drops.
  */
 export function diffHierarchy(input: DiffInput): HierarchyOperation[] {
-  const { desired, actual, mappings, rootTodoistProjectId } = input
+  const { desired, actual, liveById, archived, mappings, rootTodoistProjectId } = input
 
   const desiredByGlassfrogId = new Map(desired.map((node) => [node.glassfrogId, node]))
   const actualById = new Map(actual.map((project) => [project.todoistProjectId, project]))
@@ -266,7 +301,9 @@ export function diffHierarchy(input: DiffInput): HierarchyOperation[] {
 
   for (const node of desired) {
     const mapping = mappingByKey.get(keyOf(node.kind, node.glassfrogId))
-    const existing = mapping ? actualById.get(mapping.todoistProjectId) : undefined
+    // Account-wide, not root-scoped: a mapped project that has drifted outside the mirror is
+    // still ours, and belongs back inside it rather than being rebuilt.
+    const existing = mapping ? liveById.get(mapping.todoistProjectId) : undefined
 
     if (!mapping) {
       // Unmapped: mirror it if Glassfrog still wants it, otherwise it is finished work
@@ -280,10 +317,12 @@ export function diffHierarchy(input: DiffInput): HierarchyOperation[] {
       continue
     }
 
-    if (!existing) {
-      // Mapped, but the Todoist project is gone from the tree entirely — deleted, not
-      // archived. Deletion is one-way: rebuild it if Glassfrog still wants it, otherwise
-      // the mapping is dead.
+    const archivedCopy = archived.get(mapping.todoistProjectId)
+
+    if (!existing && !archivedCopy) {
+      // Mapped, but the Todoist project is in neither listing — deleted, not archived.
+      // Deletion is one-way: rebuild it if Glassfrog still wants it, otherwise the mapping
+      // is dead.
       if (node.active) {
         creates.push({
           operation: { type: 'create-todoist', node },
@@ -296,15 +335,21 @@ export function diffHierarchy(input: DiffInput): HierarchyOperation[] {
     }
 
     // Is the project open on both sides, or closed on both?
-    if (node.active !== !existing.archived) {
-      statusChanges.push(resolveStatus(node, existing))
-      // Don't also rename or move something whose status is changing — the next poll
-      // reconciles the rest once both sides agree on whether it is still open.
-      continue
+    if (node.active !== Boolean(existing)) {
+      statusChanges.push(
+        resolveStatus({
+          node,
+          todoistProjectId: mapping.todoistProjectId,
+          todoistUpdatedAt: (existing ?? archivedCopy)?.updatedAt ?? null,
+          todoistName: (existing ?? archivedCopy)?.name ?? node.name,
+        }),
+      )
     }
 
-    // Closed on both sides: converged, and nothing below applies to finished work.
-    if (!node.active) continue
+    // Everything below needs a live project to act on. An archived one is either converged
+    // with a finished Glassfrog node or already handled above, and cannot be renamed or moved
+    // in any case.
+    if (!existing) continue
 
     // Both sides live. Reconcile name and placement.
     if (existing.name !== node.name) {
@@ -367,9 +412,10 @@ export function diffHierarchy(input: DiffInput): HierarchyOperation[] {
     // Keyed by kind as well, to match how the loop above looked the mapping up.
     if (desiredKeys.has(keyOf(mapping.kind, mapping.glassfrogId))) continue
 
-    const existing = actualById.get(mapping.todoistProjectId)
+    const existing = liveById.get(mapping.todoistProjectId)
 
-    if (existing && !existing.archived) {
+    // Already archived, or gone outright: nothing to tidy, just forget it.
+    if (existing) {
       archives.push({
         type: 'archive-todoist',
         todoistProjectId: existing.todoistProjectId,
@@ -382,12 +428,10 @@ export function diffHierarchy(input: DiffInput): HierarchyOperation[] {
 
   // ---- Todoist projects nobody has claimed -------------------------------------------
 
+  // `actual` holds only live projects, so an archived one the user owns — or one we archived
+  // and have since unmapped — is never considered here.
   for (const project of actual) {
     if (mappingByTodoistId.has(project.todoistProjectId)) continue
-
-    // Archived: an old project of the user's, or one we archived and whose mapping has
-    // since been dropped. Either way, not ours to touch.
-    if (project.archived) continue
 
     if (!hasMappedAncestor(project, actualById, mappingByTodoistId, rootTodoistProjectId)) continue
 

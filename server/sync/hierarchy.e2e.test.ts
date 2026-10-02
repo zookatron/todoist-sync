@@ -285,7 +285,8 @@ describe('syncHierarchy', () => {
 
       const created = todoist.projects.find((project) => project.name === 'API')!
       // Archiving bumps Todoist's `updated_at` past Glassfrog's, so Todoist wins.
-      created.is_archived = true
+      todoist.archive(created.id)
+
       created.updated_at = new Date(Date.now() + 60_000).toISOString()
 
       const result = await syncHierarchy(userId)
@@ -314,7 +315,8 @@ describe('syncHierarchy', () => {
 
       // Only the parent is flagged; the child inherits it through the tree walk.
       const parent = todoist.projects.find((project) => project.name === 'API')!
-      parent.is_archived = true
+      todoist.archive(parent.id)
+
       parent.updated_at = new Date(Date.now() + 60_000).toISOString()
 
       const result = await syncHierarchy(userId)
@@ -353,7 +355,8 @@ describe('syncHierarchy', () => {
       const { todoistId } = await mirroredRole()
 
       const project = todoist.project(todoistId)!
-      project.is_archived = true
+      todoist.archive(project.id)
+
       project.updated_at = new Date(Date.now() + 60_000).toISOString()
 
       const result = await syncHierarchy(userId)
@@ -439,7 +442,8 @@ describe('syncHierarchy', () => {
       await syncHierarchy(userId)
 
       const created = todoist.projects.find((project) => project.name === 'API')!
-      created.is_archived = true
+      todoist.archive(created.id)
+
       created.updated_at = new Date(Date.now() + 60_000).toISOString()
 
       await syncHierarchy(userId)

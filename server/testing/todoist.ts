@@ -97,6 +97,46 @@ export class TodoistSimulator extends Simulator {
     return this.projects.find((project) => project.id === id)
   }
 
+  /**
+   * Archives a project the way Todoist really does: the whole sub-tree, every `parent_id`
+   * cleared. Both verified against the live API.
+   *
+   * Public so a test can seed an already-archived state without reaching for the raw fields
+   * and accidentally modelling something Todoist never produces — a project that is archived
+   * but still carries a parent, say, which would make it findable by walking the tree when
+   * in reality it is not.
+   */
+  archive(id: string): void {
+    const project = this.project(id)
+    if (!project) throw new Error(`No such project in simulator: ${id}`)
+
+    for (const target of [project, ...this.descendantsOf(project.id)]) {
+      target.is_archived = true
+      target.parent_id = null
+      this.archivedProjectIds.add(target.id)
+      this.touch(target)
+    }
+  }
+
+  /** Every project beneath `id`, at any depth — what an archive cascades over. */
+  private descendantsOf(id: string): PersonalProjectSyncView[] {
+    const collected: PersonalProjectSyncView[] = []
+    const queue = [id]
+    const seen = new Set<string>([id])
+
+    while (queue.length > 0) {
+      const parentId = queue.shift()
+      for (const child of this.projects.filter((p) => p.parent_id === parentId)) {
+        if (seen.has(child.id)) continue
+        seen.add(child.id)
+        collected.push(child)
+        queue.push(child.id)
+      }
+    }
+
+    return collected
+  }
+
   protected handlers(): RequestHandler[] {
     return [
       // ---- User -------------------------------------------------------------------
@@ -143,6 +183,12 @@ export class TodoistSimulator extends Simulator {
         return HttpResponse.json(project)
       }),
 
+      /**
+       * Archives the project **and its whole sub-tree**, clearing every `parent_id` on the
+       * way — both verified against the live API. The nulled parent is the important part:
+       * it means an archived project cannot be found by walking down from a root, so the
+       * only way to recognise one is by id through `GET /projects/archived`.
+       */
       http.post(`${API}/projects/:id/archive`, ({ request, params }) => {
         const denied = this.authorize(request)
         if (denied) return denied
@@ -150,12 +196,15 @@ export class TodoistSimulator extends Simulator {
         const project = this.project(String(params.id))
         if (!project) return notFound('Project')
 
-        project.is_archived = true
-        this.archivedProjectIds.add(project.id)
-        this.touch(project)
+        this.archive(project.id)
         return HttpResponse.json(project)
       }),
 
+      /**
+       * Unarchives **only** the named project, and does **not** restore its `parent_id` —
+       * also verified live. So an unarchived project reappears at the top level, outside the
+       * mirrored tree, and the caller has to move it back itself.
+       */
       http.post(`${API}/projects/:id/unarchive`, ({ request, params }) => {
         const denied = this.authorize(request)
         if (denied) return denied
