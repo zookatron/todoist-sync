@@ -98,11 +98,17 @@ export function GlassfrogCard() {
   const queryClient = useQueryClient()
   const status = useQuery(trpc.glassfrog.status.queryOptions())
   const [apiKey, setApiKey] = useState('')
+  const [v3ApiKey, setV3ApiKey] = useState('')
+
+  const connected = Boolean(status.data?.connected)
+  const v5Saved = Boolean(status.data?.v5Saved)
+  const v3Saved = Boolean(status.data?.v3Saved)
 
   const save = useMutation(
-    trpc.glassfrog.setApiKey.mutationOptions({
+    trpc.glassfrog.setApiKeys.mutationOptions({
       onSuccess: () => {
         setApiKey('')
+        setV3ApiKey('')
         return queryClient.invalidateQueries()
       },
     }),
@@ -114,16 +120,34 @@ export function GlassfrogCard() {
     }),
   )
 
+  // Both keys are needed to connect. Once connected, either can be changed on its own.
+  const bothEntered = apiKey.trim().length > 0 && v3ApiKey.trim().length > 0
+  const anyEntered = apiKey.trim().length > 0 || v3ApiKey.trim().length > 0
+  const canSave = connected ? anyEntered : bothEntered
+
   return (
     <Card>
       <Card.Header>
         <Card.Title>Glassfrog</Card.Title>
         <Card.Description>
-          Paste an API v5 key. It is verified against your account before being stored.
+          Both keys are required. The API v5 key does the syncing; the API v3 key is the only way to
+          tell whose actions and projects are whose, so only yours are synced. Both are verified
+          before being stored.
         </Card.Description>
       </Card.Header>
 
       <Card.Content className="flex flex-col gap-4">
+        {v5Saved && !connected && (
+          <Alert status="warning">
+            <Alert.Content>
+              <Alert.Description>
+                Sync is paused. Glassfrog now needs an API v3 key too: enter both keys below to
+                resume.
+              </Alert.Description>
+            </Alert.Content>
+          </Alert>
+        )}
+
         {save.error && (
           <Alert status="danger">
             <Alert.Content>
@@ -132,35 +156,50 @@ export function GlassfrogCard() {
           </Alert>
         )}
 
-        {status.data?.connected ? (
-          <p className="text-foreground-secondary text-sm">Connected.</p>
-        ) : (
-          <TextField
-            name="apiKey"
-            type="password"
-            value={apiKey}
-            onChange={setApiKey}
-            autoComplete="off"
-          >
-            <Label>API v5 key</Label>
-            <Input placeholder="Paste your Glassfrog API key" />
-            <ErrorMessage />
-          </TextField>
-        )}
+        <TextField
+          name="apiKey"
+          type="password"
+          value={apiKey}
+          onChange={setApiKey}
+          autoComplete="off"
+        >
+          <Label>API v5 key{connected ? ' (saved)' : ''}</Label>
+          <Input
+            placeholder={
+              connected ? 'Leave blank to keep the saved key' : 'Paste your Glassfrog API v5 key'
+            }
+          />
+          <ErrorMessage />
+        </TextField>
+
+        <TextField
+          name="v3ApiKey"
+          type="password"
+          value={v3ApiKey}
+          onChange={setV3ApiKey}
+          autoComplete="off"
+        >
+          <Label>API v3 key{v3Saved ? ' (saved)' : ''}</Label>
+          <Input
+            placeholder={
+              v3Saved ? 'Leave blank to keep the saved key' : 'Paste your Glassfrog API v3 key'
+            }
+          />
+          <ErrorMessage />
+        </TextField>
       </Card.Content>
 
-      <Card.Footer>
-        {status.data?.connected ? (
+      <Card.Footer className="flex gap-2">
+        <Button
+          variant="primary"
+          isDisabled={!canSave || save.isPending}
+          onPress={() => save.mutate({ apiKey, v3ApiKey })}
+        >
+          {save.isPending ? 'Verifying…' : 'Test & save'}
+        </Button>
+        {v5Saved && (
           <Button variant="danger-soft" onPress={() => disconnect.mutate()}>
-            Remove key
-          </Button>
-        ) : (
-          <Button
-            variant="primary"
-            isDisabled={apiKey.trim().length === 0 || save.isPending}
-            onPress={() => save.mutate({ apiKey })}
-          >
-            {save.isPending ? 'Verifying…' : 'Test & save'}
+            Remove keys
           </Button>
         )}
       </Card.Footer>

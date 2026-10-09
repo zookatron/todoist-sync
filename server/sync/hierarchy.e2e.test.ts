@@ -9,6 +9,7 @@ import {
   DatabaseSimulator,
   GlassfrogSimulator,
   ProjectMappingFactory,
+  RedisSimulator,
   TodoistSimulator,
 } from '../testing/index.js'
 import { emptyHierarchyResult, syncHierarchy } from './hierarchy.js'
@@ -28,6 +29,7 @@ import { emptyHierarchyResult, syncHierarchy } from './hierarchy.js'
 new DatabaseSimulator()
 const glassfrog = new GlassfrogSimulator()
 const todoist = new TodoistSimulator()
+new RedisSimulator()
 
 const ROOT = 'td-root'
 

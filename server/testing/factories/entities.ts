@@ -74,7 +74,7 @@ export class TodoistIntegrationFactory extends Factory<TodoistIntegration> {
 
 export class GlassfrogIntegrationFactory extends Factory<GlassfrogIntegration> {
   protected defaults(): Partial<GlassfrogIntegration> {
-    return { apiKey: GLASSFROG_TEST_API_KEY }
+    return { apiKey: GLASSFROG_TEST_API_KEY, v3ApiKey: GLASSFROG_TEST_API_KEY, v3PersonId: 1 }
   }
 
   protected async builder(data: GlassfrogIntegration): Promise<GlassfrogIntegration> {
@@ -84,6 +84,11 @@ export class GlassfrogIntegrationFactory extends Factory<GlassfrogIntegration> {
 
   withUser(): this {
     return this.override(async () => ({ userId: await userIdFrom(this.context) }))
+  }
+
+  /** A row saved before v3 keys existed: connected, but sync stays off. */
+  withoutV3Key(): this {
+    return this.override({ v3ApiKey: null, v3PersonId: null })
   }
 }
 

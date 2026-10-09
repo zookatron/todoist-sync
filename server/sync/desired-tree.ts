@@ -3,6 +3,7 @@ import type { Client } from '../glassfrog/generated/client/index.js'
 import { listMyRoles, listRoleProjects, listSubProjects } from '../glassfrog/generated/sdk.gen.js'
 import type { Project, Role } from '../glassfrog/generated/types.gen.js'
 import type { DesiredNode } from './hierarchy-diff.js'
+import { pruneToOwned } from './ownership.js'
 
 /** Statuses that mean a project is done with; they are not mirrored into Todoist. */
 const INACTIVE_STATUSES = new Set(['completed', 'cancelled', 'archived'])
@@ -36,7 +37,10 @@ export function isActive(status: string): boolean {
  */
 export async function buildDesiredTree(
   client: Client,
-  options: { maxDepth?: number } = {},
+  options: {
+    maxDepth?: number
+    ownedProjectIds?: (projects: Project[]) => Promise<Set<string>>
+  } = {},
 ): Promise<DesiredNode[]> {
   const maxDepth = options.maxDepth ?? 10
 
@@ -60,14 +64,14 @@ export async function buildDesiredTree(
     updatedAt: null,
   }))
 
-  const seen = new Set<string>()
+  const seen = new Map<string, Project>()
 
   for (const role of roles) {
     const projects = await paginateAll<Project>(async ({ cursor, perPage }) => {
       const response = await listRoleProjects({
         client,
         path: { role_id: role.id },
-        query: { cursor, per_page: perPage },
+        query: { cursor, per_page: perPage, include_legacy_id: true },
         throwOnError: true,
       })
       return response.data
@@ -79,7 +83,11 @@ export async function buildDesiredTree(
     }
   }
 
-  return nodes
+  if (!options.ownedProjectIds) return nodes
+
+  // Everything reachable was read faithfully; only now narrow to the user's own, so the
+  // sub-project crawl still finds an owned child under someone else's parent.
+  return pruneToOwned(nodes, await options.ownedProjectIds([...seen.values()]))
 }
 
 /**
@@ -95,11 +103,11 @@ function collectProject(
   project: Project,
   fallbackParentId: string,
   nodes: DesiredNode[],
-  seen: Set<string>,
+  seen: Map<string, Project>,
 ): boolean {
   // A project reachable by two paths, or a malformed cycle, must not be added twice.
   if (seen.has(project.id)) return false
-  seen.add(project.id)
+  seen.set(project.id, project)
 
   nodes.push({
     kind: 'project',
@@ -123,7 +131,7 @@ async function collectSubProjects(
   client: Client,
   project: Project,
   nodes: DesiredNode[],
-  seen: Set<string>,
+  seen: Map<string, Project>,
   depth: number,
   maxDepth: number,
 ): Promise<void> {
@@ -134,7 +142,7 @@ async function collectSubProjects(
     const response = await listSubProjects({
       client,
       path: { id: project.id },
-      query: { cursor, per_page: perPage },
+      query: { cursor, per_page: perPage, include_legacy_id: true },
       throwOnError: true,
     })
     return response.data

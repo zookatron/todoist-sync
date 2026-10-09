@@ -31,6 +31,8 @@
     "db:studio": "drizzle-kit studio",
     "gen:glassfrog": "openapi-ts -f openapi-ts.glassfrog.config.ts",
     "gen:glassfrog:fetch": "curl -fsS https://app.glassfrog.com/api/v5/openapi.json -o openapi/glassfrog.json && yarn gen:glassfrog",
+    "gen:glassfrog-v3": "openapi-ts -f openapi-ts.glassfrog-v3.config.ts",
+    "gen:glassfrog-v3:fetch": "curl -fsS https://app.glassfrog.com/api/v3/docs/spec.yaml -o openapi/glassfrog-v3.yaml && yarn gen:glassfrog-v3",
     "gen:todoist": "openapi-ts -f openapi-ts.todoist.config.ts",
     "gen:todoist:fetch": "curl -fsS https://developer.todoist.com/openapi.json -o openapi/todoist.json && yarn gen:todoist",
     "prepare": "lefthook install"

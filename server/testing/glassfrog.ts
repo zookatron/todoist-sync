@@ -1,5 +1,6 @@
 import { http, HttpResponse, type RequestHandler } from 'msw'
 import { GLASSFROG_BASE_URL } from '../glassfrog/client.js'
+import { GLASSFROG_V3_BASE_URL } from '../glassfrog/v3.js'
 import type {
   Action,
   ActionInput,
@@ -32,6 +33,46 @@ export class GlassfrogSimulator extends Simulator {
   projects: Project[] = []
   actions: Action[] = []
 
+  /** The API key's user. `legacyId` is their v3 person id. */
+  me = { id: 'actor-1', legacyId: 1 }
+
+  /**
+   * Which v3 person owns an action or project, by v5 id; null for nobody. Anything not listed
+   * belongs to `me`, so a test only has to say who the *other* owners are. Only v3 exposes
+   * this; v5 attributes everything to the role.
+   */
+  readonly owners = new Map<string, number | null>()
+
+  /** Items v3 does not know about at all (it answers 404 for them and omits them from lists). */
+  readonly hiddenFromV3 = new Set<string>()
+
+  /** v3 integer ids, handed out on first use. Shared by `legacy_id` on v5 and `id` on v3. */
+  private readonly legacyIds = new Map<string, number>()
+
+  legacyIdOf(id: string): number {
+    let legacy = this.legacyIds.get(id)
+    if (legacy === undefined) {
+      legacy = 1000 + this.legacyIds.size
+      this.legacyIds.set(id, legacy)
+    }
+    return legacy
+  }
+
+  private ownerOf(id: string): number | null {
+    return this.owners.has(id) ? (this.owners.get(id) ?? null) : this.me.legacyId
+  }
+
+  /** Adds `legacy_id` to actions and projects when the request asked for it, as v5 does. */
+  private withLegacyIds<T extends { id: string; type: string }>(request: Request, items: T[]): T[] {
+    if (new URL(request.url).searchParams.get('include_legacy_id') !== 'true') return items
+    return items.map((item) =>
+      item.type === 'role' ? item : { ...item, legacy_id: this.legacyIdOf(item.id) },
+    )
+  }
+
+  /** Every v3 request made, as `METHOD /path?query`, for asserting what was (not) asked. */
+  readonly v3Requests: string[] = []
+
   /** Every action id this simulator has deleted, for asserting a delete really happened. */
   readonly deletedActionIds = new Set<string>()
 
@@ -40,6 +81,16 @@ export class GlassfrogSimulator extends Simulator {
     this.projects = []
     this.actions = []
     this.deletedActionIds.clear()
+    this.me = { id: 'actor-1', legacyId: 1 }
+    this.owners.clear()
+    this.hiddenFromV3.clear()
+    this.legacyIds.clear()
+    this.v3Requests.length = 0
+  }
+
+  /** Records the v3 person who owns the given actions or projects. */
+  setOwner(personId: number | null, ...ids: string[]): void {
+    for (const id of ids) this.owners.set(id, personId)
   }
 
   addRoles(roles: DeepPartial<Role>[]): Role[] {
@@ -100,14 +151,51 @@ export class GlassfrogSimulator extends Simulator {
   protected handlers(): RequestHandler[] {
     const url = (path: string) => `${GLASSFROG_BASE_URL}${path}`
 
+    const v3 = (path: string) => `${GLASSFROG_V3_BASE_URL}${path}`
+
     return [
+      http.get(v3('/actions'), ({ request }) => {
+        const denied = this.authorize(request)
+        if (denied) return denied
+        this.recordV3(request)
+        return this.v3Page(request, 'actions', this.actions)
+      }),
+
+      http.get(v3('/projects'), ({ request }) => {
+        const denied = this.authorize(request)
+        if (denied) return denied
+        this.recordV3(request)
+        return this.v3Page(request, 'projects', this.projects)
+      }),
+
+      http.get(v3('/actions/:id'), ({ request, params }) => {
+        const denied = this.authorize(request)
+        if (denied) return denied
+        this.recordV3(request)
+        return this.v3One('actions', this.actions, Number(params.id))
+      }),
+
+      http.get(v3('/projects/:id'), ({ request, params }) => {
+        const denied = this.authorize(request)
+        if (denied) return denied
+        this.recordV3(request)
+        return this.v3One('projects', this.projects, Number(params.id))
+      }),
+
       http.get(url('/me'), ({ request }) => {
         const denied = this.authorize(request)
         if (denied) return denied
 
+        const withLegacy = new URL(request.url).searchParams.get('include_legacy_id') === 'true'
+
         return HttpResponse.json({
           data: {
-            actor: { id: 'actor-1', type: 'person', name: 'Test Person' },
+            actor: {
+              id: this.me.id,
+              type: 'person',
+              name: 'Test Person',
+              ...(withLegacy ? { legacy_id: this.me.legacyId } : {}),
+            },
             organization: { id: 'org-1', type: 'organization', name: 'Test Org' },
             membership: { id: 'membership-1', type: 'membership' },
           },
@@ -207,7 +295,7 @@ export class GlassfrogSimulator extends Simulator {
 
         const action = this.action(String(params.id))
         if (!action) return notFound('Action')
-        return HttpResponse.json({ data: action })
+        return HttpResponse.json({ data: this.withLegacyIds(request, [action])[0] })
       }),
 
       http.post(url('/roles/:roleId/actions'), async ({ request, params }) => {
@@ -299,6 +387,76 @@ export class GlassfrogSimulator extends Simulator {
     ).toISOString()
   }
 
+  private recordV3(request: Request): void {
+    const { pathname, search } = new URL(request.url)
+    this.v3Requests.push(`${request.method} ${pathname}${search}`)
+  }
+
+  private v3One(key: 'actions' | 'projects', items: (Action | Project)[], v3Id: number): Response {
+    const item = items.find(
+      (candidate) => !this.hiddenFromV3.has(candidate.id) && this.legacyIdOf(candidate.id) === v3Id,
+    )
+    if (!item)
+      return HttpResponse.json({ message: 'ActiveRecord::RecordNotFound' }, { status: 404 })
+
+    return HttpResponse.json({
+      [key]: [
+        {
+          id: v3Id,
+          description: item.description,
+          created_at: item.created_at,
+          links: { person: this.ownerOf(item.id) },
+        },
+      ],
+    })
+  }
+
+  /** A v3 list: page-numbered, no pagination envelope, filtered by `person_id`. */
+  private v3Page(
+    request: Request,
+    key: 'actions' | 'projects',
+    items: (Action | Project)[],
+  ): Response {
+    const params = new URL(request.url).searchParams
+
+    // Verified against the live API: despite the spec, any `status` on /projects is a 500.
+    if (key === 'projects' && params.has('status')) {
+      return HttpResponse.json(
+        {
+          message: 'An unexpected error has occurred',
+          errors: [{ title: 'An unexpected error has occurred' }],
+        },
+        { status: 500 },
+      )
+    }
+
+    const personId = params.get('person_id')
+    const page = Number(params.get('page') ?? 1)
+    const perPage = Number(params.get('per_page') ?? 30)
+
+    // Without `exclude_completed=false` completed actions are hidden, and projects default to
+    // current, future and waiting, so a finished one is only reachable by id.
+    const hidden = new Set(
+      key === 'actions'
+        ? params.get('exclude_completed') === 'false'
+          ? []
+          : ['completed']
+        : ['completed', 'cancelled', 'archived'],
+    )
+
+    const rows = items
+      .filter((item) => !hidden.has(item.status) && !this.hiddenFromV3.has(item.id))
+      .map((item) => ({
+        id: this.legacyIdOf(item.id),
+        description: item.description,
+        created_at: item.created_at,
+        links: { person: this.ownerOf(item.id) },
+      }))
+      .filter((row) => !personId || row.links.person === Number(personId))
+
+    return HttpResponse.json({ [key]: rows.slice((page - 1) * perPage, page * perPage) })
+  }
+
   /** Glassfrog v5 authenticates with a static key in `X-Auth-Token`. */
   private authorize(request: Request): Response | null {
     if (request.headers.get('X-Auth-Token') === GLASSFROG_TEST_API_KEY) return null
@@ -319,7 +477,10 @@ export class GlassfrogSimulator extends Simulator {
     const hasNextPage = end < items.length
 
     return HttpResponse.json({
-      data: items.slice(start, end),
+      data: this.withLegacyIds(
+        request,
+        items.slice(start, end) as unknown as { id: string; type: string }[],
+      ),
       meta: {
         pagination: {
           per_page: perPage,

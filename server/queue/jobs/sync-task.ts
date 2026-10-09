@@ -20,6 +20,7 @@ import {
   type SideState,
   type TaskSnapshot,
 } from '../../sync/resolve.js'
+import { getOwnership } from '../../sync/ownership.js'
 import { callTodoist } from '../../todoist/client.js'
 import { withLock } from '../../utils/lock.js'
 import { logger } from '../../utils/logger.js'
@@ -68,7 +69,7 @@ async function syncOne(data: TaskJobData): Promise<void> {
   const client = await getGlassfrogClient(userId)
 
   const glassfrog = await withPhase('read-glassfrog-action', () =>
-    readGlassfrogSide(client, glassfrogActionId),
+    readGlassfrogSide(client, glassfrogActionId, (action) => isMineAction(userId, action)),
   )
   const todoist = await withPhase('read-todoist-task', () => readTodoistSide(userId, todoistTaskId))
 
@@ -171,6 +172,8 @@ async function syncOne(data: TaskJobData): Promise<void> {
         })
 
         const action = response.data.data
+        // Record the owner now rather than look it up: v3 agrees, but this saves the calls.
+        await (await getOwnership(userId)).recordOwned(action.id)
 
         await upsertMapping({
           userId,
@@ -363,12 +366,17 @@ async function findMapping(data: TaskJobData) {
 async function readGlassfrogSide(
   client: Client,
   actionId: string | null,
+  isMine: (action: Action) => Promise<boolean>,
 ): Promise<{ state: SideState; action: Action | null }> {
   if (!actionId) return { state: { present: false }, action: null }
 
   // Not `throwOnError`: the generated client throws the bare response body, which carries
   // no status, so the status has to be read from the result to tell a 404 from a real fault.
-  const result = await getAction({ client, path: { id: actionId } })
+  const result = await getAction({
+    client,
+    path: { id: actionId },
+    query: { include_legacy_id: true },
+  })
 
   // A 404 is the one normal signal that the action was deleted. Anything else (401, 5xx,
   // a network failure) must fail the job: reading it as "deleted" would delete the task.
@@ -387,7 +395,16 @@ async function readGlassfrogSide(
     return { state: { present: false }, action }
   }
 
+  // Still there, but not the user's (a co-filler's, or reassigned away): gone as far as
+  // this mirror is concerned, so the Todoist task goes. The Glassfrog action is left alone.
+  if (!(await isMine(action))) return { state: { present: false }, action: null }
+
   return { state: { present: true, snapshot: toGlassfrogSnapshot(action) }, action }
+}
+
+async function isMineAction(userId: string, action: Action): Promise<boolean> {
+  const ownership = await getOwnership(userId)
+  return (await ownership.ownedIds('action', [action])).has(action.id)
 }
 
 async function readTodoistSide(

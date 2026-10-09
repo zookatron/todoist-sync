@@ -24,7 +24,7 @@ export default function Dashboard(_: Route.ComponentProps) {
 
   const steps = [
     { label: 'Connect your Todoist account', done: Boolean(todoist.data?.connected) },
-    { label: 'Save your Glassfrog API key', done: Boolean(glassfrog.data?.connected) },
+    { label: 'Save your Glassfrog API keys', done: Boolean(glassfrog.data?.connected) },
     { label: 'Choose a root Todoist project', done: Boolean(rootTodoistProjectId) },
   ]
 

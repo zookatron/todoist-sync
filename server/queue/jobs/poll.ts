@@ -6,6 +6,7 @@ import { getGlassfrogClient, paginateAll } from '../../glassfrog/client.js'
 import { diffGlassfrogActions } from '../../glassfrog/delta.js'
 import { listMyActions } from '../../glassfrog/generated/sdk.gen.js'
 import type { Action } from '../../glassfrog/generated/types.gen.js'
+import { getOwnership } from '../../sync/ownership.js'
 import { emptyHierarchyResult, type HierarchyResult, syncHierarchy } from '../../sync/hierarchy.js'
 import { callTodoist } from '../../todoist/client.js'
 import { filterTodoistChanges } from '../../todoist/delta.js'
@@ -62,6 +63,13 @@ async function poll(userId: string): Promise<PollResult> {
   })
 
   if (!glassfrog) {
+    return { hierarchy: emptyHierarchyResult(), enqueued: 0, skipped: 'not-configured' }
+  }
+
+  // Keys saved before ownership existed have no v3 key. Syncing without one would mirror
+  // co-fillers' work, so it stays off until the user adds it.
+  if (!glassfrog.v3ApiKey || glassfrog.v3PersonId == null) {
+    log.warn('No Glassfrog v3 API key saved; add one in settings to resume sync')
     return { hierarchy: emptyHierarchyResult(), enqueued: 0, skipped: 'not-configured' }
   }
 
@@ -123,15 +131,22 @@ async function poll(userId: string): Promise<PollResult> {
 /** Enumerates the user's Glassfrog actions and compares them with stored timestamps. */
 async function detectGlassfrogChanges(userId: string) {
   const client = await getGlassfrogClient(userId)
+  const ownership = await getOwnership(userId)
 
-  const actions = await paginateAll<Action>(async ({ cursor, perPage }) => {
+  const allActions = await paginateAll<Action>(async ({ cursor, perPage }) => {
     const response = await listMyActions({
       client,
-      query: { cursor, per_page: perPage },
+      query: { cursor, per_page: perPage, include_legacy_id: true },
       throwOnError: true,
     })
     return response.data
   })
+
+  // /me/actions includes co-fillers' actions on shared roles. Dropping them here makes a
+  // previously-mapped one read as 'missing', which removes its Todoist task (and only that:
+  // sync-task never deletes the Glassfrog action).
+  const ownedIds = await ownership.ownedIds('action', allActions)
+  const actions = allActions.filter((action) => ownedIds.has(action.id))
 
   const mappings = await db
     .select({

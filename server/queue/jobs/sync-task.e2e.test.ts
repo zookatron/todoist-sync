@@ -9,6 +9,7 @@ import {
   GlassfrogSimulator,
   ProjectMappingFactory,
   TaskMappingFactory,
+  RedisSimulator,
   TodoistSimulator,
 } from '../../testing/index.js'
 import { acquireLock, LockUnavailableError } from '../../utils/lock.js'
@@ -25,6 +26,7 @@ import { runTaskSync } from './sync-task.js'
 new DatabaseSimulator()
 const glassfrog = new GlassfrogSimulator()
 const todoist = new TodoistSimulator()
+new RedisSimulator()
 
 const ROOT = 'td-root'
 const ROLE_GF = 'role-eng'
@@ -482,6 +484,8 @@ describe('runTaskSync', () => {
       // Nothing to relocate it to: moving it on a guess is worse than waiting for the
       // hierarchy pass to create the destination.
       const stranded = await strandedTask({ content: 'Homeless' })
+      // A role the user fills but whose project the hierarchy pass has not created yet.
+      glassfrog.addRoles([{ id: 'role-unmapped', name: 'New role' }])
       glassfrog.addActions([{ id: 'action-1', description: 'Homeless', role_id: 'role-unmapped' }])
       await new TaskMappingFactory()
         .override({ userId })

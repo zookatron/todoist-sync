@@ -32,6 +32,7 @@ const defaultJobOptions: JobsOptions = {
  */
 
 let redis: IORedis | undefined
+let connectionOverride: IORedis | undefined
 let realPollQueue: Queue<PollJobData> | undefined
 let realTaskQueue: Queue<TaskJobData> | undefined
 
@@ -45,6 +46,7 @@ let taskQueueOverride: Queue<TaskJobData> | undefined
  * aborted by ioredis's retry cap.
  */
 export function getConnection(): IORedis {
+  if (connectionOverride) return connectionOverride
   return (redis ??= new IORedis(env.REDIS_URL, { maxRetriesPerRequest: null }))
 }
 
@@ -62,6 +64,11 @@ export function getTaskQueue(): Queue<TaskJobData> {
     connection: getConnection(),
     defaultJobOptions,
   }))
+}
+
+/** Test seam. Pass null to restore the real connection. */
+export function setConnection(next: IORedis | null): void {
+  connectionOverride = next ?? undefined
 }
 
 /** Test seams. Pass null to restore the real queue. */

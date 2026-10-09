@@ -61,6 +61,34 @@ there is nothing to be incremental against. Detection is enumerate-and-diff: pag
 _absent_ from the enumeration was deleted or moved out of scope. Limiting scope to your own roles
 (`/me/*`) keeps this to roughly one page per poll.
 
+### Whose items are mine
+
+v5 attributes actions and projects to a **role**, so a co-filler's items on a shared role arrive
+in `/me/actions` and `/roles/{id}/projects` too. Only the legacy **v3** API records a person
+(`links.person`). `server/sync/ownership.ts` decides:
+
+- An item is mine if v3 lists me as its owner (`links.person`). **A v3 API key is required** —
+  there is no fallback, because without v3 there is no telling whose items are whose. A user
+  with no v3 key saved (including anyone who connected before it was required) has sync paused:
+  `runPoll` skips them with a warning until they add it in settings, where both keys are saved
+  together.
+- v5 returns each resource's v3 id as `legacy_id` when asked (`include_legacy_id=true`), which is
+  the join. My v3 person id is the v5 actor's `legacy_id` (`/me?include_legacy_id=true`),
+  captured when the v5 key is saved. The vendored v5 spec documents the param for roles, actors
+  and `/me` only, though the API honours it everywhere, so `openapi-ts.glassfrog.config.ts` adds it
+  to the other endpoints and schemas at generation time (`parser.patch`). It retires with v3.
+- **Owners are cached in Redis** as v5 id → v3 person id (`glassfrog:owner:<v5 id>`, 10-day TTL;
+  `none` for an item v3 says nobody owns), and checked before the owner is attached to the v5
+  data. Ownership is assumed to rarely change, so a cached entry is never re-checked; a
+  reassignment is noticed when the entry expires. Nothing is cached in process.
+- Items not yet cached are looked up in v3: one request each for up to 5, else one paged list
+  of the whole organization. In steady state that is a single `MGET` and no v3 requests. An
+  action created from Todoist has its owner recorded immediately, saving the lookup.
+- A slow or unreachable Redis (2s) falls back to asking v3 every time.
+- Not-mine actions are dropped before the diff, so a mapped one reads as absent and its Todoist
+  task is removed; `sync-task` also treats a not-mine action as gone. The Glassfrog action is
+  never touched. Not-mine projects are pruned from the desired tree, except ancestors of mine.
+
 ## Hierarchy mapping
 
 ```
@@ -225,7 +253,7 @@ so a crashed worker cannot deadlock the system.
 ## Credentials
 
 Both integrations authenticate with a static, long-lived personal token: a Todoist API token and
-a Glassfrog API v5 key, each pasted into the dashboard and stored in plaintext in the database.
+a Glassfrog API v5 key and a v3 key (used for ownership), each pasted into the dashboard and stored in plaintext in the database.
 Neither expires, carries scopes, or needs to be refreshed — `getTodoistApi()`/`callTodoist()` and
 `getGlassfrogClient()` just read the stored token and build a client from it.
 

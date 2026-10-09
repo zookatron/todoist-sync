@@ -15,6 +15,13 @@
       "when": 1789430400000,
       "tag": "0001_todoist_personal_token",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1791518730754,
+      "tag": "0002_pale_zzzax",
+      "breakpoints": true
     }
   ]
 }

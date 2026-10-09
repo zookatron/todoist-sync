@@ -12,12 +12,13 @@ the exact layer where their bugs live; extracting more pure functions distorts t
 
 So instead the _process boundary_ is replaced with stateful in-memory doubles:
 
-| Boundary  | Stand-in             | What it really is                              |
-| --------- | -------------------- | ---------------------------------------------- |
-| Postgres  | `DatabaseSimulator`  | PGlite — real Postgres (WASM), real migrations |
-| Glassfrog | `GlassfrogSimulator` | In-memory entities behind msw handlers         |
-| Todoist   | `TodoistSimulator`   | Same, plus a sync-token version clock          |
-| BullMQ    | `QueueSimulator`     | Records `add()` calls                          |
+| Boundary  | Stand-in             | What it really is                                      |
+| --------- | -------------------- | ------------------------------------------------------ |
+| Postgres  | `DatabaseSimulator`  | PGlite — real Postgres (WASM), real migrations         |
+| Glassfrog | `GlassfrogSimulator` | In-memory entities behind msw handlers                 |
+| Todoist   | `TodoistSimulator`   | Same, plus a sync-token version clock                  |
+| BullMQ    | `QueueSimulator`     | Records `add()` calls                                  |
+| Redis     | `RedisSimulator`     | In-memory `MGET` / pipelined `SET … EX`, TTLs recorded |
 
 Code under test runs **unmodified and unmocked**. A test reads: seed both worlds, run the
 real function, assert on both worlds afterwards.
@@ -190,5 +191,5 @@ to the simulator — do not work around it.
 `beforeEach`, or you will register duplicate hooks.
 
 **The production seams are inert by default.** `setDatabase`, `setTodoistTransport`,
-`setTaskQueue` and `setPollQueue` do nothing until a simulator sets them, and each restores
+`setTaskQueue`, `setPollQueue` and `setConnection` do nothing until a simulator sets them, and each restores
 the real implementation on teardown. Never call them from application code.

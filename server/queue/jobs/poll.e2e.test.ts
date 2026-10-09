@@ -9,6 +9,7 @@ import {
   GlassfrogSimulator,
   ProjectMappingFactory,
   QueueSimulator,
+  RedisSimulator,
   TodoistSimulator,
 } from '../../testing/index.js'
 import { acquireLock } from '../../utils/lock.js'
@@ -26,6 +27,7 @@ import { runTaskSync } from './sync-task.js'
 new DatabaseSimulator()
 const glassfrog = new GlassfrogSimulator()
 const todoist = new TodoistSimulator()
+new RedisSimulator()
 const queue = new QueueSimulator()
 
 const ROOT = 'td-root'

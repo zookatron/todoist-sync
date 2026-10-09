@@ -401,6 +401,10 @@ export type Project = {
      */
     effort?: number | null;
     permissions?: Permissions;
+    /**
+     * **Transition-only.** The project's v3 sequential integer id, present ONLY when `?include_legacy_id=true` is passed. Retires when the v3 API retires.
+     */
+    legacy_id?: number | null;
 };
 
 /**
@@ -745,6 +749,10 @@ export type Action = {
     permissions?: Permissions;
     trigger_event?: string | null;
     note?: string | null;
+    /**
+     * **Transition-only.** The action's v3 sequential integer id, present ONLY when `?include_legacy_id=true` is passed. Retires when the v3 API retires.
+     */
+    legacy_id?: number | null;
 };
 
 /**
@@ -2573,6 +2581,21 @@ export type ListMyProjectsData = {
          * Filter by project status.
          */
         status?: 'archived' | 'cancelled' | 'completed' | 'current' | 'scheduled' | 'someday' | 'waiting';
+        /**
+         * **Transition-only.** When `true`, each resource in the response
+         * additionally carries a `legacy_id` field — its v3 sequential integer id
+         * — so v3-keyed integrators can correlate v5 TypeIDs with the numeric IDs
+         * they already hold during migration. Default is off (`legacy_id` is
+         * omitted unless explicitly requested).
+         *
+         * This is a temporary v3→v5 bridge and **NOT a permanent part of the v5
+         * contract**: it retires when the v3 API retires. See the "Legacy IDs
+         * (transition-only)" section in the API overview. Applies to the standard
+         * resource list/show endpoints and `/me`; nested `?include=` embeds are
+         * out of scope.
+         *
+         */
+        include_legacy_id?: boolean;
     };
     url: '/me/projects';
 };
@@ -2624,6 +2647,21 @@ export type ListMyActionsData = {
          * Filter by action status.
          */
         status?: 'archived' | 'cancelled' | 'completed' | 'current' | 'scheduled' | 'someday' | 'waiting';
+        /**
+         * **Transition-only.** When `true`, each resource in the response
+         * additionally carries a `legacy_id` field — its v3 sequential integer id
+         * — so v3-keyed integrators can correlate v5 TypeIDs with the numeric IDs
+         * they already hold during migration. Default is off (`legacy_id` is
+         * omitted unless explicitly requested).
+         *
+         * This is a temporary v3→v5 bridge and **NOT a permanent part of the v5
+         * contract**: it retires when the v3 API retires. See the "Legacy IDs
+         * (transition-only)" section in the API overview. Applies to the standard
+         * resource list/show endpoints and `/me`; nested `?include=` embeds are
+         * out of scope.
+         *
+         */
+        include_legacy_id?: boolean;
     };
     url: '/me/actions';
 };
@@ -3797,6 +3835,21 @@ export type ListRoleActionsData = {
          * Filter by action status.
          */
         status?: 'archived' | 'cancelled' | 'completed' | 'current' | 'scheduled' | 'someday' | 'waiting';
+        /**
+         * **Transition-only.** When `true`, each resource in the response
+         * additionally carries a `legacy_id` field — its v3 sequential integer id
+         * — so v3-keyed integrators can correlate v5 TypeIDs with the numeric IDs
+         * they already hold during migration. Default is off (`legacy_id` is
+         * omitted unless explicitly requested).
+         *
+         * This is a temporary v3→v5 bridge and **NOT a permanent part of the v5
+         * contract**: it retires when the v3 API retires. See the "Legacy IDs
+         * (transition-only)" section in the API overview. Applies to the standard
+         * resource list/show endpoints and `/me`; nested `?include=` embeds are
+         * out of scope.
+         *
+         */
+        include_legacy_id?: boolean;
     };
     url: '/roles/{role_id}/actions';
 };
@@ -3922,7 +3975,23 @@ export type GetActionData = {
          */
         id: string;
     };
-    query?: never;
+    query?: {
+        /**
+         * **Transition-only.** When `true`, each resource in the response
+         * additionally carries a `legacy_id` field — its v3 sequential integer id
+         * — so v3-keyed integrators can correlate v5 TypeIDs with the numeric IDs
+         * they already hold during migration. Default is off (`legacy_id` is
+         * omitted unless explicitly requested).
+         *
+         * This is a temporary v3→v5 bridge and **NOT a permanent part of the v5
+         * contract**: it retires when the v3 API retires. See the "Legacy IDs
+         * (transition-only)" section in the API overview. Applies to the standard
+         * resource list/show endpoints and `/me`; nested `?include=` embeds are
+         * out of scope.
+         *
+         */
+        include_legacy_id?: boolean;
+    };
     url: '/actions/{id}';
 };
 
@@ -5432,6 +5501,21 @@ export type ListRoleProjectsData = {
          *
          */
         include?: Array<'sub_projects' | 'actions'>;
+        /**
+         * **Transition-only.** When `true`, each resource in the response
+         * additionally carries a `legacy_id` field — its v3 sequential integer id
+         * — so v3-keyed integrators can correlate v5 TypeIDs with the numeric IDs
+         * they already hold during migration. Default is off (`legacy_id` is
+         * omitted unless explicitly requested).
+         *
+         * This is a temporary v3→v5 bridge and **NOT a permanent part of the v5
+         * contract**: it retires when the v3 API retires. See the "Legacy IDs
+         * (transition-only)" section in the API overview. Applies to the standard
+         * resource list/show endpoints and `/me`; nested `?include=` embeds are
+         * out of scope.
+         *
+         */
+        include_legacy_id?: boolean;
     };
     url: '/roles/{role_id}/projects';
 };
@@ -5532,6 +5616,21 @@ export type ListProjectActionsData = {
          * Filter by action status.
          */
         status?: 'archived' | 'cancelled' | 'completed' | 'current' | 'scheduled' | 'someday' | 'waiting';
+        /**
+         * **Transition-only.** When `true`, each resource in the response
+         * additionally carries a `legacy_id` field — its v3 sequential integer id
+         * — so v3-keyed integrators can correlate v5 TypeIDs with the numeric IDs
+         * they already hold during migration. Default is off (`legacy_id` is
+         * omitted unless explicitly requested).
+         *
+         * This is a temporary v3→v5 bridge and **NOT a permanent part of the v5
+         * contract**: it retires when the v3 API retires. See the "Legacy IDs
+         * (transition-only)" section in the API overview. Applies to the standard
+         * resource list/show endpoints and `/me`; nested `?include=` embeds are
+         * out of scope.
+         *
+         */
+        include_legacy_id?: boolean;
     };
     url: '/projects/{project_id}/actions';
 };
@@ -5580,6 +5679,21 @@ export type ListSubProjectsData = {
          * Cursor from a previous response's `meta.pagination.next_cursor`.
          */
         cursor?: string;
+        /**
+         * **Transition-only.** When `true`, each resource in the response
+         * additionally carries a `legacy_id` field — its v3 sequential integer id
+         * — so v3-keyed integrators can correlate v5 TypeIDs with the numeric IDs
+         * they already hold during migration. Default is off (`legacy_id` is
+         * omitted unless explicitly requested).
+         *
+         * This is a temporary v3→v5 bridge and **NOT a permanent part of the v5
+         * contract**: it retires when the v3 API retires. See the "Legacy IDs
+         * (transition-only)" section in the API overview. Applies to the standard
+         * resource list/show endpoints and `/me`; nested `?include=` embeds are
+         * out of scope.
+         *
+         */
+        include_legacy_id?: boolean;
     };
     url: '/projects/{id}/sub_projects';
 };
@@ -5666,6 +5780,21 @@ export type GetProjectData = {
          *
          */
         include?: Array<'sub_projects' | 'actions'>;
+        /**
+         * **Transition-only.** When `true`, each resource in the response
+         * additionally carries a `legacy_id` field — its v3 sequential integer id
+         * — so v3-keyed integrators can correlate v5 TypeIDs with the numeric IDs
+         * they already hold during migration. Default is off (`legacy_id` is
+         * omitted unless explicitly requested).
+         *
+         * This is a temporary v3→v5 bridge and **NOT a permanent part of the v5
+         * contract**: it retires when the v3 API retires. See the "Legacy IDs
+         * (transition-only)" section in the API overview. Applies to the standard
+         * resource list/show endpoints and `/me`; nested `?include=` embeds are
+         * out of scope.
+         *
+         */
+        include_legacy_id?: boolean;
     };
     url: '/projects/{id}';
 };

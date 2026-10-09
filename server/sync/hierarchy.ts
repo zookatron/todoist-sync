@@ -21,6 +21,7 @@ import {
 import { logger } from '../utils/logger.js'
 import { phaseOf, withPhase } from '../utils/sync-context.js'
 import { type ActualProject, readActualTree } from './actual-tree.js'
+import { getOwnership } from './ownership.js'
 import { buildDesiredTree } from './desired-tree.js'
 import { diffHierarchy, type HierarchyOperation, type MappingKind } from './hierarchy-diff.js'
 
@@ -91,9 +92,14 @@ export async function syncHierarchy(
   }
 
   const glassfrog = await getGlassfrogClient(userId)
+  const ownership = await getOwnership(userId)
 
   const [desired, todoist, mappings] = await Promise.all([
-    withPhase('read-glassfrog-tree', () => buildDesiredTree(glassfrog)),
+    withPhase('read-glassfrog-tree', () =>
+      buildDesiredTree(glassfrog, {
+        ownedProjectIds: (projects) => ownership.ownedIds('project', projects),
+      }),
+    ),
     withPhase('read-todoist-tree', () => readActualTree(userId, rootId)),
     db.select().from(projectMapping).where(eq(projectMapping.userId, userId)),
   ])

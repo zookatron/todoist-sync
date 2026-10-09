@@ -84,6 +84,7 @@ yarn lint:fix                          # eslint --fix
 yarn test                              # vitest — needs no postgres, redis or network
 yarn db:generate                       # after editing server/db/schema/
 yarn gen:glassfrog:fetch               # re-vendor + regenerate the Glassfrog client
+yarn gen:glassfrog-v3:fetch            # re-vendor + regenerate the Glassfrog v3 client (ownership only)
 yarn gen:todoist:fetch                 # re-vendor + regenerate the Todoist wire types
 ```
 
@@ -99,8 +100,8 @@ yarn gen:todoist:fetch                 # re-vendor + regenerate the Todoist wire
   would replace the layer where the bugs actually live.
 - Pure logic (`resolve.ts`, `hierarchy-diff.ts`, the `delta.ts` files) still gets plain unit
   tests.
-- Four production seams exist only for this — `setDatabase`, `setTodoistTransport`,
-  `setTaskQueue`, `setPollQueue`. They are inert until a simulator sets them. Never call
+- Five production seams exist only for this — `setDatabase`, `setTodoistTransport`,
+  `setTaskQueue`, `setPollQueue`, `setConnection` (Redis). They are inert until a simulator sets them. Never call
   them from application code.
 - The Todoist SDK **bypasses msw** on Node (npm-undici's own `fetch`, not `globalThis.fetch`).
   `server/todoist/transport.ts` is the required workaround; a new Todoist call path that
@@ -126,6 +127,10 @@ Also note: **the worker is bundled for production** (`yarn build:worker` →
 TypeScript directly.
 
 ## API constraints worth remembering
+
+- **Only Glassfrog v3 says who owns an action or project** (`links.person`); v5 attributes
+  everything to the role. `server/glassfrog/generated-v3/` is generated from the vendored v3 spec
+  and used solely by `server/sync/ownership.ts`. See docs/ARCHITECTURE.md "Whose items are mine".
 
 - **Glassfrog v5 is beta.** It has **no org-wide action list** and **no `updated_since` filter**.
   Change detection is enumerate-and-diff over `/me/actions` (cursor-paginated). Auth is a static
