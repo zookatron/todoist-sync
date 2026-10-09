@@ -6,6 +6,7 @@ import { pool } from '../server/db/index.js'
 import { cleanupExpiredLocks } from '../server/utils/lock.js'
 import { env } from '../server/utils/env.js'
 import { logger } from '../server/utils/logger.js'
+import { phaseOf } from '../server/utils/sync-context.js'
 import { runPoll } from '../server/queue/jobs/poll.js'
 import { runPollTick } from '../server/queue/jobs/poll-tick.js'
 import { runTaskSync } from '../server/queue/jobs/sync-task.js'
@@ -44,11 +45,14 @@ const taskWorker = new Worker<TaskJobData>(
 )
 
 pollWorker.on('failed', (job, error) => {
-  log.error({ jobId: job?.id, err: error }, 'Poll job failed')
+  log.error({ jobId: job?.id, phase: phaseOf(error), err: error }, 'Poll job failed')
 })
 
 taskWorker.on('failed', (job, error) => {
-  log.error({ jobId: job?.id, err: error }, 'Task sync job failed')
+  log.error(
+    { jobId: job?.id, phase: phaseOf(error), data: job?.data, err: error },
+    'Task sync job failed',
+  )
 })
 
 /** Housekeeping: expired locks are already stealable, this just bounds table growth. */

@@ -12,6 +12,7 @@ import { filterTodoistChanges } from '../../todoist/delta.js'
 import { env } from '../../utils/env.js'
 import { LockUnavailableError, withLock } from '../../utils/lock.js'
 import { logger } from '../../utils/logger.js'
+import { withPhase } from '../../utils/sync-context.js'
 import { getTaskQueue, type TaskJobData, taskJobKey } from '../queues.js'
 
 export type PollResult = {
@@ -34,7 +35,7 @@ export async function runPoll(userId: string): Promise<PollResult> {
     return await withLock(
       `poll:${userId}`,
       { owner: `poll:${userId}`, ttlMs: env.SYNC_INTERVAL_MS * 5 },
-      () => poll(userId),
+      () => withPhase('poll', () => poll(userId), { userId, job: 'poll' }),
     )
   } catch (error) {
     if (error instanceof LockUnavailableError) {
@@ -65,16 +66,20 @@ async function poll(userId: string): Promise<PollResult> {
   }
 
   // Hierarchy first: task jobs must be able to find their destination project.
-  const hierarchy = await syncHierarchy(userId, { db })
+  const hierarchy = await withPhase('hierarchy', () => syncHierarchy(userId, { db }))
 
   const jobs = new Map<string, TaskJobData>()
 
-  for (const change of await detectGlassfrogChanges(userId)) {
+  const glassfrogChanges = await withPhase('detect-glassfrog-changes', () =>
+    detectGlassfrogChanges(userId),
+  )
+
+  for (const change of glassfrogChanges) {
     const data: TaskJobData = { userId, glassfrogActionId: change.glassfrogActionId }
     jobs.set(taskJobKey(data), data)
   }
 
-  const todoist = await detectTodoistChanges(userId)
+  const todoist = await withPhase('detect-todoist-changes', () => detectTodoistChanges(userId))
 
   for (const change of todoist.changes) {
     const data: TaskJobData = { userId, todoistTaskId: change.todoistTaskId }

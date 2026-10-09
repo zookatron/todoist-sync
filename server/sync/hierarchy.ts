@@ -19,6 +19,7 @@ import {
   unarchiveProject,
 } from '../todoist/projects.js'
 import { logger } from '../utils/logger.js'
+import { phaseOf, withPhase } from '../utils/sync-context.js'
 import { type ActualProject, readActualTree } from './actual-tree.js'
 import { buildDesiredTree } from './desired-tree.js'
 import { diffHierarchy, type HierarchyOperation, type MappingKind } from './hierarchy-diff.js'
@@ -92,8 +93,8 @@ export async function syncHierarchy(
   const glassfrog = await getGlassfrogClient(userId)
 
   const [desired, todoist, mappings] = await Promise.all([
-    buildDesiredTree(glassfrog),
-    readActualTree(userId, rootId),
+    withPhase('read-glassfrog-tree', () => buildDesiredTree(glassfrog)),
+    withPhase('read-todoist-tree', () => readActualTree(userId, rootId)),
     db.select().from(projectMapping).where(eq(projectMapping.userId, userId)),
   ])
 
@@ -219,243 +220,249 @@ async function applyOperations(args: {
 
   for (const operation of operations) {
     try {
-      switch (operation.type) {
-        case 'create-todoist': {
-          const { node } = operation
-          const created = await addProject(userId, {
-            name: node.name,
-            parentId: resolveParent(node.parentGlassfrogId),
-          })
-
-          todoistIdByGlassfrogId.set(node.glassfrogId, created.id)
-          counterparts.set(created.id, {
-            kind: node.kind,
-            glassfrogId: node.glassfrogId,
-            roleGlassfrogId:
-              node.kind === 'role'
-                ? node.glassfrogId
-                : (counterparts.get(resolveParent(node.parentGlassfrogId))?.roleGlassfrogId ??
-                  null),
-          })
-
-          await db
-            .insert(projectMapping)
-            .values({
-              userId,
-              kind: node.kind,
-              glassfrogId: node.glassfrogId,
-              todoistProjectId: created.id,
-              parentGlassfrogId: node.parentGlassfrogId,
-            })
-            .onConflictDoUpdate({
-              target: [projectMapping.userId, projectMapping.kind, projectMapping.glassfrogId],
-              set: {
-                todoistProjectId: created.id,
-                parentGlassfrogId: node.parentGlassfrogId,
-                lastSyncedAt: new Date(),
-              },
-            })
-
-          logEntries.push({
-            userId,
-            description: `Created Todoist project "${node.name}"`,
-            metadata: { entity: 'project', action: 'create', glassfrogId: node.glassfrogId },
-          })
-          break
-        }
-
-        case 'create-glassfrog': {
-          const parent = counterparts.get(operation.parentTodoistProjectId)
-          const roleGlassfrogId =
-            parent?.kind === 'role' ? parent.glassfrogId : (parent?.roleGlassfrogId ?? null)
-
-          if (!parent || !roleGlassfrogId) {
-            // Only reachable if the parent's own adoption failed earlier in this pass.
-            log.warn(
-              { todoistProjectId: operation.todoistProjectId },
-              'No owning Glassfrog role for this Todoist project; skipping until next poll',
-            )
-            result.failed += 1
-            continue
-          }
-
-          const parentProjectGlassfrogId = parent.kind === 'role' ? null : parent.glassfrogId
-
-          const created = await createGlassfrogProject(glassfrog, {
-            roleId: roleGlassfrogId,
-            parentProjectId: parentProjectGlassfrogId,
-            name: operation.name,
-          })
-
-          todoistIdByGlassfrogId.set(created.id, operation.todoistProjectId)
-          counterparts.set(operation.todoistProjectId, {
-            kind: 'project',
-            glassfrogId: created.id,
-            roleGlassfrogId,
-          })
-
-          await db.insert(projectMapping).values({
-            userId,
-            kind: 'project',
-            glassfrogId: created.id,
-            todoistProjectId: operation.todoistProjectId,
-            parentGlassfrogId: parentProjectGlassfrogId ?? roleGlassfrogId,
-          })
-
-          logEntries.push({
-            userId,
-            description: `Created Glassfrog project "${operation.name}"`,
-            metadata: {
-              entity: 'project',
-              action: 'create',
-              glassfrogId: created.id,
-              todoistProjectId: operation.todoistProjectId,
-            },
-          })
-          break
-        }
-
-        case 'rename-todoist': {
-          await renameTodoistProject(userId, operation.todoistProjectId, operation.to)
-          await touchMapping(db, userId, operation.todoistProjectId)
-
-          logEntries.push({
-            userId,
-            description: `Renamed Todoist project "${operation.from}" to "${operation.to}"`,
-            metadata: { entity: 'project', action: 'rename', glassfrogId: operation.glassfrogId },
-          })
-          break
-        }
-
-        case 'rename-glassfrog': {
-          await renameGlassfrogProject(glassfrog, operation.glassfrogId, operation.to)
-          await touchMapping(db, userId, operation.todoistProjectId)
-
-          logEntries.push({
-            userId,
-            description: `Renamed Glassfrog project "${operation.from}" to "${operation.to}"`,
-            metadata: { entity: 'project', action: 'rename', glassfrogId: operation.glassfrogId },
-          })
-          break
-        }
-
-        case 'move-todoist': {
-          const parentId = resolveParent(operation.toParentGlassfrogId)
-          await moveProject(userId, operation.todoistProjectId, parentId)
-
-          // Keep the stored chain current: `buildCounterparts` above and
-          // `resolveOwningRole` in the task job both walk it.
-          await db
-            .update(projectMapping)
-            .set({ parentGlassfrogId: operation.toParentGlassfrogId, lastSyncedAt: new Date() })
-            .where(
-              and(
-                eq(projectMapping.userId, userId),
-                eq(projectMapping.todoistProjectId, operation.todoistProjectId),
-              ),
-            )
-
-          logEntries.push({
-            userId,
-            description: `Moved "${operation.name}" into its mapped parent`,
-            metadata: { entity: 'project', action: 'move', glassfrogId: operation.glassfrogId },
-          })
-          break
-        }
-
-        case 'complete-glassfrog': {
-          await setProjectStatus(glassfrog, operation.glassfrogId, GLASSFROG_PROJECT_COMPLETED)
-          await touchMapping(db, userId, operation.todoistProjectId)
-
-          logEntries.push({
-            userId,
-            description:
-              `Completed Glassfrog project "${operation.name}" — archived in Todoist. ` +
-              'Any open actions on it still need finishing in Glassfrog.',
-            metadata: { entity: 'project', action: 'complete', glassfrogId: operation.glassfrogId },
-          })
-          break
-        }
-
-        case 'reopen-glassfrog': {
-          await setProjectStatus(glassfrog, operation.glassfrogId, GLASSFROG_PROJECT_CURRENT)
-          await touchMapping(db, userId, operation.todoistProjectId)
-
-          logEntries.push({
-            userId,
-            description: `Reopened Glassfrog project "${operation.name}" — unarchived in Todoist`,
-            metadata: { entity: 'project', action: 'reopen', glassfrogId: operation.glassfrogId },
-          })
-          break
-        }
-
-        case 'archive-todoist': {
-          // Archive rather than delete: recoverable in Todoist if the mirror is wrong.
-          await archiveProject(userId, operation.todoistProjectId)
-
-          logEntries.push({
-            userId,
-            description: `Archived "${operation.name}" — no matching Glassfrog role or project`,
-            metadata: {
-              entity: 'project',
-              action: 'archive',
-              todoistProjectId: operation.todoistProjectId,
-            },
-          })
-          break
-        }
-
-        case 'unarchive-todoist': {
-          await unarchiveProject(userId, operation.todoistProjectId)
-
-          // Todoist does not restore `parent_id`, so an unarchived project reappears at the
-          // top level — outside the mirrored tree, where the next poll would not find it and
-          // would rebuild a duplicate. Put it back in the same breath.
-          await moveProject(
-            userId,
-            operation.todoistProjectId,
-            resolveParent(operation.toParentGlassfrogId),
-          )
-
-          await touchMapping(db, userId, operation.todoistProjectId)
-
-          logEntries.push({
-            userId,
-            description: `Unarchived "${operation.name}" — roles are managed in Glassfrog`,
-            metadata: {
-              entity: 'project',
-              action: 'unarchive',
-              todoistProjectId: operation.todoistProjectId,
-            },
-          })
-          break
-        }
-
-        case 'drop-mapping': {
-          // Housekeeping; deliberately not written to the activity feed.
-          await db
-            .delete(projectMapping)
-            .where(
-              and(
-                eq(projectMapping.userId, userId),
-                eq(projectMapping.todoistProjectId, operation.todoistProjectId),
-              ),
-            )
-          break
-        }
-      }
-
-      result[operation.type] += 1
+      const applied = await withPhase(`apply-${operation.type}`, () => applyOperation(operation), {
+        operation: operation.type,
+      })
+      if (applied) result[operation.type] += 1
     } catch (error) {
       // One bad operation must not abort the whole reconciliation.
-      log.error({ err: error, operation: operation.type }, 'Hierarchy operation failed')
+      log.error({ err: error, phase: phaseOf(error), operation }, 'Hierarchy operation failed')
       result.failed += 1
       logEntries.push({
         userId,
-        description: `Operation failed: ${error instanceof Error ? error.message : String(error)}`,
+        description: `Operation failed in ${phaseOf(error) ?? operation.type}: ${error instanceof Error ? error.message : String(error)}`,
         metadata: { entity: 'project', action: operation.type },
       })
     }
+  }
+
+  async function applyOperation(operation: HierarchyOperation): Promise<boolean> {
+    switch (operation.type) {
+      case 'create-todoist': {
+        const { node } = operation
+        const created = await addProject(userId, {
+          name: node.name,
+          parentId: resolveParent(node.parentGlassfrogId),
+        })
+
+        todoistIdByGlassfrogId.set(node.glassfrogId, created.id)
+        counterparts.set(created.id, {
+          kind: node.kind,
+          glassfrogId: node.glassfrogId,
+          roleGlassfrogId:
+            node.kind === 'role'
+              ? node.glassfrogId
+              : (counterparts.get(resolveParent(node.parentGlassfrogId))?.roleGlassfrogId ?? null),
+        })
+
+        await db
+          .insert(projectMapping)
+          .values({
+            userId,
+            kind: node.kind,
+            glassfrogId: node.glassfrogId,
+            todoistProjectId: created.id,
+            parentGlassfrogId: node.parentGlassfrogId,
+          })
+          .onConflictDoUpdate({
+            target: [projectMapping.userId, projectMapping.kind, projectMapping.glassfrogId],
+            set: {
+              todoistProjectId: created.id,
+              parentGlassfrogId: node.parentGlassfrogId,
+              lastSyncedAt: new Date(),
+            },
+          })
+
+        logEntries.push({
+          userId,
+          description: `Created Todoist project "${node.name}"`,
+          metadata: { entity: 'project', action: 'create', glassfrogId: node.glassfrogId },
+        })
+        break
+      }
+
+      case 'create-glassfrog': {
+        const parent = counterparts.get(operation.parentTodoistProjectId)
+        const roleGlassfrogId =
+          parent?.kind === 'role' ? parent.glassfrogId : (parent?.roleGlassfrogId ?? null)
+
+        if (!parent || !roleGlassfrogId) {
+          // Only reachable if the parent's own adoption failed earlier in this pass.
+          log.warn(
+            { todoistProjectId: operation.todoistProjectId },
+            'No owning Glassfrog role for this Todoist project; skipping until next poll',
+          )
+          result.failed += 1
+          return false
+        }
+
+        const parentProjectGlassfrogId = parent.kind === 'role' ? null : parent.glassfrogId
+
+        const created = await createGlassfrogProject(glassfrog, {
+          roleId: roleGlassfrogId,
+          parentProjectId: parentProjectGlassfrogId,
+          name: operation.name,
+        })
+
+        todoistIdByGlassfrogId.set(created.id, operation.todoistProjectId)
+        counterparts.set(operation.todoistProjectId, {
+          kind: 'project',
+          glassfrogId: created.id,
+          roleGlassfrogId,
+        })
+
+        await db.insert(projectMapping).values({
+          userId,
+          kind: 'project',
+          glassfrogId: created.id,
+          todoistProjectId: operation.todoistProjectId,
+          parentGlassfrogId: parentProjectGlassfrogId ?? roleGlassfrogId,
+        })
+
+        logEntries.push({
+          userId,
+          description: `Created Glassfrog project "${operation.name}"`,
+          metadata: {
+            entity: 'project',
+            action: 'create',
+            glassfrogId: created.id,
+            todoistProjectId: operation.todoistProjectId,
+          },
+        })
+        break
+      }
+
+      case 'rename-todoist': {
+        await renameTodoistProject(userId, operation.todoistProjectId, operation.to)
+        await touchMapping(db, userId, operation.todoistProjectId)
+
+        logEntries.push({
+          userId,
+          description: `Renamed Todoist project "${operation.from}" to "${operation.to}"`,
+          metadata: { entity: 'project', action: 'rename', glassfrogId: operation.glassfrogId },
+        })
+        break
+      }
+
+      case 'rename-glassfrog': {
+        await renameGlassfrogProject(glassfrog, operation.glassfrogId, operation.to)
+        await touchMapping(db, userId, operation.todoistProjectId)
+
+        logEntries.push({
+          userId,
+          description: `Renamed Glassfrog project "${operation.from}" to "${operation.to}"`,
+          metadata: { entity: 'project', action: 'rename', glassfrogId: operation.glassfrogId },
+        })
+        break
+      }
+
+      case 'move-todoist': {
+        const parentId = resolveParent(operation.toParentGlassfrogId)
+        await moveProject(userId, operation.todoistProjectId, parentId)
+
+        // Keep the stored chain current: `buildCounterparts` above and
+        // `resolveOwningRole` in the task job both walk it.
+        await db
+          .update(projectMapping)
+          .set({ parentGlassfrogId: operation.toParentGlassfrogId, lastSyncedAt: new Date() })
+          .where(
+            and(
+              eq(projectMapping.userId, userId),
+              eq(projectMapping.todoistProjectId, operation.todoistProjectId),
+            ),
+          )
+
+        logEntries.push({
+          userId,
+          description: `Moved "${operation.name}" into its mapped parent`,
+          metadata: { entity: 'project', action: 'move', glassfrogId: operation.glassfrogId },
+        })
+        break
+      }
+
+      case 'complete-glassfrog': {
+        await setProjectStatus(glassfrog, operation.glassfrogId, GLASSFROG_PROJECT_COMPLETED)
+        await touchMapping(db, userId, operation.todoistProjectId)
+
+        logEntries.push({
+          userId,
+          description:
+            `Completed Glassfrog project "${operation.name}" — archived in Todoist. ` +
+            'Any open actions on it still need finishing in Glassfrog.',
+          metadata: { entity: 'project', action: 'complete', glassfrogId: operation.glassfrogId },
+        })
+        break
+      }
+
+      case 'reopen-glassfrog': {
+        await setProjectStatus(glassfrog, operation.glassfrogId, GLASSFROG_PROJECT_CURRENT)
+        await touchMapping(db, userId, operation.todoistProjectId)
+
+        logEntries.push({
+          userId,
+          description: `Reopened Glassfrog project "${operation.name}" — unarchived in Todoist`,
+          metadata: { entity: 'project', action: 'reopen', glassfrogId: operation.glassfrogId },
+        })
+        break
+      }
+
+      case 'archive-todoist': {
+        // Archive rather than delete: recoverable in Todoist if the mirror is wrong.
+        await archiveProject(userId, operation.todoistProjectId)
+
+        logEntries.push({
+          userId,
+          description: `Archived "${operation.name}" — no matching Glassfrog role or project`,
+          metadata: {
+            entity: 'project',
+            action: 'archive',
+            todoistProjectId: operation.todoistProjectId,
+          },
+        })
+        break
+      }
+
+      case 'unarchive-todoist': {
+        await unarchiveProject(userId, operation.todoistProjectId)
+
+        // Todoist does not restore `parent_id`, so an unarchived project reappears at the
+        // top level — outside the mirrored tree, where the next poll would not find it and
+        // would rebuild a duplicate. Put it back in the same breath.
+        await moveProject(
+          userId,
+          operation.todoistProjectId,
+          resolveParent(operation.toParentGlassfrogId),
+        )
+
+        await touchMapping(db, userId, operation.todoistProjectId)
+
+        logEntries.push({
+          userId,
+          description: `Unarchived "${operation.name}" — roles are managed in Glassfrog`,
+          metadata: {
+            entity: 'project',
+            action: 'unarchive',
+            todoistProjectId: operation.todoistProjectId,
+          },
+        })
+        break
+      }
+
+      case 'drop-mapping': {
+        // Housekeeping; deliberately not written to the activity feed.
+        await db
+          .delete(projectMapping)
+          .where(
+            and(
+              eq(projectMapping.userId, userId),
+              eq(projectMapping.todoistProjectId, operation.todoistProjectId),
+            ),
+          )
+        break
+      }
+    }
+
+    return true
   }
 
   if (logEntries.length > 0) await db.insert(syncLog).values(logEntries)

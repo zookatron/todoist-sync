@@ -1,6 +1,7 @@
 import { eq } from 'drizzle-orm'
 import { db } from '../db/index.js'
 import { glassfrogIntegration } from '../db/schema/integrations.js'
+import { tracedFetch } from '../utils/http-trace.js'
 import { logger } from '../utils/logger.js'
 import type { Client } from './generated/client/index.js'
 import { createClient, createConfig } from './generated/client/index.js'
@@ -22,6 +23,8 @@ export function createGlassfrogClient(apiKey: string): Client {
     createConfig({
       baseUrl: GLASSFROG_BASE_URL,
       headers: { 'X-Auth-Token': apiKey },
+      // Resolved per call so a test's msw-patched global fetch is honoured.
+      fetch: tracedFetch('glassfrog', () => globalThis.fetch),
     }),
   )
 }

@@ -1,10 +1,12 @@
-import type { TodoistApiOptions } from '@doist/todoist-sdk'
+import type { CustomFetch, TodoistApiOptions } from '@doist/todoist-sdk'
+import { tracedFetch } from '../utils/http-trace.js'
 
 /**
  * How the Todoist SDK reaches the network.
  *
- * Empty in production, which leaves the SDK on its own transport. Tests fill it with a
- * `customFetch` so requests are routed through the global `fetch` that msw patches.
+ * Always a `customFetch`, wrapped by `tracedFetch` so a failed request is logged with its
+ * full request and response. Unset, that wrapper calls the global `fetch`; tests fill it
+ * so requests are routed through the global `fetch` that msw patches.
  *
  * This seam is not optional for testing. On Node the SDK resolves npm-undici's own
  * `fetch` paired with a private dispatcher (see
@@ -19,7 +21,13 @@ import type { TodoistApiOptions } from '@doist/todoist-sdk'
 let options: TodoistApiOptions = {}
 
 export function todoistTransport(): TodoistApiOptions {
-  return options
+  return {
+    ...options,
+    customFetch: tracedFetch(
+      'todoist',
+      () => options.customFetch ?? (globalThis.fetch as unknown as CustomFetch),
+    ),
+  }
 }
 
 /** Test seam. Pass null to restore the SDK's own transport. */
