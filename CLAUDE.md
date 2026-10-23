@@ -137,6 +137,8 @@ TypeScript directly.
   role items; anything but `true`/`false` is a 422), and `/roles/{id}/projects` leaves
   initiatives out. An initiative's `role_id` is only the role it was recorded against — and is
   how one is created, through `POST /roles/{role_id}/…` with `individual_initiative: true`.
+  Anything added loose in the Todoist root is created against the role the user chose for new
+  initiatives (`initiative_role_id`), or left alone when none is chosen.
 
 - **Glassfrog v5 is beta.** It has **no org-wide action list** and **no `updated_since` filter**.
   Change detection is enumerate-and-diff over `/me/actions` (cursor-paginated). Auth is a static

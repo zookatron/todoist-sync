@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query'
 import {
   ActivityCard,
   GlassfrogCard,
+  InitiativeRoleCard,
   RootProjectCard,
   SyncCard,
   TodoistCard,
@@ -57,6 +58,7 @@ export default function Dashboard(_: Route.ComponentProps) {
         <TodoistCard />
         <GlassfrogCard />
         <RootProjectCard todoistConnected={Boolean(todoist.data?.connected)} />
+        <InitiativeRoleCard glassfrogConnected={Boolean(glassfrog.data?.connected)} />
         <SyncCard />
       </div>
 

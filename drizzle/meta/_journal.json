@@ -29,6 +29,13 @@
       "when": 1792721916210,
       "tag": "0003_glassfrog_actor_id",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1792723160887,
+      "tag": "0004_glassfrog_initiative_role",
+      "breakpoints": true
     }
   ]
 }

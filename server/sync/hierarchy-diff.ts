@@ -112,6 +112,12 @@ export type DiffInput = {
   archived: Map<string, ArchivedProject>
   mappings: ExistingMapping[]
   rootTodoistProjectId: string
+  /**
+   * Whether a project added directly under the root is adopted, as an individual initiative.
+   * Only when the user has chosen a role to record new initiatives against: Glassfrog creates
+   * nothing without one.
+   */
+  adoptAtRoot?: boolean
 }
 
 const keyOf = (kind: MappingKind, glassfrogId: string) => `${kind}:${glassfrogId}`
@@ -223,9 +229,9 @@ function resolveStatus(args: {
  * Whether an unmapped Todoist project has a mapped ancestor below the root.
  *
  * Adoption needs an owning Glassfrog role, which the applier finds by walking up to the
- * nearest mapped node. A project whose chain reaches the root without passing one has
- * nowhere to go: only roles and individual initiatives sit directly under the root, and a new
- * one has no role to be created through. Chains of several new projects are fine — the outermost is adopted first, and
+ * nearest mapped node. A project whose chain reaches the root without passing one becomes an
+ * individual initiative when `adoptAtRoot` is set — there is then a role to record it against —
+ * and otherwise has nowhere to go. Chains of several new projects are fine — the outermost is adopted first, and
  * by the time its children are applied it is mapped.
  */
 function hasMappedAncestor(
@@ -233,6 +239,7 @@ function hasMappedAncestor(
   actualById: Map<string, ActualProject>,
   mappingByTodoistId: Map<string, ExistingMapping>,
   rootTodoistProjectId: string,
+  adoptAtRoot: boolean,
 ): boolean {
   let current = project
   const seen = new Set<string>([current.todoistProjectId])
@@ -247,7 +254,7 @@ function hasMappedAncestor(
     current = parent
   }
 
-  return false
+  return adoptAtRoot && current.parentId === rootTodoistProjectId
 }
 
 /**
@@ -279,9 +286,10 @@ function hasMappedAncestor(
  * a later unarchive a reopen rather than a duplicate creation.
  *
  * An unmapped Glassfrog node is created in Todoist when active. An unmapped Todoist project
- * is adopted into Glassfrog when it is live and sits under a mapped role or project; one
- * directly under the root is left alone, because only roles and individual initiatives live
- * there and a new one has no role to be created through.
+ * is adopted into Glassfrog when it is live and sits under a mapped role or project. One
+ * directly under the root becomes an individual initiative when `adoptAtRoot` is set, and is
+ * otherwise left alone: only roles and initiatives live there, and without a chosen role a new
+ * initiative has none to be created through.
  *
  * Returned in a safe application order: adoptions and creates shallowest-first so a parent
  * exists before its children, then renames, moves, status changes, archives, and finally
@@ -289,6 +297,7 @@ function hasMappedAncestor(
  */
 export function diffHierarchy(input: DiffInput): HierarchyOperation[] {
   const { desired, actual, liveById, archived, mappings, rootTodoistProjectId } = input
+  const adoptAtRoot = input.adoptAtRoot ?? false
 
   const desiredByGlassfrogId = new Map(desired.map((node) => [node.glassfrogId, node]))
   const actualById = new Map(actual.map((project) => [project.todoistProjectId, project]))
@@ -439,14 +448,19 @@ export function diffHierarchy(input: DiffInput): HierarchyOperation[] {
   for (const project of actual) {
     if (mappingByTodoistId.has(project.todoistProjectId)) continue
 
-    if (!hasMappedAncestor(project, actualById, mappingByTodoistId, rootTodoistProjectId)) continue
+    if (
+      !hasMappedAncestor(project, actualById, mappingByTodoistId, rootTodoistProjectId, adoptAtRoot)
+    ) {
+      continue
+    }
 
     adoptions.push({
       operation: {
         type: 'create-glassfrog',
         todoistProjectId: project.todoistProjectId,
         name: project.name,
-        // Non-null: `hasMappedAncestor` is false for anything without a parent.
+        // Non-null: `hasMappedAncestor` is false for anything without a parent. The root
+        // itself when the project is adopted as an initiative.
         parentTodoistProjectId: project.parentId ?? rootTodoistProjectId,
       },
       depth: todoistDepthOf(project, actualById),

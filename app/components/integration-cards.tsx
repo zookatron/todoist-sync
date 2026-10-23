@@ -168,6 +168,83 @@ export function GlassfrogCard() {
   )
 }
 
+/** The list entry meaning "no role": initiatives added in the root stay in Todoist. */
+const NO_INITIATIVE_ROLE = 'none'
+
+export function InitiativeRoleCard({ glassfrogConnected }: { glassfrogConnected: boolean }) {
+  const trpc = useTRPC()
+  const queryClient = useQueryClient()
+  const status = useQuery(trpc.glassfrog.status.queryOptions())
+  const roles = useQuery({
+    ...trpc.glassfrog.listRoles.queryOptions(),
+    enabled: glassfrogConnected,
+  })
+
+  const setRole = useMutation(
+    trpc.glassfrog.setInitiativeRole.mutationOptions({
+      onSuccess: () => queryClient.invalidateQueries(),
+    }),
+  )
+
+  const items = [
+    { id: NO_INITIATIVE_ROLE, name: "Don't sync new initiatives" },
+    ...(roles.data ?? []),
+  ]
+  const initiativeRoleId = status.data?.connected ? status.data.initiativeRoleId : null
+
+  return (
+    <Card>
+      <Card.Header>
+        <Card.Title>New individual initiatives</Card.Title>
+        <Card.Description>
+          Tasks and projects you add directly in the root project become individual initiatives in
+          Glassfrog, recorded against this role. Projects already sitting there are picked up too;
+          tasks are picked up when you add or edit them.
+        </Card.Description>
+      </Card.Header>
+
+      <Card.Content className="flex flex-col gap-4">
+        {setRole.error && (
+          <Alert status="danger">
+            <Alert.Content>
+              <Alert.Description>{setRole.error.message}</Alert.Description>
+            </Alert.Content>
+          </Alert>
+        )}
+
+        {!glassfrogConnected ? (
+          <p className="text-foreground-secondary text-sm">Connect Glassfrog first.</p>
+        ) : (
+          <Select
+            selectedKey={initiativeRoleId ?? NO_INITIATIVE_ROLE}
+            onSelectionChange={(key) => {
+              if (!key) return
+              const roleId = String(key)
+              setRole.mutate({ roleId: roleId === NO_INITIATIVE_ROLE ? null : roleId })
+            }}
+            isDisabled={roles.isLoading || setRole.isPending}
+            aria-label="Role for new individual initiatives"
+          >
+            <Select.Trigger>
+              <Select.Value />
+              <Select.Indicator />
+            </Select.Trigger>
+            <Select.Popover>
+              <ListBox items={items}>
+                {(role: { id: string; name: string }) => (
+                  <ListBox.Item id={role.id} textValue={role.name}>
+                    {role.name}
+                  </ListBox.Item>
+                )}
+              </ListBox>
+            </Select.Popover>
+          </Select>
+        )}
+      </Card.Content>
+    </Card>
+  )
+}
+
 export function RootProjectCard({ todoistConnected }: { todoistConnected: boolean }) {
   const trpc = useTRPC()
   const queryClient = useQueryClient()

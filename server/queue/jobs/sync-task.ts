@@ -1,7 +1,7 @@
 import { TodoistRequestError } from '@doist/todoist-sdk'
 import { and, eq } from 'drizzle-orm'
 import { db } from '../../db/index.js'
-import { todoistIntegration } from '../../db/schema/integrations.js'
+import { glassfrogIntegration, todoistIntegration } from '../../db/schema/integrations.js'
 import { projectMapping, syncLog, taskMapping } from '../../db/schema/sync.js'
 import { getGlassfrogClient } from '../../glassfrog/client.js'
 import type { Client } from '../../glassfrog/generated/client/index.js'
@@ -158,7 +158,7 @@ async function syncOne(data: TaskJobData): Promise<void> {
         if (!roleId) {
           log.warn(
             { todoistTaskId },
-            'Todoist task is not inside a mapped role or individual-initiative project; skipping',
+            'Todoist task is not inside a mapped role or initiative project, and no role is chosen for new initiatives; skipping',
           )
           return
         }
@@ -514,7 +514,9 @@ async function resolveDestinationProject(userId: string, action: Action): Promis
  * action is then an initiative too, recorded against the same role as the project it sits in,
  * which is read from Glassfrog: creating one needs a role in the URL.
  *
- * A task loose in the root is not adopted: there is no role to record it against.
+ * A task loose in the root becomes a top-level initiative, recorded against the role the user
+ * chose for new ones — if they chose one and still fill it (it is mapped). Otherwise it is
+ * not adopted: there is no role to record it against.
  */
 async function resolveOwningRole(
   userId: string,
@@ -532,7 +534,7 @@ async function resolveOwningRole(
     ),
   })
 
-  if (!row) return null
+  if (!row) return resolveInitiativeRole(userId, todoistProjectId)
   if (row.kind === 'role') {
     return {
       roleGlassfrogId: row.glassfrogId,
@@ -586,6 +588,38 @@ async function resolveOwningRole(
     projectGlassfrogId: project.id,
     individualInitiative: true,
   }
+}
+
+/** The role for a new initiative in the root, per {@link resolveOwningRole}. */
+async function resolveInitiativeRole(
+  userId: string,
+  todoistProjectId: string,
+): Promise<{
+  roleGlassfrogId: string
+  projectGlassfrogId: null
+  individualInitiative: true
+} | null> {
+  const todoist = await db.query.todoistIntegration.findFirst({
+    where: eq(todoistIntegration.userId, userId),
+  })
+  if (todoistProjectId !== todoist?.rootTodoistProjectId) return null
+
+  const glassfrog = await db.query.glassfrogIntegration.findFirst({
+    where: eq(glassfrogIntegration.userId, userId),
+  })
+  const roleId = glassfrog?.initiativeRoleId
+  if (!roleId) return null
+
+  const filled = await db.query.projectMapping.findFirst({
+    where: and(
+      eq(projectMapping.userId, userId),
+      eq(projectMapping.kind, 'role'),
+      eq(projectMapping.glassfrogId, roleId),
+    ),
+  })
+  if (!filled) return null
+
+  return { roleGlassfrogId: roleId, projectGlassfrogId: null, individualInitiative: true }
 }
 
 async function upsertMapping(args: {

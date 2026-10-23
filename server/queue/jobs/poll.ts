@@ -202,6 +202,14 @@ async function detectTodoistChanges(userId: string) {
     ).map((row) => row.todoistProjectId),
   )
 
+  // With a role chosen for new initiatives, a task added loose in the root is adopted too.
+  const glassfrog = await db.query.glassfrogIntegration.findFirst({
+    where: eq(glassfrogIntegration.userId, userId),
+  })
+  if (glassfrog?.initiativeRoleId && integration?.rootTodoistProjectId) {
+    mappedProjectIds.add(integration.rootTodoistProjectId)
+  }
+
   const trackedTaskIds = new Set(
     (
       await db

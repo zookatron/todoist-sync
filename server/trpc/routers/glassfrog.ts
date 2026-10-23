@@ -2,8 +2,10 @@ import { TRPCError } from '@trpc/server'
 import { eq } from 'drizzle-orm'
 import { z } from 'zod'
 import { glassfrogIntegration } from '../../db/schema/integrations.js'
-import { createGlassfrogClient } from '../../glassfrog/client.js'
-import { getMe } from '../../glassfrog/generated/sdk.gen.js'
+import { createGlassfrogClient, getGlassfrogClient, paginateAll } from '../../glassfrog/client.js'
+import { getMe, listMyRoles } from '../../glassfrog/generated/sdk.gen.js'
+import type { Role } from '../../glassfrog/generated/types.gen.js'
+import { toProjectName } from '../../sync/desired-tree.js'
 import { protectedProcedure, router } from '../init.js'
 
 export const glassfrogRouter = router({
@@ -14,8 +16,44 @@ export const glassfrogRouter = router({
 
     if (!integration) return { connected: false as const }
 
-    return { connected: true as const }
+    return { connected: true as const, initiativeRoleId: integration.initiativeRoleId }
   }),
+
+  /** Feeds the new-initiative role dropdown: the roles the user fills. */
+  listRoles: protectedProcedure.query(async ({ ctx }) => {
+    const roles = await listFilledRoles(ctx.user.id)
+    // Named as their Todoist role projects are, so the two lists read the same.
+    return roles.map((role) => ({ id: role.id, name: toProjectName(role.name) }))
+  }),
+
+  /**
+   * Chooses the role new individual initiatives are recorded against, or null for none.
+   * Glassfrog creates anything through a role, so this is what lets a task or project added
+   * loose in the Todoist root become an initiative. Checked against the roles the user fills,
+   * since creating through any other is refused.
+   */
+  setInitiativeRole: protectedProcedure
+    .input(z.object({ roleId: z.string().min(1).nullable() }))
+    .mutation(async ({ ctx, input }) => {
+      if (input.roleId) {
+        const roles = await listFilledRoles(ctx.user.id)
+        if (!roles.some((role) => role.id === input.roleId)) {
+          throw new TRPCError({ code: 'BAD_REQUEST', message: 'You do not fill that role.' })
+        }
+      }
+
+      const result = await ctx.db
+        .update(glassfrogIntegration)
+        .set({ initiativeRoleId: input.roleId, updatedAt: new Date() })
+        .where(eq(glassfrogIntegration.userId, ctx.user.id))
+        .returning({ userId: glassfrogIntegration.userId })
+
+      if (result.length === 0) {
+        throw new TRPCError({ code: 'BAD_REQUEST', message: 'Connect Glassfrog first.' })
+      }
+
+      return { ok: true }
+    }),
 
   /**
    * Validates the key against GET /me before storing it. Saving an unverified key would
@@ -56,3 +94,15 @@ export const glassfrogRouter = router({
     return { ok: true }
   }),
 })
+
+async function listFilledRoles(userId: string): Promise<Role[]> {
+  const client = await getGlassfrogClient(userId)
+  return paginateAll<Role>(async ({ cursor, perPage }) => {
+    const response = await listMyRoles({
+      client,
+      query: { cursor, per_page: perPage },
+      throwOnError: true,
+    })
+    return response.data
+  })
+}

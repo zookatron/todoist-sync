@@ -1,0 +1,1 @@
+ALTER TABLE "glassfrog_integration" ADD COLUMN "initiative_role_id" text;

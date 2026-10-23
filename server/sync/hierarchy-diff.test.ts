@@ -74,6 +74,7 @@ function diff(input: {
   liveOutsideRoot?: ActualProject[]
   archived?: [string, { name: string; updatedAt: Date | null }][]
   mappings?: ExistingMapping[]
+  adoptAtRoot?: boolean
 }) {
   const actual = input.actual ?? []
   const outside = input.liveOutsideRoot ?? []
@@ -86,6 +87,7 @@ function diff(input: {
     archived: new Map(input.archived ?? []),
     mappings: input.mappings ?? [],
     rootTodoistProjectId: ROOT,
+    adoptAtRoot: input.adoptAtRoot,
   })
 }
 
@@ -277,12 +279,53 @@ describe('diffHierarchy', () => {
     })
 
     it('leaves a hand-made project directly under the root alone', () => {
-      // Only a role can sit there, and roles come from Glassfrog — so there is nothing to
-      // create and nothing to clean up.
+      // With no role chosen for new initiatives, there is nothing to create it through — so
+      // there is nothing to create and nothing to clean up.
       const operations = diff({
         desired: [role('role_1', 'Marketing')],
         actual: [actual('td_1', 'Marketing', ROOT), actual('td_manual', 'My side project', ROOT)],
         mappings: [mapped('role', 'role_1', 'td_1')],
+      })
+
+      expect(operations).toEqual([])
+    })
+
+    it('adopts a project directly under the root once initiatives have a role', () => {
+      const operations = diff({
+        desired: [role('role_1', 'Marketing')],
+        actual: [
+          actual('td_1', 'Marketing', ROOT),
+          // Deliberately supplied deepest-first.
+          actual('td_child', 'Next step', 'td_manual'),
+          actual('td_manual', 'My side project', ROOT),
+        ],
+        mappings: [mapped('role', 'role_1', 'td_1')],
+        adoptAtRoot: true,
+      })
+
+      expect(operations).toEqual([
+        {
+          type: 'create-glassfrog',
+          todoistProjectId: 'td_manual',
+          name: 'My side project',
+          parentTodoistProjectId: ROOT,
+        },
+        {
+          type: 'create-glassfrog',
+          todoistProjectId: 'td_child',
+          name: 'Next step',
+          parentTodoistProjectId: 'td_manual',
+        },
+      ])
+    })
+
+    it('does not adopt a project outside the root, initiatives or not', () => {
+      const operations = diff({
+        desired: [role('role_1', 'Marketing')],
+        actual: [actual('td_1', 'Marketing', ROOT)],
+        liveOutsideRoot: [actual('td_elsewhere', 'Personal', null)],
+        mappings: [mapped('role', 'role_1', 'td_1')],
+        adoptAtRoot: true,
       })
 
       expect(operations).toEqual([])

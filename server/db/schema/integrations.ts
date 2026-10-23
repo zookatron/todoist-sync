@@ -35,6 +35,12 @@ export const glassfrogIntegration = pgTable('glassfrog_integration', {
    * fills it in.
    */
   actorId: text('actor_id'),
+  /**
+   * The role new individual initiatives are recorded against. Glassfrog creates anything —
+   * an initiative included — through a role, so a task or project added loose in the Todoist
+   * root becomes an initiative only once this is chosen. Null leaves those alone.
+   */
+  initiativeRoleId: text('initiative_role_id'),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
 })

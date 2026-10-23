@@ -1,4 +1,7 @@
+import { eq } from 'drizzle-orm'
 import { beforeEach, describe, expect, it } from 'vitest'
+import { db } from '../db/index.js'
+import { glassfrogIntegration } from '../db/schema/integrations.js'
 import { runPoll } from '../queue/jobs/poll.js'
 import { getTaskQueue } from '../queue/queues.js'
 import { runTaskSync } from '../queue/jobs/sync-task.js'
@@ -31,6 +34,13 @@ async function runCycle(): Promise<void> {
   for (const job of jobs) {
     await runTaskSync(job.data, job.id ?? job.name)
   }
+}
+
+async function chooseInitiativeRole(roleId: string | null): Promise<void> {
+  await db
+    .update(glassfrogIntegration)
+    .set({ initiativeRoleId: roleId })
+    .where(eq(glassfrogIntegration.userId, userId))
 }
 
 const liveTask = (content: string) =>
@@ -137,7 +147,7 @@ describe('individual initiatives', () => {
     })
   })
 
-  it('leaves a task added loose in the root alone: there is no role to record it against', async () => {
+  it('leaves a task added loose in the root alone when no role is chosen for new ones', async () => {
     await runCycle()
 
     todoist.addTasks([{ id: 'td-loose', content: 'Loose', project_id: ROOT }])
@@ -158,5 +168,71 @@ describe('individual initiatives', () => {
     await runCycle()
 
     expect(liveTask('Short-lived')).toBeUndefined()
+  })
+
+  describe('with a role chosen for new initiatives', () => {
+    beforeEach(async () => {
+      glassfrog.addRoles([{ id: 'role-2', name: 'Other role' }])
+      await chooseInitiativeRole('role-2')
+    })
+
+    it('creates an initiative action from a task added loose in the root', async () => {
+      await runCycle()
+
+      todoist.addTasks([{ id: 'td-loose', content: 'Loose idea', project_id: ROOT }])
+      await runCycle()
+
+      const created = glassfrog.actions.filter((a) => a.description === 'Loose idea')
+      expect(created).toHaveLength(1)
+      expect(created[0]).toMatchObject({
+        individual_initiative: true,
+        role_id: 'role-2',
+        parent_project_id: null,
+      })
+
+      // Stays put, and is not adopted twice.
+      await runCycle()
+      expect(liveTask('Loose idea')?.project_id).toBe(ROOT)
+      expect(glassfrog.actions.filter((a) => a.description === 'Loose idea')).toHaveLength(1)
+    })
+
+    it('creates an initiative project from a project added in the root, and its tasks', async () => {
+      await runCycle()
+
+      todoist.addProjects([{ id: 'td-side', name: 'Side project', parent_id: ROOT }])
+      await runCycle()
+
+      const project = glassfrog.projects.find((p) => p.description === 'Side project')
+      expect(project).toMatchObject({
+        individual_initiative: true,
+        role_id: 'role-2',
+        parent_project_id: null,
+      })
+
+      todoist.addTasks([{ id: 'td-step', content: 'First step', project_id: 'td-side' }])
+      await runCycle()
+
+      expect(glassfrog.actions.find((a) => a.description === 'First step')).toMatchObject({
+        individual_initiative: true,
+        role_id: 'role-2',
+        parent_project_id: project!.id,
+      })
+      // Mirrored once, in place: not rebuilt as a second project under the root.
+      expect(todoist.projects.filter((p) => p.name === 'Side project')).toHaveLength(1)
+      expect(projectNamed('Side project')?.parent_id).toBe(ROOT)
+    })
+
+    it('stops adopting once I no longer fill the role', async () => {
+      await runCycle()
+      glassfrog.roles = glassfrog.roles.filter((role) => role.id !== 'role-2')
+      await runCycle()
+
+      todoist.addTasks([{ id: 'td-loose', content: 'Loose idea', project_id: ROOT }])
+      todoist.addProjects([{ id: 'td-side', name: 'Side project', parent_id: ROOT }])
+      await runCycle()
+
+      expect(glassfrog.actions).toEqual([])
+      expect(glassfrog.projects).toEqual([])
+    })
   })
 })

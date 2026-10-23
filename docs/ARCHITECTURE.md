@@ -94,9 +94,19 @@ that role, but it is what creating one needs — there is no role-less create, o
 - A task or project added **inside a mirrored initiative project** becomes an initiative in
   Glassfrog, recorded against the same role as that project (read from `GET /projects/{id}` for a
   task, from the tree for a project).
-- A task or project added **loose in the root** is left alone, as before: there is no role to
-  record it against. An initiative old enough to have no `role_id` cannot have anything created
-  beneath it from Todoist, for the same reason.
+- A task or project added **loose in the root** needs a role chosen for it. The user picks one
+  on the dashboard ("New individual initiatives", stored as
+  `glassfrog_integration.initiative_role_id`); with one chosen, such a task becomes a
+  top-level initiative action and such a project a top-level initiative project, both recorded
+  against that role. With none — the default — they are left alone, since there is no role to
+  record them against.
+- The chosen role must be one the user still fills: creating through any other is refused. A
+  role they have left is treated as unset (with a warning) until they choose another.
+- Root projects are found by enumeration, so turning the setting on adopts the projects already
+  sitting in the root. Root tasks come from the Todoist delta, so a task is adopted when it is
+  added or next edited — an untouched existing one is not.
+- An initiative old enough to have no `role_id` cannot have anything created beneath it from
+  Todoist: there is no role to create it through.
 
 ## Hierarchy mapping
 
@@ -145,8 +155,9 @@ Every mapped pair falls into exactly one row of this table, which is the whole p
 An unmapped Glassfrog node is created in Todoist when active. An unmapped Todoist project is
 adopted into Glassfrog when it is live and sits under a mapped role or project — a chain of new
 projects is adopted outermost-first, so each one's parent exists by the time it is applied. One
-sitting **directly under the root** is left alone: only roles and initiatives live there, and a
-new one has no role to be created through.
+sitting **directly under the root** becomes an individual initiative if the user has chosen a
+role for new ones (see "Individual initiatives"), and is otherwise left alone: only roles and
+initiatives live there, and without that role a new one has none to be created through.
 
 Archiving is used rather than deleting throughout, so a mistake is recoverable in Todoist.
 

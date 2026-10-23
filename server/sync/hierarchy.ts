@@ -1,6 +1,6 @@
 import { and, eq } from 'drizzle-orm'
 import { type Database, db as defaultDb } from '../db/index.js'
-import { todoistIntegration } from '../db/schema/integrations.js'
+import { glassfrogIntegration, todoistIntegration } from '../db/schema/integrations.js'
 import { projectMapping, syncLog } from '../db/schema/sync.js'
 import { getGlassfrogClient } from '../glassfrog/client.js'
 import type { Client } from '../glassfrog/generated/client/index.js'
@@ -107,6 +107,8 @@ export async function syncHierarchy(
     db.select().from(projectMapping).where(eq(projectMapping.userId, userId)),
   ])
 
+  const initiativeRoleId = await resolveInitiativeRole(db, userId, desired)
+
   const operations = diffHierarchy({
     desired,
     actual: todoist.live,
@@ -118,15 +120,50 @@ export async function syncHierarchy(
       todoistProjectId: m.todoistProjectId,
     })),
     rootTodoistProjectId: rootId,
+    adoptAtRoot: initiativeRoleId !== null,
   })
 
-  logUnclaimedRootProjects({ userId, actual: todoist.live, mappings, rootId })
+  if (!initiativeRoleId)
+    logUnclaimedRootProjects({ userId, actual: todoist.live, mappings, rootId })
 
   if (operations.length === 0) return emptyHierarchyResult()
 
   log.info({ operations: operations.length }, 'Applying hierarchy changes')
 
-  return applyOperations({ userId, db, glassfrog, rootId, operations, mappings, desired })
+  return applyOperations({
+    userId,
+    db,
+    glassfrog,
+    rootId,
+    operations,
+    mappings,
+    desired,
+    initiativeRoleId,
+  })
+}
+
+/**
+ * The role new individual initiatives are recorded against, if the user chose one and still
+ * fills it. A role they have left cannot have anything created through it, so it is treated
+ * as unset — and said so, since that silently stops root adoption.
+ */
+async function resolveInitiativeRole(
+  db: Database,
+  userId: string,
+  desired: DesiredNode[],
+): Promise<string | null> {
+  const integration = await db.query.glassfrogIntegration.findFirst({
+    where: eq(glassfrogIntegration.userId, userId),
+  })
+  const roleId = integration?.initiativeRoleId
+  if (!roleId) return null
+
+  if (desired.some((node) => node.kind === 'role' && node.glassfrogId === roleId)) return roleId
+
+  logger
+    .child({ userId, job: 'hierarchy' })
+    .warn({ roleId }, 'Role chosen for new initiatives is no longer filled; not adopting from root')
+  return null
 }
 
 /**
@@ -221,6 +258,8 @@ async function applyOperations(args: {
   operations: HierarchyOperation[]
   mappings: MappingRow[]
   desired: DesiredNode[]
+  /** Set when projects directly under the root are adopted as initiatives. */
+  initiativeRoleId: string | null
 }): Promise<HierarchyResult> {
   const { userId, db, glassfrog, rootId, operations } = args
   const log = logger.child({ userId, job: 'hierarchy' })
@@ -261,6 +300,54 @@ async function applyOperations(args: {
         metadata: { entity: 'project', action: operation.type },
       })
     }
+  }
+
+  /**
+   * Adopts a project directly under the root as a top-level individual initiative, recorded
+   * against the role the user chose. Its mapping has no parent, as an initiative read from
+   * Glassfrog does, so nothing beneath it is mistaken for that role's.
+   */
+  async function adoptInitiative(
+    operation: Extract<HierarchyOperation, { type: 'create-glassfrog' }>,
+  ): Promise<boolean> {
+    const roleGlassfrogId = args.initiativeRoleId
+    // The diff only adopts at the root when a role is set; this guards the invariant.
+    if (!roleGlassfrogId) return false
+
+    const created = await createGlassfrogProject(glassfrog, {
+      roleId: roleGlassfrogId,
+      parentProjectId: null,
+      name: operation.name,
+      individualInitiative: true,
+    })
+
+    todoistIdByGlassfrogId.set(created.id, operation.todoistProjectId)
+    counterparts.set(operation.todoistProjectId, {
+      kind: 'project',
+      glassfrogId: created.id,
+      roleGlassfrogId,
+      individualInitiative: true,
+    })
+
+    await db.insert(projectMapping).values({
+      userId,
+      kind: 'project',
+      glassfrogId: created.id,
+      todoistProjectId: operation.todoistProjectId,
+      parentGlassfrogId: null,
+    })
+
+    logEntries.push({
+      userId,
+      description: `Created Glassfrog individual initiative "${operation.name}"`,
+      metadata: {
+        entity: 'project',
+        action: 'create',
+        glassfrogId: created.id,
+        todoistProjectId: operation.todoistProjectId,
+      },
+    })
+    return true
   }
 
   async function applyOperation(operation: HierarchyOperation): Promise<boolean> {
@@ -321,6 +408,10 @@ async function applyOperations(args: {
       }
 
       case 'create-glassfrog': {
+        if (operation.parentTodoistProjectId === rootId) {
+          return adoptInitiative(operation)
+        }
+
         const parent = counterparts.get(operation.parentTodoistProjectId)
         const roleGlassfrogId =
           parent?.kind === 'role' ? parent.glassfrogId : (parent?.roleGlassfrogId ?? null)
