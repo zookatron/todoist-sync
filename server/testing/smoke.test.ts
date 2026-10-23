@@ -5,25 +5,26 @@ import { todoistIntegration } from '../db/schema/integrations.js'
 import { user } from '../db/schema/auth.js'
 import { getGlassfrogClient } from '../glassfrog/client.js'
 import { listMyRoles } from '../glassfrog/generated/sdk.gen.js'
+import { getPollQueue, getTaskQueue, scheduleGlobalPoll } from '../queue/queues.js'
 import { callTodoist } from '../todoist/client.js'
 import {
   connectedUser,
   DatabaseSimulator,
   GlassfrogSimulator,
-  QueueSimulator,
+  RedisSimulator,
   TodoistSimulator,
   UserFactory,
 } from './index.js'
 
 /**
  * Proves the infrastructure itself works: PGlite behind the app's `db`, both APIs answered
- * from memory, and the queue recording rather than dialling Redis. Every other test in the
- * suite rests on these four assumptions.
+ * from memory, and BullMQ running on an in-memory Redis rather than dialling a real one.
+ * Every other test in the suite rests on these four assumptions.
  */
 const database = new DatabaseSimulator()
 const glassfrog = new GlassfrogSimulator()
 const todoist = new TodoistSimulator()
-const queue = new QueueSimulator()
+const redis = new RedisSimulator()
 
 describe('DatabaseSimulator', () => {
   it('runs the real migrations and serves the application db', async () => {
@@ -99,16 +100,43 @@ describe('TodoistSimulator', () => {
   })
 })
 
-describe('QueueSimulator', () => {
-  it('records every job it is handed, in order', async () => {
-    const { getTaskQueue } = await import('../queue/queues.js')
-
+describe('RedisSimulator', () => {
+  it('runs the real BullMQ queues', async () => {
     await getTaskQueue().add('sync-task', { userId: 'u1', glassfrogActionId: 'a1' })
     await getTaskQueue().add('sync-task', { userId: 'u1', todoistTaskId: 't1' })
 
-    expect(queue.taskJobs.map((job) => job.data)).toEqual([
+    const jobs = await getTaskQueue().getJobs(['wait'], 0, -1, true)
+    expect(jobs.map((job) => job.data)).toEqual([
       { userId: 'u1', glassfrogActionId: 'a1' },
       { userId: 'u1', todoistTaskId: 't1' },
     ])
+    // The default job options really reached Redis, msgpacked, and came back out.
+    expect(jobs[0]?.opts.attempts).toBe(3)
+  })
+
+  it('runs job schedulers, millisecond timestamps included', async () => {
+    await scheduleGlobalPoll()
+
+    const [scheduler] = await getPollQueue().getJobSchedulers()
+    expect(scheduler).toMatchObject({ key: 'global-poll', name: 'poll-tick' })
+    // A 32-bit overflow anywhere in the scheduler script would land this far from now.
+    expect(Math.abs(scheduler!.next! - Date.now())).toBeLessThan(10 * 60_000)
+    // An `every` scheduler runs its first iteration straight away.
+    const [tick] = await getPollQueue().getJobs(['wait'])
+    expect(tick?.name).toBe('poll-tick')
+  })
+
+  it('empties Redis between tests', async () => {
+    expect(await redis.client.keys('*')).toEqual([])
+  })
+
+  it('can fail a command for one test', async () => {
+    redis.failForTest('get')
+
+    await expect(redis.client.get('anything')).rejects.toThrow('Connection is closed.')
+  })
+
+  it('restores failed commands afterwards', async () => {
+    expect(await redis.client.get('anything')).toBeNull()
   })
 })

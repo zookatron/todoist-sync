@@ -17,8 +17,8 @@ process.env.NODE_ENV = 'test'
  * Placeholder values for anything still unset.
  *
  * `server/utils/env.ts` validates at import and throws, so these have to exist before any
- * server module loads — but nothing should ever dial them. The database is PGlite, the
- * queues are substituted, and both APIs are answered by msw. If a test does manage to
+ * server module loads — but nothing should ever dial them. The database is PGlite, Redis
+ * (and so BullMQ) is ioredis-mock, and both APIs are answered by msw. If a test does manage to
  * connect to `localhost:1`, that is the bug, and failing to connect is how you find out.
  */
 const defaults: Record<string, string> = {

@@ -1,76 +1,63 @@
 import type IORedis from 'ioredis'
 import { afterAll, beforeEach } from 'vitest'
-import { setConnection } from '../queue/queues.js'
-
-type Entry = { value: string; ttlSeconds: number | null }
+import { closeQueues, setConnection } from '../queue/queues.js'
+import { createRedisMock } from './redis-mock.js'
 
 /**
- * An in-memory stand-in for the slice of Redis the app uses outside BullMQ: `MGET`, and a
- * pipeline of `SET key value EX seconds`. It records each key's TTL, so a test can assert on
- * how long something was cached for.
+ * An in-memory Redis for the duration of a test file: ioredis-mock behind the app's
+ * `getConnection()`. Everything that uses Redis runs on it unmodified — the owner cache's
+ * `MGET` / `SET … EX`, and BullMQ itself, so the real queues are built over it and a test
+ * enqueues and inspects jobs with the ordinary `Queue` API:
+ *
+ * ```ts
+ * const jobs = await getTaskQueue().getJobs(['wait'], 0, -1, true)
+ * ```
+ *
+ * `client` is the same connection, for seeding and inspecting keys directly. It is
+ * flushed before each test.
  *
  * Instantiate at the top level; the constructor registers the vitest hooks.
  */
 export class RedisSimulator {
-  private readonly entries = new Map<string, Entry>()
+  readonly client: IORedis = createRedisMock()
+  private readonly overridden = new Map<string, unknown>()
 
   constructor() {
-    this.install()
+    setConnection(this.client)
 
-    beforeEach(() => {
-      this.entries.clear()
-      this.install()
+    beforeEach(async () => {
+      this.restoreCommands()
+      await this.client.flushall()
     })
 
-    afterAll(() => {
+    afterAll(async () => {
+      await closeQueues()
       setConnection(null)
     })
   }
 
-  /** The stored value, or undefined. */
-  get(key: string): string | undefined {
-    return this.entries.get(key)?.value
-  }
+  /**
+   * Makes `commands` fail for the current test only, as if Redis had gone away — how the
+   * error paths get exercised. `pipeline` and `multi` fail at `exec`.
+   */
+  failForTest(...commands: string[]): void {
+    const client = this.client as unknown as Record<string, (...args: unknown[]) => unknown>
+    const error = () => Promise.reject(new Error('Connection is closed.'))
 
-  /** The TTL `key` was stored with, in seconds. Null if it has none. */
-  ttl(key: string): number | null | undefined {
-    return this.entries.get(key)?.ttlSeconds
-  }
+    for (const name of commands) {
+      const original = client[name]!
+      if (!this.overridden.has(name)) this.overridden.set(name, original)
 
-  /** Pre-populates a key, as if an earlier run had stored it. */
-  seed(key: string, value: string, ttlSeconds: number | null = null): void {
-    this.entries.set(key, { value, ttlSeconds })
-  }
-
-  /** Empties the store, as if every key had expired. */
-  clear(): void {
-    this.entries.clear()
-  }
-
-  get keys(): string[] {
-    return [...this.entries.keys()]
-  }
-
-  private install(): void {
-    const pipeline = () => {
-      const commands: Array<() => void> = []
-      const chain = {
-        set: (key: string, value: string, mode?: string, ttl?: number) => {
-          if (mode !== undefined && mode !== 'EX') throw new Error(`Unsupported SET mode ${mode}`)
-          commands.push(() => this.entries.set(key, { value, ttlSeconds: ttl ?? null }))
-          return chain
-        },
-        exec: () => {
-          for (const command of commands) command()
-          return Promise.resolve(commands.map(() => [null, 'OK']))
-        },
-      }
-      return chain
+      client[name] =
+        name === 'pipeline' || name === 'multi'
+          ? (...args) => Object.assign(original.apply(this.client, args) as object, { exec: error })
+          : error
     }
+  }
 
-    setConnection({
-      mget: (...keys: string[]) => Promise.resolve(keys.map((key) => this.get(key) ?? null)),
-      pipeline,
-    } as unknown as IORedis)
+  private restoreCommands(): void {
+    const client = this.client as unknown as Record<string, unknown>
+    for (const [name, original] of this.overridden) client[name] = original
+    this.overridden.clear()
   }
 }

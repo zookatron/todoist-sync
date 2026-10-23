@@ -17,8 +17,7 @@ So instead the _process boundary_ is replaced with stateful in-memory doubles:
 | Postgres  | `DatabaseSimulator`  | PGlite — real Postgres (WASM), real migrations         |
 | Glassfrog | `GlassfrogSimulator` | In-memory entities behind msw handlers                 |
 | Todoist   | `TodoistSimulator`   | Same, plus a sync-token version clock                  |
-| BullMQ    | `QueueSimulator`     | Records `add()` calls                                  |
-| Redis     | `RedisSimulator`     | In-memory `MGET` / pipelined `SET … EX`, TTLs recorded |
+| Redis     | `RedisSimulator`     | ioredis-mock — real BullMQ runs on it, scripts and all |
 
 Code under test runs **unmodified and unmocked**. A test reads: seed both worlds, run the
 real function, assert on both worlds afterwards.
@@ -132,6 +131,33 @@ todoist.useForTest([http.post(url, () => (++calls === 1 ? HttpResponse.error() :
 
 msw matches the **first** handler, which is why overrides go in front.
 
+`redis.failForTest('mget', 'pipeline')` is the Redis equivalent: those commands reject for
+the current test only (`pipeline` and `multi` at `exec`), as if the server had gone away.
+
+### Redis and the queues
+
+`RedisSimulator` puts an [ioredis-mock](https://github.com/stipsan/ioredis-mock) client
+behind `getConnection()`. The real BullMQ queues are built over it, so there is no queue
+double: a test enqueues and inspects jobs with the ordinary BullMQ API, and runs them by
+calling the job function itself, the way the worker would.
+
+```ts
+await runPoll(userId)
+
+const jobs = await getTaskQueue().getJobs(['wait'], 0, -1, true) // oldest first
+await getTaskQueue().drain()
+for (const job of jobs) await runTaskSync(job.data, job.id ?? job.name)
+```
+
+`redis.client` is the same connection, for seeding and inspecting keys
+(`await redis.client.ttl(ownerKey('a-1'))`). Redis is flushed before each test.
+
+ioredis-mock cannot run BullMQ by itself — its Lua VM lacks `cmsgpack` and `cjson`, has
+32-bit integers, and mangles script replies. `server/testing/redis-mock.ts` and
+`redis-compat.lua` patch exactly that much, so BullMQ itself runs unmodified. If a BullMQ
+upgrade makes a test fail with `Error trying to loading or executing lua code`, the fix
+belongs there. Workers are not exercised: nothing blocks on a queue in a test.
+
 ### Adding an endpoint
 
 1. Find the real request. For Glassfrog read the URL and verb out of
@@ -190,6 +216,10 @@ to the simulator — do not work around it.
 **Simulators are per-file singletons.** Construct them at module scope, never inside
 `beforeEach`, or you will register duplicate hooks.
 
-**The production seams are inert by default.** `setDatabase`, `setTodoistTransport`,
-`setTaskQueue`, `setPollQueue` and `setConnection` do nothing until a simulator sets them, and each restores
-the real implementation on teardown. Never call them from application code.
+**The production seams are inert by default.** `setDatabase`, `setTodoistTransport` and
+`setConnection` do nothing until a simulator sets them, and each restores the real
+implementation on teardown. Never call them from application code.
+
+**A test that touches a queue needs `RedisSimulator`.** Without it the queue is built over
+the real connection, which `test-setup.ts` points at `127.0.0.1:1`, so the test times out
+rather than reaching anything.

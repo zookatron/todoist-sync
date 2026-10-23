@@ -28,16 +28,13 @@ const defaultJobOptions: JobsOptions = {
  * module, an eager connection meant that merely importing the poll job reached for Redis,
  * which made the sync path impossible to test without a live server. Deferring the
  * construction keeps production behaviour identical (the first `add` connects, as before)
- * while letting tests substitute a queue before anything is built.
+ * while letting tests substitute the connection before anything is built.
  */
 
 let redis: IORedis | undefined
 let connectionOverride: IORedis | undefined
-let realPollQueue: Queue<PollJobData> | undefined
-let realTaskQueue: Queue<TaskJobData> | undefined
-
-let pollQueueOverride: Queue<PollJobData> | undefined
-let taskQueueOverride: Queue<TaskJobData> | undefined
+let pollQueue: Queue<PollJobData> | undefined
+let taskQueue: Queue<TaskJobData> | undefined
 
 /**
  * Shared Redis connection.
@@ -51,33 +48,25 @@ export function getConnection(): IORedis {
 }
 
 export function getPollQueue(): Queue<PollJobData> {
-  if (pollQueueOverride) return pollQueueOverride
-  return (realPollQueue ??= new Queue<PollJobData>(POLL_QUEUE, {
+  return (pollQueue ??= new Queue<PollJobData>(POLL_QUEUE, {
     connection: getConnection(),
     defaultJobOptions,
   }))
 }
 
 export function getTaskQueue(): Queue<TaskJobData> {
-  if (taskQueueOverride) return taskQueueOverride
-  return (realTaskQueue ??= new Queue<TaskJobData>(TASK_QUEUE, {
+  return (taskQueue ??= new Queue<TaskJobData>(TASK_QUEUE, {
     connection: getConnection(),
     defaultJobOptions,
   }))
 }
 
-/** Test seam. Pass null to restore the real connection. */
+/**
+ * Test seam. The queues are built over whatever connection is current when first used, so
+ * set this before touching them. Pass null to restore the real connection.
+ */
 export function setConnection(next: IORedis | null): void {
   connectionOverride = next ?? undefined
-}
-
-/** Test seams. Pass null to restore the real queue. */
-export function setPollQueue(next: Queue<PollJobData> | null): void {
-  pollQueueOverride = next ?? undefined
-}
-
-export function setTaskQueue(next: Queue<TaskJobData> | null): void {
-  taskQueueOverride = next ?? undefined
 }
 
 /**
@@ -113,6 +102,7 @@ export async function scheduleGlobalPoll(): Promise<void> {
 
 /** Closes only what was actually built, so this is safe to call in any process. */
 export async function closeQueues(): Promise<void> {
-  await Promise.all([realPollQueue?.close(), realTaskQueue?.close()])
+  await Promise.all([pollQueue?.close(), taskQueue?.close()])
   await redis?.quit()
+  pollQueue = taskQueue = redis = undefined
 }

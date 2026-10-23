@@ -8,11 +8,11 @@ import {
   DatabaseSimulator,
   GlassfrogSimulator,
   ProjectMappingFactory,
-  QueueSimulator,
   RedisSimulator,
   TodoistSimulator,
 } from '../../testing/index.js'
 import { acquireLock } from '../../utils/lock.js'
+import { getTaskQueue } from '../queues.js'
 import { runPoll } from './poll.js'
 import { runTaskSync } from './sync-task.js'
 
@@ -28,7 +28,6 @@ new DatabaseSimulator()
 const glassfrog = new GlassfrogSimulator()
 const todoist = new TodoistSimulator()
 new RedisSimulator()
-const queue = new QueueSimulator()
 
 const ROOT = 'td-root'
 const ROLE_GF = 'role-eng'
@@ -48,12 +47,16 @@ beforeEach(async () => {
   await new ProjectMappingFactory().override({ userId }).forRole(ROLE_GF, ROLE_TD).make()
 })
 
+const queuedTaskJobs = () => getTaskQueue().getJobs(['wait'], 0, -1, true)
+
 /** Runs a poll and then applies every task job it produced, as the worker would. */
 async function runCycle(): Promise<void> {
   await runPoll(userId)
-  await queue.drainTaskJobs(async (job) => {
-    await runTaskSync(job.data, `test-${Math.random()}`)
-  })
+  const jobs = await queuedTaskJobs()
+  await getTaskQueue().drain()
+  for (const job of jobs) {
+    await runTaskSync(job.data, job.id ?? job.name)
+  }
 }
 
 describe('runPoll', () => {
@@ -63,7 +66,7 @@ describe('runPoll', () => {
     const result = await runPoll(userId)
 
     expect(result.skipped).toBe('not-configured')
-    expect(queue.taskJobs).toHaveLength(0)
+    expect(await queuedTaskJobs()).toHaveLength(0)
   })
 
   it('exits cleanly when a previous poll is still running', async () => {
@@ -142,7 +145,7 @@ describe('runPoll', () => {
       where: eq(todoistIntegration.userId, userId),
     })
     expect(integration?.todoistSyncToken).toBeTruthy()
-    expect(queue.taskJobs).toHaveLength(1)
+    expect(await queuedTaskJobs()).toHaveLength(1)
   })
 
   it('collapses a task that changed on both sides into one job', async () => {
@@ -159,7 +162,7 @@ describe('runPoll', () => {
 
     await runPoll(userId)
 
-    expect(queue.taskJobs).toHaveLength(1)
-    expect(queue.taskJobs[0]?.data).toEqual({ userId, glassfrogActionId: 'action-1' })
+    const jobs = await queuedTaskJobs()
+    expect(jobs.map((job) => job.data)).toEqual([{ userId, glassfrogActionId: 'action-1' }])
   })
 })

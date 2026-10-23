@@ -5,7 +5,6 @@
  */
 export { DatabaseSimulator } from './database.js'
 export { GLASSFROG_TEST_API_KEY, GlassfrogSimulator } from './glassfrog.js'
-export { QueueSimulator, type RecordedJob } from './queue.js'
 export { RedisSimulator } from './redis.js'
 export { type DeepPartial, deepMerge, Simulator } from './simulator.js'
 export { TODOIST_TEST_API_KEY, TodoistSimulator } from './todoist.js'

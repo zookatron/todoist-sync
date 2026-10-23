@@ -1,16 +1,14 @@
 import { eq } from 'drizzle-orm'
-import type IORedis from 'ioredis'
 import { beforeEach, describe, expect, it } from 'vitest'
 import { db } from '../db/index.js'
 import { glassfrogIntegration } from '../db/schema/integrations.js'
 import { runPoll } from '../queue/jobs/poll.js'
-import { setConnection } from '../queue/queues.js'
+import { getTaskQueue } from '../queue/queues.js'
 import { runTaskSync } from '../queue/jobs/sync-task.js'
 import {
   connectedUser,
   DatabaseSimulator,
   GlassfrogSimulator,
-  QueueSimulator,
   RedisSimulator,
   TodoistSimulator,
 } from '../testing/index.js'
@@ -25,7 +23,6 @@ new DatabaseSimulator()
 const glassfrog = new GlassfrogSimulator()
 const todoist = new TodoistSimulator()
 const redis = new RedisSimulator()
-const queue = new QueueSimulator()
 
 const ME = 1
 const THEM = 2
@@ -33,11 +30,15 @@ const ROOT = 'td-root'
 
 let userId: string
 
+const queuedTaskJobs = () => getTaskQueue().getJobs(['wait'], 0, -1, true)
+
 async function runCycle(): Promise<void> {
   await runPoll(userId)
-  await queue.drainTaskJobs(async (job) => {
-    await runTaskSync(job.data, `test-${Math.random()}`)
-  })
+  const jobs = await queuedTaskJobs()
+  await getTaskQueue().drain()
+  for (const job of jobs) {
+    await runTaskSync(job.data, job.id ?? job.name)
+  }
 }
 
 const taskNames = () => todoist.tasks.filter((t) => !t.is_deleted).map((t) => t.content)
@@ -134,7 +135,7 @@ describe('ownership scoping', () => {
 
     // Once the entry expires the next check sees the new owner: the Todoist task is
     // removed, and the Glassfrog action is left alone.
-    redis.clear()
+    await redis.client.del(ownerKey('a-1'))
     await runCycle()
 
     expect(taskNames()).toEqual([])
@@ -155,7 +156,7 @@ describe('ownership scoping', () => {
     const result = await runPoll(userId)
 
     expect(result.skipped).toBe('not-configured')
-    expect(queue.taskJobs).toEqual([])
+    expect(await queuedTaskJobs()).toEqual([])
     expect(todoist.projects.map((p) => p.name)).toEqual(['Glassfrog'])
     expect(glassfrog.v3Requests).toEqual([])
   })
@@ -170,7 +171,7 @@ describe('ownership scoping', () => {
     const created = glassfrog.actions.find((a) => a.description === 'From Todoist')
     expect(created).toBeDefined()
     // Creating it recorded the user as its owner, so v3 is not asked: the entry is trusted.
-    expect(redis.get(ownerKey(created!.id))).toBe(String(ME))
+    expect(await redis.client.get(ownerKey(created!.id))).toBe(String(ME))
     glassfrog.setOwner(null, created!.id)
 
     await runCycle()
@@ -193,11 +194,11 @@ describe('ownership scoping', () => {
 
       await runCycle()
 
-      expect(redis.get(ownerKey('a-mine'))).toBe(String(ME))
-      expect(redis.ttl(ownerKey('a-mine'))).toBe(10 * 24 * 60 * 60)
+      expect(await redis.client.get(ownerKey('a-mine'))).toBe(String(ME))
+      expect(await redis.client.ttl(ownerKey('a-mine'))).toBe(10 * 24 * 60 * 60)
       expect(OWNER_TTL_SECONDS).toBe(864_000)
       // No owner is remembered too, so it is not looked up again.
-      expect(redis.get(ownerKey('a-orphan'))).toBe('none')
+      expect(await redis.client.get(ownerKey('a-orphan'))).toBe('none')
     })
 
     it('does not ask v3 again for an item it has already checked', async () => {
@@ -216,7 +217,7 @@ describe('ownership scoping', () => {
         { id: 'a-theirs', description: 'Their task', role_id: 'role-shared' },
       ])
       glassfrog.setOwner(THEM, theirs!.id)
-      redis.seed(ownerKey('a-theirs'), String(ME))
+      await redis.client.set(ownerKey('a-theirs'), String(ME))
 
       await runCycle()
 
@@ -267,8 +268,8 @@ describe('ownership scoping', () => {
       expect(glassfrog.v3Requests).toContain(
         `GET /api/v3/projects/${glassfrog.legacyIdOf('p-5')}?include=`,
       )
-      expect(redis.get(ownerKey('p-5'))).toBe(String(ME))
-      expect(redis.get(ownerKey('p-0'))).toBe(String(THEM))
+      expect(await redis.client.get(ownerKey('p-5'))).toBe(String(ME))
+      expect(await redis.client.get(ownerKey('p-0'))).toBe(String(THEM))
     })
 
     it('treats an item v3 does not know as unowned, and remembers that', async () => {
@@ -278,7 +279,7 @@ describe('ownership scoping', () => {
       await runCycle()
 
       expect(taskNames()).toEqual([])
-      expect(redis.get(ownerKey('a-ghost'))).toBe('none')
+      expect(await redis.client.get(ownerKey('a-ghost'))).toBe('none')
 
       glassfrog.v3Requests.length = 0
       await runCycle()
@@ -287,10 +288,7 @@ describe('ownership scoping', () => {
 
     it('falls back to v3 when Redis is unavailable', async () => {
       addMine()
-      setConnection({
-        mget: () => Promise.reject(new Error('connection refused')),
-        pipeline: () => ({ set: () => undefined, exec: () => Promise.reject(new Error('down')) }),
-      } as unknown as IORedis)
+      redis.failForTest('mget', 'pipeline')
 
       await runCycle()
 

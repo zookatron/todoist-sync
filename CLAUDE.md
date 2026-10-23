@@ -96,13 +96,14 @@ yarn gen:todoist:fetch                 # re-vendor + regenerate the Todoist wire
   `docker compose down`; anything reaching a real service is a setup bug.
 - Stateful in-memory simulators stand in at the process boundary — `DatabaseSimulator`
   (PGlite running the real migrations), `GlassfrogSimulator` and `TodoistSimulator` (msw),
-  `QueueSimulator`. Code under test runs **unmodified**: prefer this over `vi.mock`, which
+  `RedisSimulator` (ioredis-mock, with real BullMQ running on it — tests use the ordinary
+  `Queue` API, there is no queue double). Code under test runs **unmodified**: prefer this over `vi.mock`, which
   would replace the layer where the bugs actually live.
 - Pure logic (`resolve.ts`, `hierarchy-diff.ts`, the `delta.ts` files) still gets plain unit
   tests.
-- Five production seams exist only for this — `setDatabase`, `setTodoistTransport`,
-  `setTaskQueue`, `setPollQueue`, `setConnection` (Redis). They are inert until a simulator sets them. Never call
-  them from application code.
+- Three production seams exist only for this — `setDatabase`, `setTodoistTransport`,
+  `setConnection` (Redis). They are inert until a simulator sets them. Never call them from
+  application code.
 - The Todoist SDK **bypasses msw** on Node (npm-undici's own `fetch`, not `globalThis.fetch`).
   `server/todoist/transport.ts` is the required workaround; a new Todoist call path that
   skips it will hit the real API.
