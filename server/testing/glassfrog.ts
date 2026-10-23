@@ -1,6 +1,5 @@
 import { http, HttpResponse, type RequestHandler } from 'msw'
 import { GLASSFROG_BASE_URL } from '../glassfrog/client.js'
-import { GLASSFROG_V3_BASE_URL } from '../glassfrog/v3.js'
 import type {
   Action,
   ActionInput,
@@ -13,6 +12,9 @@ import { type DeepPartial, deepMerge, Simulator } from './simulator.js'
 
 /** The key seeded integrations should present. Anything else gets a 401. */
 export const GLASSFROG_TEST_API_KEY = 'test-glassfrog-key'
+
+/** The key's user, as `/me` reports them and as the default `actor_id` of every item. */
+export const ME_ACTOR_ID = 'per_me'
 
 /** Glassfrog list endpoints page at 100 by default; a small page here keeps tests fast. */
 const DEFAULT_PER_PAGE = 100
@@ -33,45 +35,11 @@ export class GlassfrogSimulator extends Simulator {
   projects: Project[] = []
   actions: Action[] = []
 
-  /** The API key's user. `legacyId` is their v3 person id. */
-  me = { id: 'actor-1', legacyId: 1 }
-
   /**
-   * Which v3 person owns an action or project, by v5 id; null for nobody. Anything not listed
-   * belongs to `me`, so a test only has to say who the *other* owners are. Only v3 exposes
-   * this; v5 attributes everything to the role.
+   * The API key's user. New items, and those a test adds without saying otherwise, are on them;
+   * a test sets `actor_id` only for a co-filler's items.
    */
-  readonly owners = new Map<string, number | null>()
-
-  /** Items v3 does not know about at all (it answers 404 for them and omits them from lists). */
-  readonly hiddenFromV3 = new Set<string>()
-
-  /** v3 integer ids, handed out on first use. Shared by `legacy_id` on v5 and `id` on v3. */
-  private readonly legacyIds = new Map<string, number>()
-
-  legacyIdOf(id: string): number {
-    let legacy = this.legacyIds.get(id)
-    if (legacy === undefined) {
-      legacy = 1000 + this.legacyIds.size
-      this.legacyIds.set(id, legacy)
-    }
-    return legacy
-  }
-
-  private ownerOf(id: string): number | null {
-    return this.owners.has(id) ? (this.owners.get(id) ?? null) : this.me.legacyId
-  }
-
-  /** Adds `legacy_id` to actions and projects when the request asked for it, as v5 does. */
-  private withLegacyIds<T extends { id: string; type: string }>(request: Request, items: T[]): T[] {
-    if (new URL(request.url).searchParams.get('include_legacy_id') !== 'true') return items
-    return items.map((item) =>
-      item.type === 'role' ? item : { ...item, legacy_id: this.legacyIdOf(item.id) },
-    )
-  }
-
-  /** Every v3 request made, as `METHOD /path?query`, for asserting what was (not) asked. */
-  readonly v3Requests: string[] = []
+  me = { id: ME_ACTOR_ID }
 
   /** Every action id this simulator has deleted, for asserting a delete really happened. */
   readonly deletedActionIds = new Set<string>()
@@ -81,16 +49,7 @@ export class GlassfrogSimulator extends Simulator {
     this.projects = []
     this.actions = []
     this.deletedActionIds.clear()
-    this.me = { id: 'actor-1', legacyId: 1 }
-    this.owners.clear()
-    this.hiddenFromV3.clear()
-    this.legacyIds.clear()
-    this.v3Requests.length = 0
-  }
-
-  /** Records the v3 person who owns the given actions or projects. */
-  setOwner(personId: number | null, ...ids: string[]): void {
-    for (const id of ids) this.owners.set(id, personId)
+    this.me = { id: ME_ACTOR_ID }
   }
 
   addRoles(roles: DeepPartial<Role>[]): Role[] {
@@ -151,51 +110,14 @@ export class GlassfrogSimulator extends Simulator {
   protected handlers(): RequestHandler[] {
     const url = (path: string) => `${GLASSFROG_BASE_URL}${path}`
 
-    const v3 = (path: string) => `${GLASSFROG_V3_BASE_URL}${path}`
-
     return [
-      http.get(v3('/actions'), ({ request }) => {
-        const denied = this.authorize(request)
-        if (denied) return denied
-        this.recordV3(request)
-        return this.v3Page(request, 'actions', this.actions)
-      }),
-
-      http.get(v3('/projects'), ({ request }) => {
-        const denied = this.authorize(request)
-        if (denied) return denied
-        this.recordV3(request)
-        return this.v3Page(request, 'projects', this.projects)
-      }),
-
-      http.get(v3('/actions/:id'), ({ request, params }) => {
-        const denied = this.authorize(request)
-        if (denied) return denied
-        this.recordV3(request)
-        return this.v3One('actions', this.actions, Number(params.id))
-      }),
-
-      http.get(v3('/projects/:id'), ({ request, params }) => {
-        const denied = this.authorize(request)
-        if (denied) return denied
-        this.recordV3(request)
-        return this.v3One('projects', this.projects, Number(params.id))
-      }),
-
       http.get(url('/me'), ({ request }) => {
         const denied = this.authorize(request)
         if (denied) return denied
 
-        const withLegacy = new URL(request.url).searchParams.get('include_legacy_id') === 'true'
-
         return HttpResponse.json({
           data: {
-            actor: {
-              id: this.me.id,
-              type: 'person',
-              name: 'Test Person',
-              ...(withLegacy ? { legacy_id: this.me.legacyId } : {}),
-            },
+            actor: { id: this.me.id, type: 'actor', name: 'Test Person', kind: 'human' },
             organization: { id: 'org-1', type: 'organization', name: 'Test Org' },
             membership: { id: 'membership-1', type: 'membership' },
           },
@@ -219,7 +141,12 @@ export class GlassfrogSimulator extends Simulator {
         // sub-project's own `role_id` may even be null. Verified against the real
         // organization. The crawl must therefore key nesting off `parent_project_id` rather
         // than assuming everything in this response hangs off the role.
-        const owned = this.projects.filter((project) => project.role_id === roleId)
+        //
+        // Individual initiatives recorded against the role are left out (verified live): they
+        // only come back from `/me/projects?individual_initiative=true`.
+        const owned = this.projects.filter(
+          (project) => project.role_id === roleId && !project.individual_initiative,
+        )
         const withDescendants = [...owned]
 
         for (const project of owned) {
@@ -228,7 +155,21 @@ export class GlassfrogSimulator extends Simulator {
           }
         }
 
-        return this.page(request, withDescendants)
+        return this.page(request, this.byActor(request, withDescendants))
+      }),
+
+      http.get(url('/me/projects'), ({ request }) => {
+        const denied = this.authorize(request)
+        if (denied) return denied
+
+        const initiatives = this.initiativeFilter(request)
+        if (initiatives instanceof Response) return initiatives
+
+        // Verified live: the initiative listing is the whole tree, sub-projects included.
+        const projects = this.projects.filter(
+          (project) => project.individual_initiative === initiatives,
+        )
+        return this.page(request, this.byActor(request, projects))
       }),
 
       http.get(url('/projects/:id/sub_projects'), ({ request, params }) => {
@@ -249,7 +190,9 @@ export class GlassfrogSimulator extends Simulator {
 
         const body = (await request.json()) as ProjectInput
 
-        const [project] = this.addProjects([{ role_id: roleId }])
+        // Verified live: the creator is the project's actor, initiative or not, and an
+        // initiative keeps the role it was created through as `role_id`.
+        const [project] = this.addProjects([{ role_id: roleId, actor_id: this.me.id }])
         if (!project) return notFound('Project')
 
         applyProjectInput(project, body)
@@ -286,7 +229,15 @@ export class GlassfrogSimulator extends Simulator {
       http.get(url('/me/actions'), ({ request }) => {
         const denied = this.authorize(request)
         if (denied) return denied
-        return this.page(request, this.actions)
+
+        const initiatives = this.initiativeFilter(request)
+        if (initiatives instanceof Response) return initiatives
+
+        // Verified live: role actions and individual initiatives never share a listing.
+        const actions = this.actions.filter(
+          (action) => action.individual_initiative === initiatives,
+        )
+        return this.page(request, this.byActor(request, actions))
       }),
 
       http.get(url('/actions/:id'), ({ request, params }) => {
@@ -295,7 +246,7 @@ export class GlassfrogSimulator extends Simulator {
 
         const action = this.action(String(params.id))
         if (!action) return notFound('Action')
-        return HttpResponse.json({ data: this.withLegacyIds(request, [action])[0] })
+        return HttpResponse.json({ data: action })
       }),
 
       http.post(url('/roles/:roleId/actions'), async ({ request, params }) => {
@@ -310,6 +261,7 @@ export class GlassfrogSimulator extends Simulator {
         const action: Action = {
           ...defaultAction(),
           role_id: roleId,
+          actor_id: this.me.id,
           created_at: now,
           updated_at: now,
         }
@@ -387,74 +339,29 @@ export class GlassfrogSimulator extends Simulator {
     ).toISOString()
   }
 
-  private recordV3(request: Request): void {
-    const { pathname, search } = new URL(request.url)
-    this.v3Requests.push(`${request.method} ${pathname}${search}`)
+  /**
+   * `individual_initiative` as the list endpoints read it: absent or `false` is role items,
+   * `true` is initiatives, and anything else a 422 (verified live).
+   */
+  private initiativeFilter(request: Request): boolean | Response {
+    const value = new URL(request.url).searchParams.get('individual_initiative')
+    if (value === null || value === 'false') return false
+    if (value === 'true') return true
+    return HttpResponse.json(
+      {
+        type: 'about:blank',
+        title: 'Unprocessable Entity',
+        status: 422,
+        detail: 'individual_initiative must be true or false',
+      },
+      { status: 422 },
+    )
   }
 
-  private v3One(key: 'actions' | 'projects', items: (Action | Project)[], v3Id: number): Response {
-    const item = items.find(
-      (candidate) => !this.hiddenFromV3.has(candidate.id) && this.legacyIdOf(candidate.id) === v3Id,
-    )
-    if (!item)
-      return HttpResponse.json({ message: 'ActiveRecord::RecordNotFound' }, { status: 404 })
-
-    return HttpResponse.json({
-      [key]: [
-        {
-          id: v3Id,
-          description: item.description,
-          created_at: item.created_at,
-          links: { person: this.ownerOf(item.id) },
-        },
-      ],
-    })
-  }
-
-  /** A v3 list: page-numbered, no pagination envelope, filtered by `person_id`. */
-  private v3Page(
-    request: Request,
-    key: 'actions' | 'projects',
-    items: (Action | Project)[],
-  ): Response {
-    const params = new URL(request.url).searchParams
-
-    // Verified against the live API: despite the spec, any `status` on /projects is a 500.
-    if (key === 'projects' && params.has('status')) {
-      return HttpResponse.json(
-        {
-          message: 'An unexpected error has occurred',
-          errors: [{ title: 'An unexpected error has occurred' }],
-        },
-        { status: 500 },
-      )
-    }
-
-    const personId = params.get('person_id')
-    const page = Number(params.get('page') ?? 1)
-    const perPage = Number(params.get('per_page') ?? 30)
-
-    // Without `exclude_completed=false` completed actions are hidden, and projects default to
-    // current, future and waiting, so a finished one is only reachable by id.
-    const hidden = new Set(
-      key === 'actions'
-        ? params.get('exclude_completed') === 'false'
-          ? []
-          : ['completed']
-        : ['completed', 'cancelled', 'archived'],
-    )
-
-    const rows = items
-      .filter((item) => !hidden.has(item.status) && !this.hiddenFromV3.has(item.id))
-      .map((item) => ({
-        id: this.legacyIdOf(item.id),
-        description: item.description,
-        created_at: item.created_at,
-        links: { person: this.ownerOf(item.id) },
-      }))
-      .filter((row) => !personId || row.links.person === Number(personId))
-
-    return HttpResponse.json({ [key]: rows.slice((page - 1) * perPage, page * perPage) })
+  /** `?actor_id=` keeps one actor's items; an unknown id is an empty list, not an error. */
+  private byActor<T extends { actor_id?: string | null }>(request: Request, items: T[]): T[] {
+    const actorId = new URL(request.url).searchParams.get('actor_id')
+    return actorId === null ? items : items.filter((item) => item.actor_id === actorId)
   }
 
   /** Glassfrog v5 authenticates with a static key in `X-Auth-Token`. */
@@ -477,10 +384,7 @@ export class GlassfrogSimulator extends Simulator {
     const hasNextPage = end < items.length
 
     return HttpResponse.json({
-      data: this.withLegacyIds(
-        request,
-        items.slice(start, end) as unknown as { id: string; type: string }[],
-      ),
+      data: items.slice(start, end),
       meta: {
         pagination: {
           per_page: perPage,
@@ -560,11 +464,16 @@ function defaultProject(): Project {
     description: `Project ${n}`,
     status: 'current',
     role_id: 'role-1',
+    actor_id: ME_ACTOR_ID,
     individual_initiative: false,
     has_sub_projects: false,
     has_actions: false,
     parent_project_id: null,
     tags: [],
+    link: null,
+    note: null,
+    value: null,
+    effort: null,
     created_at: now,
     updated_at: now,
   }
@@ -579,6 +488,7 @@ function defaultAction(): Action {
     description: `Action ${n}`,
     status: 'current',
     role_id: 'role-1',
+    actor_id: ME_ACTOR_ID,
     individual_initiative: false,
     parent_project_id: null,
     tags: [],

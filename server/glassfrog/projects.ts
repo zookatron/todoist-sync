@@ -26,12 +26,20 @@ export const GLASSFROG_PROJECT_CURRENT = 'current'
  * the only creation endpoint — which is why the mirror can adopt a Todoist project only
  * when it sits somewhere under a mapped role.
  *
+ * An individual initiative is created through the same endpoint, flagged as one; the role is
+ * then only the one it is recorded against.
+ *
  * @param parentProjectId the Glassfrog project to nest under, or null for a top-level
  * project on the role.
  */
 export async function createProject(
   client: Client,
-  args: { roleId: string; parentProjectId: string | null; name: string },
+  args: {
+    roleId: string
+    parentProjectId: string | null
+    name: string
+    individualInitiative?: boolean
+  },
 ): Promise<Project> {
   const response = await createRoleProject({
     client,
@@ -41,6 +49,7 @@ export async function createProject(
         description: args.name,
         status: GLASSFROG_PROJECT_CURRENT,
         parent_project_id: args.parentProjectId,
+        individual_initiative: args.individualInitiative ?? false,
       },
     },
     throwOnError: true,

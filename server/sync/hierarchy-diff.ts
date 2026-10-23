@@ -34,6 +34,12 @@ export type DesiredNode = {
   active: boolean
   /** Glassfrog's `updated_at`. Null for roles, which v5 does not timestamp. */
   updatedAt: Date | null
+  /**
+   * Set on an individual-initiative project, which has no role above it in the tree. Carries
+   * the role it is recorded against, because Glassfrog needs one to create a project beneath
+   * it — null for one that predates that being recorded.
+   */
+  individualInitiative?: { roleGlassfrogId: string | null }
 }
 
 /** A previously recorded correspondence between the two sides. */
@@ -218,8 +224,8 @@ function resolveStatus(args: {
  *
  * Adoption needs an owning Glassfrog role, which the applier finds by walking up to the
  * nearest mapped node. A project whose chain reaches the root without passing one has
- * nowhere to go: only a role can sit directly under the root, and roles come from
- * Glassfrog. Chains of several new projects are fine — the outermost is adopted first, and
+ * nowhere to go: only roles and individual initiatives sit directly under the root, and a new
+ * one has no role to be created through. Chains of several new projects are fine — the outermost is adopted first, and
  * by the time its children are applied it is mapped.
  */
 function hasMappedAncestor(
@@ -274,8 +280,8 @@ function hasMappedAncestor(
  *
  * An unmapped Glassfrog node is created in Todoist when active. An unmapped Todoist project
  * is adopted into Glassfrog when it is live and sits under a mapped role or project; one
- * directly under the root is left alone, because only a role can live there and roles come
- * from Glassfrog.
+ * directly under the root is left alone, because only roles and individual initiatives live
+ * there and a new one has no role to be created through.
  *
  * Returned in a safe application order: adoptions and creates shallowest-first so a parent
  * exists before its children, then renames, moves, status changes, archives, and finally

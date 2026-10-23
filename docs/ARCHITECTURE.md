@@ -63,44 +63,57 @@ _absent_ from the enumeration was deleted or moved out of scope. Limiting scope 
 
 ### Whose items are mine
 
-v5 attributes actions and projects to a **role**, so a co-filler's items on a shared role arrive
-in `/me/actions` and `/roles/{id}/projects` too. Only the legacy **v3** API records a person
-(`links.person`). `server/sync/ownership.ts` decides:
+Glassfrog attributes actions and projects to a **role**, so a co-filler's items on a shared role
+arrive in `/me/actions` and `/roles/{id}/projects` too. Each item also carries `actor_id`: the
+person whose focus it is, or the owner of an individual initiative. `server/sync/ownership.ts`
+decides:
 
-- An item is mine if v3 lists me as its owner (`links.person`). **A v3 API key is required** —
-  there is no fallback, because without v3 there is no telling whose items are whose. A user
-  with no v3 key saved (including anyone who connected before it was required) has sync paused:
-  `runPoll` skips them with a warning until they add it in settings, where both keys are saved
-  together.
-- v5 returns each resource's v3 id as `legacy_id` when asked (`include_legacy_id=true`), which is
-  the join. My v3 person id is the v5 actor's `legacy_id` (`/me?include_legacy_id=true`),
-  captured when the v5 key is saved. The vendored v5 spec documents the param for roles, actors
-  and `/me` only, though the API honours it everywhere, so `openapi-ts.glassfrog.config.ts` adds it
-  to the other endpoints and schemas at generation time (`parser.patch`). It retires with v3.
-- **Owners are cached in Redis** as v5 id → v3 person id (`glassfrog:owner:<v5 id>`, 10-day TTL;
-  `none` for an item v3 says nobody owns), and checked before the owner is attached to the v5
-  data. Ownership is assumed to rarely change, so a cached entry is never re-checked; a
-  reassignment is noticed when the entry expires. Nothing is cached in process.
-- Items not yet cached are looked up in v3: one request each for up to 5, else one paged list
-  of the whole organization. In steady state that is a single `MGET` and no v3 requests. An
-  action created from Todoist has its owner recorded immediately, saving the lookup.
-- A slow or unreachable Redis (2s) falls back to asking v3 every time.
+- An item is mine if its `actor_id` is my actor id. Null — nobody recorded, or the person was
+  removed — is nobody's.
+- My actor id (`per_…`) is read from `/me` when the key is saved. A key saved before that was
+  stored has it read on the next poll instead.
+- Actions are listed with `?actor_id=<me>`, and filtered again on our side. Projects are read
+  faithfully and pruned afterwards, because a project of mine may sit under a co-filler's, and
+  the crawl has to pass through theirs to find it.
 - Not-mine actions are dropped before the diff, so a mapped one reads as absent and its Todoist
   task is removed; `sync-task` also treats a not-mine action as gone. The Glassfrog action is
   never touched. Not-mine projects are pruned from the desired tree, except ancestors of mine.
+
+### Individual initiatives
+
+An individual initiative belongs to no role. Glassfrog lists them apart from role items:
+`/me/actions` and `/me/projects` return one or the other depending on
+`?individual_initiative=`, so the poll reads both. They are mirrored **directly under the root**,
+next to the role projects — an initiative project as a top-level project, and a loose initiative
+action as a task in the root itself.
+
+An initiative still carries a `role_id`: the role it was recorded against. It is not filed under
+that role, but it is what creating one needs — there is no role-less create, only
+`POST /roles/{role_id}/…` with `individual_initiative: true`. So:
+
+- A task or project added **inside a mirrored initiative project** becomes an initiative in
+  Glassfrog, recorded against the same role as that project (read from `GET /projects/{id}` for a
+  task, from the tree for a project).
+- A task or project added **loose in the root** is left alone, as before: there is no role to
+  record it against. An initiative old enough to have no `role_id` cannot have anything created
+  beneath it from Todoist, for the same reason.
 
 ## Hierarchy mapping
 
 ```
 Todoist root project (user-selected)
-└── Role project              ← Glassfrog role you fill (/me/roles). Glassfrog only.
-    ├── Project               ↔ Glassfrog project owned by that role
-    │   └── Sub-project       ↔ recursive via /projects/{id}/sub_projects
-    └── (tasks)               ← actions on the role with no parent project
+├── Role project              ← Glassfrog role you fill (/me/roles). Glassfrog only.
+│   ├── Project               ↔ Glassfrog project owned by that role
+│   │   └── Sub-project       ↔ recursive via /projects/{id}/sub_projects
+│   └── (tasks)               ← actions on the role with no parent project
+├── Initiative project        ↔ your individual-initiative project (/me/projects?individual_initiative=true)
+│   └── …                     ↔ sub-projects and actions, as under a role
+└── (tasks)                   ← your individual-initiative actions with no parent project
 ```
 
-A project created anywhere inside a role project — at any depth — becomes a Glassfrog project on
-the next poll. A role project can only appear because Glassfrog has that role.
+A project created anywhere inside a role or initiative project — at any depth — becomes a
+Glassfrog project on the next poll. A role project can only appear because Glassfrog has that
+role, and a top-level initiative project only because Glassfrog has that initiative.
 
 The diff is a pure function of (Glassfrog tree, Todoist tree, stored mappings) producing
 operations; only the apply step performs I/O. It is **two-way, but not symmetrically so**:
@@ -132,8 +145,8 @@ Every mapped pair falls into exactly one row of this table, which is the whole p
 An unmapped Glassfrog node is created in Todoist when active. An unmapped Todoist project is
 adopted into Glassfrog when it is live and sits under a mapped role or project — a chain of new
 projects is adopted outermost-first, so each one's parent exists by the time it is applied. One
-sitting **directly under the root** is left alone: only a role can live there, and roles come
-from Glassfrog.
+sitting **directly under the root** is left alone: only roles and initiatives live there, and a
+new one has no role to be created through.
 
 Archiving is used rather than deleting throughout, so a mistake is recoverable in Todoist.
 
@@ -253,7 +266,7 @@ so a crashed worker cannot deadlock the system.
 ## Credentials
 
 Both integrations authenticate with a static, long-lived personal token: a Todoist API token and
-a Glassfrog API v5 key and a v3 key (used for ownership), each pasted into the dashboard and stored in plaintext in the database.
+a Glassfrog API v5 key, each pasted into the dashboard and stored in plaintext in the database.
 Neither expires, carries scopes, or needs to be refreshed — `getTodoistApi()`/`callTodoist()` and
 `getGlassfrogClient()` just read the stored token and build a client from it.
 

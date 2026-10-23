@@ -21,9 +21,14 @@ import {
 import { logger } from '../utils/logger.js'
 import { phaseOf, withPhase } from '../utils/sync-context.js'
 import { type ActualProject, readActualTree } from './actual-tree.js'
-import { getOwnership } from './ownership.js'
 import { buildDesiredTree } from './desired-tree.js'
-import { diffHierarchy, type HierarchyOperation, type MappingKind } from './hierarchy-diff.js'
+import {
+  type DesiredNode,
+  diffHierarchy,
+  type HierarchyOperation,
+  type MappingKind,
+} from './hierarchy-diff.js'
+import { getActorId } from './ownership.js'
 
 /** One counter per operation, so the shape cannot drift from the operation union. */
 export type HierarchyResult = Record<HierarchyOperation['type'] | 'failed', number>
@@ -56,12 +61,14 @@ type MappingRow = {
  *
  * `roleGlassfrogId` is carried because creating a Glassfrog project needs an owning role —
  * `POST /roles/{role_id}/projects` is the only creation endpoint — and for a nested project
- * that role is several links up the chain.
+ * that role is several links up the chain. Inside an individual initiative it is the role the
+ * initiative is recorded against, and whatever is created there is an initiative too.
  */
 type Counterpart = {
   kind: MappingKind
   glassfrogId: string
   roleGlassfrogId: string | null
+  individualInitiative: boolean
 }
 
 /**
@@ -92,14 +99,10 @@ export async function syncHierarchy(
   }
 
   const glassfrog = await getGlassfrogClient(userId)
-  const ownership = await getOwnership(userId)
+  const actorId = await getActorId(userId, glassfrog)
 
   const [desired, todoist, mappings] = await Promise.all([
-    withPhase('read-glassfrog-tree', () =>
-      buildDesiredTree(glassfrog, {
-        ownedProjectIds: (projects) => ownership.ownedIds('project', projects),
-      }),
-    ),
+    withPhase('read-glassfrog-tree', () => buildDesiredTree(glassfrog, { actorId })),
     withPhase('read-todoist-tree', () => readActualTree(userId, rootId)),
     db.select().from(projectMapping).where(eq(projectMapping.userId, userId)),
   ])
@@ -123,14 +126,15 @@ export async function syncHierarchy(
 
   log.info({ operations: operations.length }, 'Applying hierarchy changes')
 
-  return applyOperations({ userId, db, glassfrog, rootId, operations, mappings })
+  return applyOperations({ userId, db, glassfrog, rootId, operations, mappings, desired })
 }
 
 /**
  * Notes the projects sitting directly under the root that the mirror deliberately ignores.
  *
- * Only a role can live there and roles come from Glassfrog, so a project the user put there
- * by hand is neither adopted nor archived — it is simply left alone. That silence is easy to
+ * Only roles and individual initiatives live there, and a new one has no role to be created
+ * through, so a project the user put there by hand is neither adopted nor archived — it is
+ * simply left alone. That silence is easy to
  * mistake for a bug, hence the line.
  *
  * Deliberately the logger rather than `sync_log`: this condition persists for as long as the
@@ -154,7 +158,7 @@ function logUnclaimedRootProjects(args: {
     .child({ userId: args.userId, job: 'hierarchy' })
     .debug(
       { projects: ignored.map((project) => project.name) },
-      'Ignoring Todoist projects directly under the root; roles are only created in Glassfrog',
+      'Ignoring Todoist projects directly under the root; roles and initiatives come from Glassfrog',
     )
 }
 
@@ -162,9 +166,13 @@ function logUnclaimedRootProjects(args: {
  * Resolves each mapped Todoist project to its Glassfrog counterpart, owning role included.
  *
  * The role is found by walking `parentGlassfrogId` upward until a role mapping turns up,
- * which is also why that column has to stay current on every mapping write.
+ * which is also why that column has to stay current on every mapping write. An individual
+ * initiative has no role above it, so its role comes from what Glassfrog reported for it.
  */
-function buildCounterparts(mappings: MappingRow[]): Map<string, Counterpart> {
+function buildCounterparts(
+  mappings: MappingRow[],
+  desiredById: Map<string, DesiredNode>,
+): Map<string, Counterpart> {
   const byGlassfrogId = new Map(mappings.map((m) => [m.glassfrogId, m]))
 
   const roleOf = (mapping: MappingRow): string | null => {
@@ -185,14 +193,23 @@ function buildCounterparts(mappings: MappingRow[]): Map<string, Counterpart> {
   }
 
   return new Map(
-    mappings.map((mapping) => [
-      mapping.todoistProjectId,
-      {
-        kind: mapping.kind,
-        glassfrogId: mapping.glassfrogId,
-        roleGlassfrogId: mapping.kind === 'role' ? mapping.glassfrogId : roleOf(mapping),
-      },
-    ]),
+    mappings.map((mapping) => {
+      const initiative = desiredById.get(mapping.glassfrogId)?.individualInitiative
+      const counterpart: Counterpart = initiative
+        ? {
+            kind: mapping.kind,
+            glassfrogId: mapping.glassfrogId,
+            roleGlassfrogId: initiative.roleGlassfrogId,
+            individualInitiative: true,
+          }
+        : {
+            kind: mapping.kind,
+            glassfrogId: mapping.glassfrogId,
+            roleGlassfrogId: mapping.kind === 'role' ? mapping.glassfrogId : roleOf(mapping),
+            individualInitiative: false,
+          }
+      return [mapping.todoistProjectId, counterpart]
+    }),
   )
 }
 
@@ -203,6 +220,7 @@ async function applyOperations(args: {
   rootId: string
   operations: HierarchyOperation[]
   mappings: MappingRow[]
+  desired: DesiredNode[]
 }): Promise<HierarchyResult> {
   const { userId, db, glassfrog, rootId, operations } = args
   const log = logger.child({ userId, job: 'hierarchy' })
@@ -217,7 +235,10 @@ async function applyOperations(args: {
 
   // The same relationship from the other end, for the adoption path: a project adopted
   // earlier in this pass is the parent an adoption later in it needs.
-  const counterparts = buildCounterparts(args.mappings)
+  const counterparts = buildCounterparts(
+    args.mappings,
+    new Map(args.desired.map((node) => [node.glassfrogId, node])),
+  )
 
   const resolveParent = (parentGlassfrogId: string | null): string =>
     parentGlassfrogId ? (todoistIdByGlassfrogId.get(parentGlassfrogId) ?? rootId) : rootId
@@ -252,14 +273,26 @@ async function applyOperations(args: {
         })
 
         todoistIdByGlassfrogId.set(node.glassfrogId, created.id)
-        counterparts.set(created.id, {
-          kind: node.kind,
-          glassfrogId: node.glassfrogId,
-          roleGlassfrogId:
-            node.kind === 'role'
-              ? node.glassfrogId
-              : (counterparts.get(resolveParent(node.parentGlassfrogId))?.roleGlassfrogId ?? null),
-        })
+        counterparts.set(
+          created.id,
+          node.individualInitiative
+            ? {
+                kind: node.kind,
+                glassfrogId: node.glassfrogId,
+                roleGlassfrogId: node.individualInitiative.roleGlassfrogId,
+                individualInitiative: true,
+              }
+            : {
+                kind: node.kind,
+                glassfrogId: node.glassfrogId,
+                roleGlassfrogId:
+                  node.kind === 'role'
+                    ? node.glassfrogId
+                    : (counterparts.get(resolveParent(node.parentGlassfrogId))?.roleGlassfrogId ??
+                      null),
+                individualInitiative: false,
+              },
+        )
 
         await db
           .insert(projectMapping)
@@ -293,7 +326,8 @@ async function applyOperations(args: {
           parent?.kind === 'role' ? parent.glassfrogId : (parent?.roleGlassfrogId ?? null)
 
         if (!parent || !roleGlassfrogId) {
-          // Only reachable if the parent's own adoption failed earlier in this pass.
+          // Reachable if the parent's own adoption failed earlier in this pass, or inside an
+          // individual initiative old enough to have no role recorded against it.
           log.warn(
             { todoistProjectId: operation.todoistProjectId },
             'No owning Glassfrog role for this Todoist project; skipping until next poll',
@@ -308,6 +342,7 @@ async function applyOperations(args: {
           roleId: roleGlassfrogId,
           parentProjectId: parentProjectGlassfrogId,
           name: operation.name,
+          individualInitiative: parent.individualInitiative,
         })
 
         todoistIdByGlassfrogId.set(created.id, operation.todoistProjectId)
@@ -315,6 +350,7 @@ async function applyOperations(args: {
           kind: 'project',
           glassfrogId: created.id,
           roleGlassfrogId,
+          individualInitiative: parent.individualInitiative,
         })
 
         await db.insert(projectMapping).values({

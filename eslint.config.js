@@ -9,7 +9,6 @@ export default tseslint.config(
     // Generated, vendored, or build output — none of it is hand-maintained.
     ignores: [
       'server/glassfrog/generated/**',
-      'server/glassfrog/generated-v3/**',
       'server/todoist/generated/**',
       'openapi/**',
       'drizzle/**',

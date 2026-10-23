@@ -8,7 +8,8 @@ export type Pagination = {
     per_page: number;
     has_next_page: boolean;
     /**
-     * Present when `has_next_page` is true. Pass as `?cursor=` to fetch the next page.
+     * Pass as `?cursor=` to fetch the next page. Present when `has_next_page` is true, except on feeds documented as resumable (`GET /me/messages`), where it is present whenever there is a position to resume from.
+     *
      */
     next_cursor?: string;
 };
@@ -23,6 +24,10 @@ export type Accountability = {
      * True for constitutional accountabilities defined by the Holacracy Constitution (e.g., Facilitator's meeting facilitation duties). False for org-defined custom accountabilities.
      */
     is_structural: boolean;
+    /**
+     * True when this accountability is inherited from another role (e.g., a sub-circle Lead Link inheriting from the anchor Lead Link). False for accountabilities defined directly on this role.
+     */
+    is_inherited: boolean;
 };
 
 export type DomainRef = {
@@ -35,6 +40,10 @@ export type DomainRef = {
      * True for constitutional domains defined by the Holacracy Constitution. False for org-defined custom domains.
      */
     is_structural: boolean;
+    /**
+     * True when this domain is inherited from another role (e.g., a sub-circle Lead Link inheriting from the anchor Lead Link). False for domains defined directly on this role.
+     */
+    is_inherited: boolean;
 };
 
 /**
@@ -55,6 +64,14 @@ export type Role = {
      *
      */
     name: string | null;
+    /**
+     * User-set display-name override for circle-roles (roles where
+     * `has_subroles` is true). Null for non-circle roles and for
+     * circle-roles with no override set. Useful for building compact
+     * handles or labels from the shorter name people actually use.
+     *
+     */
+    short_name?: string | null;
     purpose: string | null;
     /**
      * ID of the parent role. Null for anchor roles.
@@ -132,6 +149,12 @@ export type TreeNode = {
     id: string;
     type: 'role';
     name: string | null;
+    /**
+     * User-set display-name override for circle-roles. Null for
+     * non-circle roles and for circle-roles with no override set.
+     *
+     */
+    short_name?: string | null;
     purpose: string | null;
     /**
      * ID of the parent role. Null for the anchor role. Present on every
@@ -277,11 +300,11 @@ export type Domain = {
 };
 
 /**
- * Effective permissions for a resource. The `view` and `manage` fields report the permission group that applies, resolved for the org's public/private status.
+ * Effective permissions for a resource. The `view` field reports the permission group that applies. For projects on publicly-visible orgs, non-private visibility reports as `public`; for all other resources it reports as `org_member`.
  */
 export type Permissions = {
     /**
-     * Who can see this record. Resolved based on the org's public/private status (e.g., `visible_to_all` on a public org reports as `public`, on a private org as `org_member`).
+     * Who can see this record. For projects on publicly-visible orgs, non-private visibility is `public` (guest-accessible). For actions, metrics, and checklist items, non-private visibility is always `org_member` regardless of org visibility. `peer_roles` restricts to peer role holders in the circle.
      */
     view: 'public' | 'org_member' | 'peer_roles';
     /**
@@ -291,11 +314,35 @@ export type Permissions = {
 };
 
 /**
- * Optional permissions override. Omit to use defaults.
+ * Optional permissions override. Omit to use defaults. Which values `view` accepts depends on the resource and org visibility — see the `view` property description. Sending an invalid value returns 422.
  */
 export type PermissionsInput = {
     /**
-     * Who can see this record. `public`/`org_member` map to the default visibility; `peer_roles` restricts to peer role holders in the circle.
+     * Who can see this record. Accepted values depend on the resource and org. **Projects** on publicly-visible orgs accept `public` or `peer_roles`; `org_member` is rejected (the server cannot distinguish it from `public`). **Projects** on private orgs, and **actions, metrics, checklist items** on any org, accept `org_member` or `peer_roles`; `public` is rejected. An invalid value returns 422 with a message naming the valid choices. Agent tokens are further restricted — see the 403 response.
+     */
+    view?: 'public' | 'org_member' | 'peer_roles';
+};
+
+/**
+ * Effective permissions for a note. `org_member` and `peer_roles` are stored tiers reported as-is; a note on the default visibility reports the resolved view for the org (`public` on a publicly-visible org, `org_member` on a private org).
+ */
+export type NotePermissions = {
+    /**
+     * Who can see this note. `org_member` restricts to members of the organization — on a publicly-visible org, guests cannot see it. `peer_roles` restricts to peer role holders in the circle.
+     */
+    view: 'public' | 'org_member' | 'peer_roles';
+    /**
+     * Who can edit/delete this note.
+     */
+    manage: 'peer_roles';
+};
+
+/**
+ * Optional permissions override. Omit to use defaults.
+ */
+export type NotePermissionsInput = {
+    /**
+     * Who can see this note. `org_member` and `peer_roles` are stored exactly as requested; `org_member` hides the note from guests on a publicly-visible org. `public` stores the default visibility, whose effective view resolves by the org's public/private status. Agent-actor tokens cannot set `public` (returns 403); unrecognized values are rejected (400).
      */
     view?: 'public' | 'org_member' | 'peer_roles';
 };
@@ -312,7 +359,11 @@ export type Note = {
      */
     body: string;
     role_id: string;
-    permissions: Permissions;
+    permissions: NotePermissions;
+    /**
+     * Tag names applied to the note.
+     */
+    tags?: Array<string>;
     created_at: string;
     updated_at: string;
 };
@@ -327,7 +378,11 @@ export type NoteInput = {
          * Markdown content.
          */
         body?: string;
-        permissions?: PermissionsInput;
+        /**
+         * Move the note to a different role. The caller must have manage permission on both the current and target roles. The note keeps its id. Only valid on update (PATCH), not create (POST).
+         */
+        role_id?: string;
+        permissions?: NotePermissionsInput;
     };
 };
 
@@ -339,7 +394,7 @@ export type NoteListResponse = {
 };
 
 /**
- * A project on a role (list view).
+ * A project on a role.
  */
 export type Project = {
     id: string;
@@ -347,9 +402,15 @@ export type Project = {
     description: string;
     status: 'archived' | 'cancelled' | 'completed' | 'current' | 'scheduled' | 'someday' | 'waiting';
     /**
-     * The role that owns this project. Null for non-role-owned projects.
+     * The role this project is on. For an individual initiative, the role it was recorded against, or null for individual initiative projects that pre-date the role_id column.
+     *
      */
-    role_id: string;
+    role_id: string | null;
+    /**
+     * The person (`per_`) or agent (`agt_`) on this project: the filler whose focus it is within its role, or the owner of an individual initiative. The role, not this actor, owns a role project. Tells co-fillers of one role apart. Null when no person is recorded or the person has been removed.
+     *
+     */
+    actor_id: string | null;
     /**
      * Whether the project is an individual initiative (not owned by a specific role).
      */
@@ -387,24 +448,20 @@ export type Project = {
     /**
      * External link associated with the project.
      */
-    link?: string | null;
+    link: string | null;
     /**
      * Internal note on the project.
      */
-    note?: string | null;
+    note: string | null;
     /**
      * Perceived value rating.
      */
-    value?: number | null;
+    value: number | null;
     /**
      * Estimated effort rating.
      */
-    effort?: number | null;
+    effort: number | null;
     permissions?: Permissions;
-    /**
-     * **Transition-only.** The project's v3 sequential integer id, present ONLY when `?include_legacy_id=true` is passed. Retires when the v3 API retires.
-     */
-    legacy_id?: number | null;
 };
 
 /**
@@ -457,7 +514,7 @@ export type SearchResult = {
     /**
      * The resource type.
      */
-    type: 'role' | 'note' | 'project' | 'action' | 'skill' | 'actor' | 'policy' | 'domain';
+    type: 'role' | 'note' | 'project' | 'action' | 'skill' | 'actor' | 'policy' | 'domain' | 'circle' | 'membership' | 'goal' | 'target' | 'metric' | 'checklist_item' | 'tag';
     /**
      * The resource's unique identifier.
      */
@@ -513,7 +570,10 @@ export type PersonInput = {
          */
         name?: string;
         /**
-         * The person's email address.
+         * The person's email address: a single address. On update, if the
+         * current address is confirmed, the change waits until the new
+         * address is confirmed.
+         *
          */
         email?: string;
         /**
@@ -630,11 +690,33 @@ export type AgentContextRole = {
 /**
  * A skill as returned in list responses. Omits the full markdown `content` to keep list payloads small — fetch full content on demand via `GET /skills/{id}`.
  *
+ * Ownership of a skill derives from its kept links to roles and agents (`link_count` / `ownership`): an orphan (0 links) may be updated and deleted by any org member; a sole-owned skill (1 link) by its linked actor; a co-owned skill (2+ links) may be updated by each linked actor but deleted by none — except an org admin, whose override is unconditional. Check `ownership` before attempting a write to know which rule applies.
+ *
  */
 export type SkillSummary = {
     id: string;
     type: 'skill';
     name: string;
+    /**
+     * A short one-line description of the skill, extracted from the `description` key of the skill's YAML front-matter metadata. Used as a scannable index entry so consumers can decide which skills to fetch in full. Recommended length ~140 characters.
+     */
+    description?: string | null;
+    /**
+     * The organization this skill belongs to.
+     */
+    organization_id: string;
+    /**
+     * Visibility scope. `org` skills belong to the organization; `template` and `global` skills are cross-organization library records.
+     */
+    scope: 'org' | 'template' | 'global';
+    /**
+     * Number of kept links to live roles and agents. Links to discarded targets do not count. This is the count authorization derives ownership from.
+     */
+    link_count: number;
+    /**
+     * Ownership state derived from `link_count` — `orphan` (0), `sole` (1), `co_owned` (2+). Determines who may update and delete the skill; see the schema description.
+     */
+    ownership: 'orphan' | 'sole' | 'co_owned';
     /**
      * Tag names applied to this skill, sorted alphabetically. Tags are free-form strings organized by convention. The well-known `specialist` tag marks a skill as invokable by a sub-agent.
      *
@@ -645,13 +727,25 @@ export type SkillSummary = {
 };
 
 /**
- * A skill including the full markdown body.
+ * A skill including the full markdown body and metadata.
  */
 export type Skill = SkillSummary & {
     /**
-     * The full markdown content of the skill.
+     * The full verbatim content of the skill, including any YAML front-matter. Content in == content out.
+     *
      */
     content: string | null;
+    /**
+     * Content with the leading YAML front-matter block removed. Equal to `content` when there is no front-matter. Derived at read time, not stored. Read-only: not accepted on create or update.
+     *
+     */
+    readonly body: string | null;
+    /**
+     * YAML front-matter parsed from the skill content on save. All front-matter keys are stored as a flat JSON object. The `description` key is surfaced as the top-level `description` convenience field.
+     */
+    metadata: {
+        [key: string]: unknown;
+    };
 };
 
 /**
@@ -729,9 +823,15 @@ export type Action = {
     description: string | null;
     status: 'archived' | 'cancelled' | 'completed' | 'current' | 'scheduled' | 'someday' | 'waiting';
     /**
-     * The role that owns this action.
+     * The role that owns this action. Null for individual initiative actions that pre-date the role_id column.
+     *
      */
-    role_id: string;
+    role_id: string | null;
+    /**
+     * The person (`per_`) or agent (`agt_`) on this action: the filler whose focus it is within its role, or the owner of an individual initiative. The role, not this actor, owns a role action. Tells co-fillers of one role apart. Null when no person is recorded or the person has been removed.
+     *
+     */
+    actor_id: string | null;
     /**
      * Whether the action is an individual initiative (not owned by a specific role).
      */
@@ -749,10 +849,6 @@ export type Action = {
     permissions?: Permissions;
     trigger_event?: string | null;
     note?: string | null;
-    /**
-     * **Transition-only.** The action's v3 sequential integer id, present ONLY when `?include_legacy_id=true` is passed. Retires when the v3 API retires.
-     */
-    legacy_id?: number | null;
 };
 
 /**
@@ -794,9 +890,11 @@ export type Tension = {
     type: 'tension';
     body: string | null;
     /**
-     * Lifecycle state. `unprocessed` and `processed` are auto-computed from the
-     * presence of associated actions/projects/proposals/agenda-items. Clients
-     * can set `archived` explicitly via PATCH.
+     * Lifecycle state. `processed` means routed, not resolved: it is set once the
+     * tension has a `meeting_type` (it is on a meeting agenda) or any linked
+     * project, action, proposal or agenda item, and never reverts. Create without
+     * `meeting_type` to leave it `unprocessed`. Clients can set `archived`
+     * explicitly via PATCH.
      *
      */
     status: 'unprocessed' | 'processed' | 'archived';
@@ -805,7 +903,7 @@ export type Tension = {
      */
     role_id: string | null;
     /**
-     * The person who sensed and captured this tension.
+     * The actor who sensed and captured this tension (`agt_` for an agent, `per_` for a human).
      */
     sensed_by_id: string | null;
     created_at: string;
@@ -826,6 +924,9 @@ export type TensionInput = {
         body?: string;
         label?: string;
         status?: 'unprocessed' | 'processed' | 'archived';
+        /**
+         * Puts the tension on the role's next meeting agenda of this type, which marks it `processed`.
+         */
         meeting_type?: 'tactical' | 'governance';
     };
 };
@@ -937,18 +1038,23 @@ export type ChannelDetailResponse = {
 };
 
 export type ChannelReadStateResponse = {
-    data: {
-        /**
-         * The channel's api_id.
-         */
-        id: string;
-        type: 'channel_read_state';
-        /**
-         * Set when the watermark is role-scoped.
-         */
-        role_id?: string | null;
-        last_read_at: string;
-    };
+    data: ChannelReadState;
+};
+
+/**
+ * The caller's read watermark on one channel.
+ */
+export type ChannelReadState = {
+    /**
+     * The channel's api_id.
+     */
+    id: string;
+    type: 'channel_read_state';
+    /**
+     * Set when the watermark is role-scoped.
+     */
+    role_id?: string | null;
+    last_read_at: string;
 };
 
 /**
@@ -959,16 +1065,28 @@ export type Message = {
     type: 'message';
     channel_id: string;
     /**
-     * The sending Person's api_id.
+     * The thread the message belongs to, root included. Null for a loose channel message.
      */
-    from_person_id: string;
+    thread_id: string | null;
+    /**
+     * The sender's actor id (`agt_` for an agent, `per_` for a human). Null only for a system-authored thread root.
+     */
+    from_person_id: string | null;
+    /**
+     * Where the message came from, set by the server from the posting credential and never by the caller: `oauth:<client_id>` for an OAuth application, `glassfrog` for a system-authored thread root. Null for API keys (for now; a later change will return `key:<tok_ id>`) and for session/UI posts. Lets a bridge or relay skip its own echoes.
+     */
+    client: string | null;
     /**
      * The role the sender posted as. Required for agent senders, optional for humans (auto-derived when the caller fills exactly one role in the channel's circle).
      */
     from_role_id?: string | null;
     body: string;
     /**
-     * Optional parent message for simple threading.
+     * Wake class. `notify` — the message should be announced to its recipients. `queued` — the message is delivered into the durable inbox but must NOT actively wake the recipient; it is read at the recipient's next natural wake. Governs announcement only: queued messages are stored, listed and counted as unread exactly like notify messages.
+     */
+    delivery: 'notify' | 'queued';
+    /**
+     * The thread's root, for a reply inside a thread. Null for loose messages and roots.
      */
     parent_id?: string | null;
     /**
@@ -1005,13 +1123,161 @@ export type MessageInput = {
          */
         from_role?: string;
         /**
-         * Optional parent message api_id (threading).
+         * Message to reply to as a thread (threading). Replies are flat: the stored `parent_id` is always the thread's root.
          */
         parent?: string;
         /**
          * Optional direct-reply message api_id.
          */
         reply_to?: string;
+        /**
+         * Wake class for this message. Omit to accept the caller-derived default: agent senders default to `queued`, human senders to `notify`. An explicit value always wins. Any other value is rejected with 422.
+         */
+        delivery?: 'notify' | 'queued';
+    };
+};
+
+/**
+ * A conversation inside a channel, rooted on one message. Emergent
+ * threads have neither `anchored_to_id` nor `topic`; work-anchored
+ * threads have `anchored_to_id`; topic threads have `topic`.
+ *
+ */
+export type Thread = {
+    id: string;
+    type: 'thread';
+    /**
+     * The channel the thread lives in.
+     */
+    channel_id: string;
+    /**
+     * The work entity this thread belongs to. Typed id; v1 anchors are projects only.
+     */
+    anchored_to_id: string | null;
+    /**
+     * Opaque stable name, unique per channel — for example an external work item key such as `GF-3340`.
+     */
+    topic: string | null;
+    title: string | null;
+    /**
+     * The thread's first message. For emergent threads, the message that was replied to; for anchored and topic threads, a system-authored message posted when the thread was created.
+     */
+    root_message_id: string;
+    /**
+     * When the newest message in the thread was posted.
+     */
+    last_message_at: string;
+    created_at: string;
+    updated_at: string;
+};
+
+export type ThreadInput = {
+    thread: {
+        /**
+         * The work entity to anchor the thread to.
+         */
+        anchored_to_id?: string;
+        /**
+         * The thread's topic.
+         */
+        topic?: string;
+        /**
+         * Optional display title.
+         */
+        title?: string;
+        /**
+         * The role to act as (api_id), under the same rule as a message post: required for agents (422 when missing); optional for humans when unambiguous. Must be a role the caller currently fills (422 otherwise). Not stored on the thread.
+         */
+        from_role?: string;
+    };
+};
+
+export type ThreadPromotionInput = {
+    thread: {
+        /**
+         * The work entity to anchor the thread to.
+         */
+        anchored_to_id?: string;
+        /**
+         * The thread's topic.
+         */
+        topic?: string;
+        /**
+         * The role to act as (api_id), under the same rule as a message post: required for agents (422 when missing); optional for humans when unambiguous. Must be a role the caller currently fills (422 otherwise). Not stored on the thread.
+         */
+        from_role?: string;
+    };
+};
+
+/**
+ * A record of an agent session, exactly as GlassFrog stored it.
+ *
+ * The fields are a projection of what the start/end lifecycle calls
+ * wrote — no liveness is computed on read. `status` is therefore the
+ * organization's *belief* about the session, which is precisely what
+ * makes it useful for reconciliation against host truth.
+ *
+ */
+export type AgentSession = {
+    id: string;
+    type: 'agent_session';
+    /**
+     * The agent this session belongs to.
+     */
+    agent_id: string;
+    /**
+     * The role the session was started for. Null for an agent-level session that is not scoped to any role.
+     */
+    role_id: string | null;
+    /**
+     * The assignment backing a role session, when there is one.
+     */
+    assignment_id: string | null;
+    /**
+     * Topic scoping the session, typically a ticket id. Null for a primary session. Several topic sessions may share one role.
+     */
+    topic: string | null;
+    /**
+     * Client-supplied identifier for the session (for example a tmux session name). Free text, set by the caller at start and never server-generated, so it is only as meaningful and as unique as the caller made it. Filter on it to recover your own record.
+     */
+    identifier: string | null;
+    /**
+     * The stored lifecycle state. `active` means no end call was recorded — not that the session is verified running.
+     */
+    status: 'active' | 'ended';
+    /**
+     * What the session accomplished. Written when it ends.
+     */
+    summary: string | null;
+    started_at: string;
+    /**
+     * When the session was recorded as ended. Null while active.
+     */
+    ended_at: string | null;
+    /**
+     * Last heartbeat timestamp. Stamped by the heartbeat endpoint; sessions that predate the feature carry a backfilled value. Null for ended sessions that were never heartbeated.
+     */
+    last_seen_at: string | null;
+    /**
+     * Client-declared heartbeat interval in seconds. Used to derive the stale threshold (3× interval). Null uses the server default (60 seconds).
+     */
+    heartbeat_interval: number | null;
+    /**
+     * Derived on read from last_seen_at and heartbeat_interval. fresh = within 3× interval; stale = past 3× interval but not yet expired; ended = session is ended; unknown = no heartbeat data.
+     */
+    liveness_state: 'fresh' | 'stale' | 'ended' | 'unknown';
+    /**
+     * Why the session ended. Set by endSession or the expiry job. Null for active sessions or ended sessions that predate this field.
+     */
+    ended_reason: 'final' | 'idle' | 'context_full' | 'expired';
+    created_at: string;
+    updated_at: string;
+};
+
+export type AgentSessionListResponse = {
+    data: Array<AgentSession>;
+    meta: {
+        pagination: Pagination;
     };
 };
 
@@ -1095,6 +1361,9 @@ export type ProgressUpdate = {
     value: number | null;
     health: 'on_track' | 'needs_attention' | 'at_risk';
     note: string | null;
+    /**
+     * The actor who posted the update (`agt_` for an agent, `per_` for a human).
+     */
     creator_id: string | null;
     created_at: string;
     updated_at: string;
@@ -1121,11 +1390,6 @@ export type SkillInput = {
          * Markdown content.
          */
         content?: string;
-        /**
-         * Tag names to apply to the skill (case-insensitive). On update, the supplied array replaces the full tag set; pass [] to clear all tags, omit to leave tags unchanged. The well-known `specialist` tag marks a skill as invokable by a sub-agent.
-         *
-         */
-        tags?: Array<string>;
     };
 };
 
@@ -1173,13 +1437,6 @@ export type Context = {
     agent?: ContextAgent;
     role: ContextRole;
     governance: ContextGovernance;
-    /**
-     * Index of every skill in the org library (id + name only). Lets agents
-     * know what's available to load on demand via getSkill, beyond the
-     * skills already linked to their role.
-     *
-     */
-    org_skills: Array<ContextSkillIndex>;
 };
 
 /**
@@ -1204,7 +1461,8 @@ export type ContextAgent = {
      */
     context?: string | null;
     /**
-     * Agent-level skills (fetch full content via getSkill).
+     * Agent-level skills. Boot-loaded skills include their body inline; index-only skills are listed for on-demand fetching via getSkill.
+     *
      */
     skills?: Array<ContextSkillIndex>;
 };
@@ -1281,7 +1539,8 @@ export type ContextRole = {
     accountabilities: Array<Accountability>;
     domains: Array<DomainRef>;
     /**
-     * Role-level skills (fetch full content via getSkill).
+     * Role-level skills. Boot-loaded skills include their body inline; index-only skills are listed for on-demand fetching via getSkill.
+     *
      */
     skills: Array<ContextSkillIndex>;
     /**
@@ -1311,9 +1570,32 @@ export type ContextParentRole = {
     policies?: Array<ContextIndexEntry>;
 } | null;
 
+/**
+ * A skill entry in a context response. Always includes `id`, `name`,
+ * `description`, and `load_at_boot`. The skill's body (content minus
+ * YAML front-matter) is present when `load_at_boot` is true OR when
+ * `include_skills` was requested; otherwise the entry is an index
+ * pointer for on-demand fetching via getSkill.
+ *
+ */
 export type ContextSkillIndex = {
     id: string;
     name: string;
+    /**
+     * One-line description from the skill's YAML front-matter. Null when the skill has no front-matter description key.
+     *
+     */
+    description: string | null;
+    /**
+     * Whether the skill body is inlined at boot (`true`) or listed as an index-only entry for on-demand fetching (`false`). Default for new links is `false`.
+     *
+     */
+    load_at_boot: boolean;
+    /**
+     * Skill content with the YAML front-matter block stripped. Present when `load_at_boot` is true OR `include_skills` was requested.
+     *
+     */
+    body?: string;
 };
 
 export type ContextGovernance = {
@@ -1357,6 +1639,10 @@ export type ContextIndexEntry = {
      */
     excerpt?: string;
     /**
+     * Full content (present for policies, which bind the role).
+     */
+    body?: string;
+    /**
      * Status (present for projects and actions).
      */
     status?: string;
@@ -1384,6 +1670,9 @@ export type Proposal = {
      *
      */
     circle_id?: string | null;
+    /**
+     * The actor who made the proposal (`agt_` for an agent, `per_` for a human).
+     */
     proposer_id?: string | null;
     proposed_at?: string | null;
     response_deadline?: string | null;
@@ -1424,6 +1713,27 @@ export type Proposal = {
      */
     received_response_count?: number;
     /**
+     * Whether the proposal's changes currently pass validation. Present
+     * on single-proposal responses, not on list entries.
+     *
+     */
+    valid?: boolean;
+    /**
+     * Validation errors and warnings for the proposal's changes. Present
+     * on single-proposal responses, not on list entries.
+     *
+     */
+    validation_alerts?: Array<{
+        severity: 'error' | 'warning';
+        /**
+         * Location of the problem, e.g. `accountabilities/acct_...`.
+         * Ids in the path are TypeIDs.
+         *
+         */
+        path: string;
+        message: string;
+    }>;
+    /**
      * Action names this caller may invoke on this proposal right now.
      * Filtered by both current-state guards and caller authorization.
      * Each name maps to a path: `POST /proposals/{id}/<name>`.
@@ -1436,25 +1746,658 @@ export type Proposal = {
 };
 
 /**
- * A governance command (create role, add accountability, remove domain,
- * etc.). Shape varies by change type — `type` is always present; other
- * keys are free-form based on the command's schema.
+ * A governance change command within a proposal. Shape varies by `type`,
+ * which serves as the discriminator.
  *
- * Nested-only types (`CreateAccountability`, `UpdateAccountability`,
+ * **Top-level types** — valid as direct children of a proposal's
+ * `changes` array: `CreateRole`, `UpdateRole`, `RemoveRole`,
+ * `CreatePolicy`, `UpdatePolicy`, `RemovePolicy`, `CreateLinkedRole`,
+ * `UpdateLinkedRole`, `MoveRole`, `MovePolicy`, `MoveItems`,
+ * `ElectRoleFiller`.
+ *
+ * **Nested-only types** — must appear within the `children` array of a
+ * role-level change (`CreateRole`, `UpdateRole`, or
+ * `UpdateLinkedRole`), not as top-level proposal changes:
+ * `CreateAccountability`, `UpdateAccountability`,
  * `RemoveAccountability`, `CreateDomain`, `UpdateDomain`,
- * `RemoveDomain`) must appear as children of `CreateRole` or
- * `UpdateRole`, not as top-level proposal changes.
+ * `RemoveDomain`. The server rejects nested-only types at the top level
+ * with a 422 error naming the valid parent types.
+ *
+ * **Read-only types** — appear on older proposals but are not accepted
+ * on input: `CreateRoleNote`, `UpdateRoleNote`, `RemoveRoleNote`,
+ * `UpdateTags`. They carry only `id`, `type` and (role notes)
+ * `target_id`.
+ *
+ * On input, the `type` field also accepts `snake_case` and aliases
+ * (e.g. `remove_role`, `DeleteRole` → `RemoveRole`). Responses always
+ * use the canonical PascalCase names shown in the discriminator.
+ *
+ * **Identifier fields** use `snake_case` with `_id` suffix and carry
+ * TypeID values (e.g. `role_id: "role_abc..."`, `target_id: "pol_abc..."`).
+ * The `target_id` field identifies the entity being created, updated,
+ * or removed — its TypeID prefix indicates the entity type.
  *
  */
-export type ProposalChange = {
+export type ProposalChange = ({
+    type: 'CreateRole';
+} & CreateRoleChange) | ({
+    type: 'UpdateRole';
+} & UpdateRoleChange) | ({
+    type: 'RemoveRole';
+} & RemoveRoleChange) | ({
+    type: 'CreatePolicy';
+} & CreatePolicyChange) | ({
+    type: 'UpdatePolicy';
+} & UpdatePolicyChange) | ({
+    type: 'RemovePolicy';
+} & RemovePolicyChange) | ({
+    type: 'CreateLinkedRole';
+} & CreateLinkedRoleChange) | ({
+    type: 'UpdateLinkedRole';
+} & UpdateLinkedRoleChange) | ({
+    type: 'MoveRole';
+} & MoveRoleChange) | ({
+    type: 'MovePolicy';
+} & MovePolicyChange) | ({
+    type: 'MoveItems';
+} & MoveItemsChange) | ({
+    type: 'ElectRoleFiller';
+} & ElectRoleFillerChange) | ({
+    type: 'CreateAccountability';
+} & CreateAccountabilityChange) | ({
+    type: 'UpdateAccountability';
+} & UpdateAccountabilityChange) | ({
+    type: 'RemoveAccountability';
+} & RemoveAccountabilityChange) | ({
+    type: 'CreateDomain';
+} & CreateDomainChange) | ({
+    type: 'UpdateDomain';
+} & UpdateDomainChange) | ({
+    type: 'RemoveDomain';
+} & RemoveDomainChange) | ({
+    type: 'CreateRoleNote';
+} & CreateRoleNoteChange) | ({
+    type: 'UpdateRoleNote';
+} & UpdateRoleNoteChange) | ({
+    type: 'RemoveRoleNote';
+} & RemoveRoleNoteChange) | ({
+    type: 'UpdateTags';
+} & UpdateTagsChange);
+
+/**
+ * Create a new role in the circle.
+ */
+export type CreateRoleChange = {
     /**
-     * Stable identifier for the change within the proposal.
+     * Change ID (TypeID), assigned by the server. Top-level changes
+     * only; nested `children` carry no id. Ignored on input.
+     *
      */
     id?: string;
+    type: 'CreateRole';
     /**
-     * Governance command type.
+     * TypeID of the new role (assigned by the server on creation).
      */
-    type: 'CreateRole' | 'UpdateRole' | 'RemoveRole' | 'CreateAccountability' | 'UpdateAccountability' | 'RemoveAccountability' | 'CreateDomain' | 'UpdateDomain' | 'RemoveDomain' | 'CreatePolicy' | 'UpdatePolicy' | 'RemovePolicy' | 'CreateRoleNote' | 'UpdateRoleNote' | 'RemoveRoleNote' | 'CreateLinkedRole' | 'UpdateLinkedRole' | 'MoveRole' | 'MovePolicy' | 'MoveItems' | 'ElectRoleFiller';
+    target_id?: string;
+    /**
+     * Role name.
+     */
+    name?: string;
+    /**
+     * Role purpose statement.
+     */
+    purpose?: string;
+    /**
+     * When true, the new role is expanded into a sub-circle.
+     */
+    expand?: boolean;
+    /**
+     * Nested changes applied to the new role — accountabilities,
+     * domains, and move operations.
+     *
+     */
+    children?: Array<ProposalChange>;
+    [key: string]: unknown;
+};
+
+/**
+ * Update an existing role.
+ */
+export type UpdateRoleChange = {
+    /**
+     * Change ID (TypeID), assigned by the server. Top-level changes
+     * only; nested `children` carry no id. Ignored on input.
+     *
+     */
+    id?: string;
+    type: 'UpdateRole';
+    /**
+     * TypeID of the role to update. Required on input.
+     * Omitted from responses when the target no longer exists (e.g. it
+     * was hard-deleted).
+     *
+     */
+    target_id?: string;
+    /**
+     * New role name.
+     */
+    name?: string;
+    /**
+     * New role purpose statement.
+     */
+    purpose?: string;
+    /**
+     * Expand the role into a sub-circle.
+     */
+    expand?: boolean;
+    /**
+     * When true, removes the role entirely (equivalent to RemoveRole).
+     */
+    destroy?: boolean;
+    /**
+     * Nested changes applied to the role — accountabilities,
+     * domains, and move operations.
+     *
+     */
+    children?: Array<ProposalChange>;
+    [key: string]: unknown;
+};
+
+/**
+ * Remove a role from the circle.
+ */
+export type RemoveRoleChange = {
+    /**
+     * Change ID (TypeID), assigned by the server. Top-level changes
+     * only; nested `children` carry no id. Ignored on input.
+     *
+     */
+    id?: string;
+    type: 'RemoveRole';
+    /**
+     * TypeID of the role to remove. Required on input.
+     * Omitted from responses when the target no longer exists (e.g. it
+     * was hard-deleted).
+     *
+     */
+    target_id?: string;
+    [key: string]: unknown;
+};
+
+/**
+ * Create a new policy in the circle.
+ */
+export type CreatePolicyChange = {
+    /**
+     * Change ID (TypeID), assigned by the server. Top-level changes
+     * only; nested `children` carry no id. Ignored on input.
+     *
+     */
+    id?: string;
+    type: 'CreatePolicy';
+    /**
+     * TypeID of the new policy (assigned by the server on creation).
+     */
+    target_id?: string;
+    /**
+     * TypeID of the role this policy belongs to.
+     */
+    role_id?: string;
+    /**
+     * TypeID of the domain this policy governs.
+     */
+    domain_id?: string;
+    /**
+     * Policy title.
+     */
+    title?: string;
+    /**
+     * Policy body text.
+     */
+    body?: string;
+    [key: string]: unknown;
+};
+
+/**
+ * Update an existing policy.
+ */
+export type UpdatePolicyChange = {
+    /**
+     * Change ID (TypeID), assigned by the server. Top-level changes
+     * only; nested `children` carry no id. Ignored on input.
+     *
+     */
+    id?: string;
+    type: 'UpdatePolicy';
+    /**
+     * TypeID of the policy to update. Required on input.
+     * Omitted from responses when the target no longer exists (e.g. it
+     * was hard-deleted).
+     *
+     */
+    target_id?: string;
+    /**
+     * TypeID of the domain this policy governs.
+     */
+    domain_id?: string;
+    /**
+     * Updated policy title.
+     */
+    title?: string;
+    /**
+     * Updated policy body text.
+     */
+    body?: string;
+    /**
+     * When true, removes the policy (equivalent to RemovePolicy).
+     */
+    destroy?: boolean;
+    [key: string]: unknown;
+};
+
+/**
+ * Remove a policy from the circle.
+ */
+export type RemovePolicyChange = {
+    /**
+     * Change ID (TypeID), assigned by the server. Top-level changes
+     * only; nested `children` carry no id. Ignored on input.
+     *
+     */
+    id?: string;
+    type: 'RemovePolicy';
+    /**
+     * TypeID of the policy to remove. Required on input.
+     * Omitted from responses when the target no longer exists (e.g. it
+     * was hard-deleted).
+     *
+     */
+    target_id?: string;
+    [key: string]: unknown;
+};
+
+/**
+ * Create a cross-link to a role from another circle.
+ */
+export type CreateLinkedRoleChange = {
+    /**
+     * Change ID (TypeID), assigned by the server. Top-level changes
+     * only; nested `children` carry no id. Ignored on input.
+     *
+     */
+    id?: string;
+    type: 'CreateLinkedRole';
+    /**
+     * TypeID of the new linked role (assigned by the server on creation).
+     */
+    target_id?: string;
+    /**
+     * TypeID of the role to cross-link.
+     */
+    original_role_id: string;
+    /**
+     * TypeID of the circle's supported role to link into.
+     */
+    circle_id: string;
+    [key: string]: unknown;
+};
+
+/**
+ * Update a cross-linked role.
+ */
+export type UpdateLinkedRoleChange = {
+    /**
+     * Change ID (TypeID), assigned by the server. Top-level changes
+     * only; nested `children` carry no id. Ignored on input.
+     *
+     */
+    id?: string;
+    type: 'UpdateLinkedRole';
+    /**
+     * TypeID of the linked role to update. Required on input.
+     * Omitted from responses when the target no longer exists (e.g. it
+     * was hard-deleted).
+     *
+     */
+    target_id?: string;
+    /**
+     * When true, removes the cross-link.
+     */
+    destroy?: boolean;
+    /**
+     * Nested changes applied to the linked role.
+     */
+    children?: Array<ProposalChange>;
+    [key: string]: unknown;
+};
+
+/**
+ * Move a role from one circle to another.
+ */
+export type MoveRoleChange = {
+    /**
+     * Change ID (TypeID), assigned by the server. Top-level changes
+     * only; nested `children` carry no id. Ignored on input.
+     *
+     */
+    id?: string;
+    type: 'MoveRole';
+    /**
+     * TypeID of the role to move.
+     */
+    role_id: string;
+    /**
+     * TypeID of the source circle's supported role.
+     */
+    from_role_id?: string;
+    /**
+     * TypeID of the destination circle's supported role.
+     */
+    to_role_id?: string;
+    [key: string]: unknown;
+};
+
+/**
+ * Move a policy from one circle to another.
+ */
+export type MovePolicyChange = {
+    /**
+     * Change ID (TypeID), assigned by the server. Top-level changes
+     * only; nested `children` carry no id. Ignored on input.
+     *
+     */
+    id?: string;
+    type: 'MovePolicy';
+    /**
+     * TypeID of the policy to move.
+     */
+    policy_id: string;
+    /**
+     * TypeID of the source circle's supported role.
+     */
+    from_role_id?: string;
+    /**
+     * TypeID of the destination circle's supported role.
+     */
+    to_role_id?: string;
+    [key: string]: unknown;
+};
+
+/**
+ * Restructure — move roles and policies between circles.
+ */
+export type MoveItemsChange = {
+    /**
+     * Change ID (TypeID), assigned by the server. Top-level changes
+     * only; nested `children` carry no id. Ignored on input.
+     *
+     */
+    id?: string;
+    type: 'MoveItems';
+    /**
+     * TypeID of the parent role.
+     */
+    role_id: string;
+    /**
+     * TypeID of the child role being restructured.
+     */
+    child_role_id: string;
+    /**
+     * Move operations to apply.
+     */
+    children?: Array<ProposalChange>;
+    [key: string]: unknown;
+};
+
+/**
+ * Elect or remove a role filler via governance.
+ */
+export type ElectRoleFillerChange = {
+    /**
+     * Change ID (TypeID), assigned by the server. Top-level changes
+     * only; nested `children` carry no id. Ignored on input.
+     *
+     */
+    id?: string;
+    type: 'ElectRoleFiller';
+    /**
+     * TypeID of the role to elect into.
+     */
+    role_id: string;
+    /**
+     * Actor id of the person or agent being elected (`agt_` for an agent, `per_` for a human).
+     */
+    person_id?: string;
+    /**
+     * End date of the election term (`YYYY-MM-DD`), as on the resulting
+     * assignment's `elected_until`. Optional while drafting, but the
+     * proposal can't be proposed without it: a missing or past date
+     * raises a validation alert on this field. Any other format is
+     * rejected with a 422.
+     *
+     */
+    elected_until?: string | null;
+    [key: string]: unknown;
+};
+
+/**
+ * Add an accountability to a role. **Nested-only** — must appear
+ * within the `children` array of `CreateRole`, `UpdateRole`, or
+ * `UpdateLinkedRole`, not as a top-level proposal change.
+ *
+ */
+export type CreateAccountabilityChange = {
+    /**
+     * Change ID (TypeID), assigned by the server. Top-level changes
+     * only; nested `children` carry no id. Ignored on input.
+     *
+     */
+    id?: string;
+    type: 'CreateAccountability';
+    /**
+     * TypeID of the new accountability (assigned by the server on creation).
+     */
+    target_id?: string;
+    /**
+     * Accountability text.
+     */
+    description?: string;
+    [key: string]: unknown;
+};
+
+/**
+ * Update an existing accountability. **Nested-only** — must appear
+ * within the `children` array of a role-level change.
+ *
+ */
+export type UpdateAccountabilityChange = {
+    /**
+     * Change ID (TypeID), assigned by the server. Top-level changes
+     * only; nested `children` carry no id. Ignored on input.
+     *
+     */
+    id?: string;
+    type: 'UpdateAccountability';
+    /**
+     * TypeID of the accountability to update. Required on input.
+     * Omitted from responses when the target no longer exists (e.g. it
+     * was hard-deleted).
+     *
+     */
+    target_id?: string;
+    /**
+     * Updated accountability text.
+     */
+    description?: string;
+    [key: string]: unknown;
+};
+
+/**
+ * Remove an accountability from a role. **Nested-only** — must appear
+ * within the `children` array of a role-level change.
+ *
+ */
+export type RemoveAccountabilityChange = {
+    /**
+     * Change ID (TypeID), assigned by the server. Top-level changes
+     * only; nested `children` carry no id. Ignored on input.
+     *
+     */
+    id?: string;
+    type: 'RemoveAccountability';
+    /**
+     * TypeID of the accountability to remove. Required on input.
+     * Omitted from responses when the target no longer exists (e.g. it
+     * was hard-deleted).
+     *
+     */
+    target_id?: string;
+    [key: string]: unknown;
+};
+
+/**
+ * Add a domain to a role. **Nested-only** — must appear within the
+ * `children` array of `CreateRole`, `UpdateRole`, or
+ * `UpdateLinkedRole`, not as a top-level proposal change.
+ *
+ */
+export type CreateDomainChange = {
+    /**
+     * Change ID (TypeID), assigned by the server. Top-level changes
+     * only; nested `children` carry no id. Ignored on input.
+     *
+     */
+    id?: string;
+    type: 'CreateDomain';
+    /**
+     * TypeID of the new domain (assigned by the server on creation).
+     */
+    target_id?: string;
+    /**
+     * Domain text.
+     */
+    description?: string;
+    [key: string]: unknown;
+};
+
+/**
+ * Update an existing domain. **Nested-only** — must appear within the
+ * `children` array of a role-level change.
+ *
+ */
+export type UpdateDomainChange = {
+    /**
+     * Change ID (TypeID), assigned by the server. Top-level changes
+     * only; nested `children` carry no id. Ignored on input.
+     *
+     */
+    id?: string;
+    type: 'UpdateDomain';
+    /**
+     * TypeID of the domain to update. Required on input.
+     * Omitted from responses when the target no longer exists (e.g. it
+     * was hard-deleted).
+     *
+     */
+    target_id?: string;
+    /**
+     * Updated domain text.
+     */
+    description?: string;
+    [key: string]: unknown;
+};
+
+/**
+ * Remove a domain from a role. **Nested-only** — must appear within
+ * the `children` array of a role-level change.
+ *
+ */
+export type RemoveDomainChange = {
+    /**
+     * Change ID (TypeID), assigned by the server. Top-level changes
+     * only; nested `children` carry no id. Ignored on input.
+     *
+     */
+    id?: string;
+    type: 'RemoveDomain';
+    /**
+     * TypeID of the domain to remove. Required on input.
+     * Omitted from responses when the target no longer exists (e.g. it
+     * was hard-deleted).
+     *
+     */
+    target_id?: string;
+    [key: string]: unknown;
+};
+
+/**
+ * Create a role note. **Read-only** — not accepted on input.
+ */
+export type CreateRoleNoteChange = {
+    /**
+     * Change ID (TypeID), assigned by the server. Top-level changes
+     * only; nested `children` carry no id. Ignored on input.
+     *
+     */
+    id?: string;
+    type: 'CreateRoleNote';
+    /**
+     * TypeID of the created role note. Omitted when the note no longer exists.
+     *
+     */
+    target_id?: string;
+    [key: string]: unknown;
+};
+
+/**
+ * Update a role note. **Read-only** — not accepted on input.
+ */
+export type UpdateRoleNoteChange = {
+    /**
+     * Change ID (TypeID), assigned by the server. Top-level changes
+     * only; nested `children` carry no id. Ignored on input.
+     *
+     */
+    id?: string;
+    type: 'UpdateRoleNote';
+    /**
+     * TypeID of the role note. Omitted when the note no longer exists.
+     *
+     */
+    target_id?: string;
+    [key: string]: unknown;
+};
+
+/**
+ * Remove a role note. **Read-only** — not accepted on input.
+ */
+export type RemoveRoleNoteChange = {
+    /**
+     * Change ID (TypeID), assigned by the server. Top-level changes
+     * only; nested `children` carry no id. Ignored on input.
+     *
+     */
+    id?: string;
+    type: 'RemoveRoleNote';
+    /**
+     * TypeID of the removed role note. Omitted when the note no longer exists.
+     *
+     */
+    target_id?: string;
+    [key: string]: unknown;
+};
+
+/**
+ * Change the tags on a governance record. **Read-only** — not accepted on input.
+ */
+export type UpdateTagsChange = {
+    /**
+     * Change ID (TypeID), assigned by the server. Top-level changes
+     * only; nested `children` carry no id. Ignored on input.
+     *
+     */
+    id?: string;
+    type: 'UpdateTags';
     [key: string]: unknown;
 };
 
@@ -1499,6 +2442,104 @@ export type CreateProposalResponseRequest = {
 };
 
 /**
+ * A role-to-role work request (list view).
+ */
+export type WorkRequestSummary = {
+    id: string;
+    type: 'work_request';
+    request_type: 'project' | 'action';
+    status: 'requested' | 'accepted' | 'accepted_with_edits' | 'rejected';
+    description: string;
+    /**
+     * The role filing the request.
+     */
+    from_role_id: string;
+    /**
+     * The role receiving the request.
+     */
+    to_role_id: string;
+    /**
+     * The actor who filed the request (`agt_` for an agent, `per_` for a human).
+     */
+    requester_id: string;
+    /**
+     * Transitions available to the caller. Non-empty only when the request is in `requested` status and the caller fills `to_role`.
+     */
+    available_transitions?: Array<'accept' | 'accept_with_edits' | 'reject'>;
+    created_at: string;
+    updated_at: string;
+};
+
+/**
+ * A role-to-role work request (detail view).
+ */
+export type WorkRequest = {
+    id: string;
+    type: 'work_request';
+    request_type: 'project' | 'action';
+    status: 'requested' | 'accepted' | 'accepted_with_edits' | 'rejected';
+    description: string;
+    note?: string | null;
+    /**
+     * The role filing the request.
+     */
+    from_role_id: string;
+    /**
+     * The role receiving the request.
+     */
+    to_role_id: string;
+    /**
+     * The actor who filed the request (`agt_` for an agent, `per_` for a human).
+     */
+    requester_id: string;
+    /**
+     * The actor who accepted or rejected the request (`agt_` for an agent, `per_` for a human).
+     */
+    decided_by_id?: string | null;
+    /**
+     * The role on whose behalf the decision was made.
+     */
+    decided_by_role_id?: string | null;
+    decided_at?: string | null;
+    /**
+     * The api_id of the project or action created on acceptance.
+     */
+    work_item_id?: string | null;
+    /**
+     * The type of work item created on acceptance.
+     */
+    work_item_type?: 'project' | 'action';
+    /**
+     * Transitions available to the caller. Non-empty only when the request is in `requested` status and the caller fills `to_role`.
+     */
+    available_transitions?: Array<'accept' | 'accept_with_edits' | 'reject'>;
+    created_at: string;
+    updated_at: string;
+};
+
+export type WorkRequestInput = {
+    work_request: {
+        request_type: 'project' | 'action';
+        /**
+         * The role filing the request (caller must fill this role).
+         */
+        from_role_id: string;
+        /**
+         * The role receiving the request.
+         */
+        to_role_id: string;
+        /**
+         * Description of the requested work item.
+         */
+        description: string;
+        /**
+         * Optional note for the work item.
+         */
+        note?: string | null;
+    };
+};
+
+/**
  * RFC 9457 Problem Details error object (backward-compatible successor to RFC 7807). All 4xx and 5xx responses from the API use this shape. Additional members may be present as RFC 9457 "extensions".
  */
 export type ProblemDetails = {
@@ -1530,6 +2571,10 @@ export type ProblemDetails = {
      * Extension member. Present on a 422 that rejects content for being too large. Names the server configuration key that produced `max_content_length`, so a limit that looks wrong can be traced to the setting that set it.
      */
     limit_config_key?: string;
+    /**
+     * Extension member. Machine-readable denial reason, present on 403 responses raised by skill authorization rules so a denied caller can tell which rule applied. `ai_integration_disabled` — the organization's AI-integration flag is off. `ownership_required` — the caller is not a linked owner of the skill (ownership derives from kept skill links). `sole_ownership_required` — the skill is co-owned (2+ kept links); delete requires sole ownership. `self_link_only` — link and unlink targets may only be the caller's own agent, or a role the caller fills.
+     */
+    reason?: 'ai_integration_disabled' | 'ownership_required' | 'sole_ownership_required' | 'self_link_only';
 };
 
 /**
@@ -1538,9 +2583,45 @@ export type ProblemDetails = {
 export type ContentSizeWarnings = Array<string>;
 
 /**
+ * A skill including the full markdown body and metadata.
+ */
+export type SkillWritable = SkillSummary & {
+    /**
+     * The full verbatim content of the skill, including any YAML front-matter. Content in == content out.
+     *
+     */
+    content: string | null;
+    /**
+     * YAML front-matter parsed from the skill content on save. All front-matter keys are stored as a flat JSON object. The `description` key is surfaced as the top-level `description` convenience field.
+     */
+    metadata: {
+        [key: string]: unknown;
+    };
+};
+
+/**
+ * A skill with optional included resources.
+ */
+export type SkillDetailWritable = SkillWritable & {
+    /**
+     * Present when `?include=roles` is requested.
+     */
+    roles?: Array<Role>;
+};
+
+export type SkillDetailResponseWritable = {
+    data: SkillDetailWritable;
+};
+
+/**
  * Number of results per page (1–500, default 100). Values above the maximum return `400 Bad Request`; blank, zero, negative, or non-numeric values fall back to the default of 100.
  */
 export type PerPage = number;
+
+/**
+ * Number of results per page for the goal and target endpoints. Omit `per_page` and these endpoints return 25 records. The maximum is 500; a larger value returns `400 Bad Request`. A blank, zero, negative, or non-numeric value is not rejected — it sets the page size to 100, not to 25.
+ */
+export type PerPageGoalsAndTargets = number;
 
 /**
  * Cursor from a previous response's `meta.pagination.next_cursor`.
@@ -1573,6 +2654,11 @@ export type IfMatch = string;
  *
  */
 export type Q = string;
+
+/**
+ * Only items whose `actor_id` is this person (`per_`) or agent (`agt_`). Splits the items of a role filled by several people. An unknown, invisible, or malformed id returns an empty list, not an error.
+ */
+export type ActorIdFilter = string;
 
 /**
  * **Transition-only.** When `true`, each resource in the response
@@ -1722,6 +2808,10 @@ export type GetRoleErrors = {
      * Resource not found or API v5 not enabled for this organization.
      */
     404: ProblemDetails;
+    /**
+     * Validation error — for example, a request body fails schema validation, or a path/query parameter does not match the expected TypeID format (`<prefix>_<32hex>`).
+     */
+    422: ProblemDetails;
 };
 
 export type GetRoleError = GetRoleErrors[keyof GetRoleErrors];
@@ -1785,6 +2875,10 @@ export type ListSubrolesErrors = {
      * Resource not found or API v5 not enabled for this organization.
      */
     404: ProblemDetails;
+    /**
+     * Validation error — for example, a request body fails schema validation, or a path/query parameter does not match the expected TypeID format (`<prefix>_<32hex>`).
+     */
+    422: ProblemDetails;
 };
 
 export type ListSubrolesError = ListSubrolesErrors[keyof ListSubrolesErrors];
@@ -1837,6 +2931,10 @@ export type ListSubrolesActorsErrors = {
      * Resource not found or API v5 not enabled for this organization.
      */
     404: ProblemDetails;
+    /**
+     * Validation error — for example, a request body fails schema validation, or a path/query parameter does not match the expected TypeID format (`<prefix>_<32hex>`).
+     */
+    422: ProblemDetails;
 };
 
 export type ListSubrolesActorsError = ListSubrolesActorsErrors[keyof ListSubrolesActorsErrors];
@@ -1885,6 +2983,10 @@ export type ListSubrolesPeopleErrors = {
      * Resource not found or API v5 not enabled for this organization.
      */
     404: ProblemDetails;
+    /**
+     * Validation error — for example, a request body fails schema validation, or a path/query parameter does not match the expected TypeID format (`<prefix>_<32hex>`).
+     */
+    422: ProblemDetails;
 };
 
 export type ListSubrolesPeopleError = ListSubrolesPeopleErrors[keyof ListSubrolesPeopleErrors];
@@ -1941,6 +3043,10 @@ export type ListSubrolesProjectsErrors = {
      * Resource not found or API v5 not enabled for this organization.
      */
     404: ProblemDetails;
+    /**
+     * Validation error — for example, a request body fails schema validation, or a path/query parameter does not match the expected TypeID format (`<prefix>_<32hex>`).
+     */
+    422: ProblemDetails;
 };
 
 export type ListSubrolesProjectsError = ListSubrolesProjectsErrors[keyof ListSubrolesProjectsErrors];
@@ -1980,6 +3086,11 @@ export type ListSubrolesActionsData = {
          * Filter by action status.
          */
         status?: 'archived' | 'cancelled' | 'completed' | 'current' | 'scheduled' | 'someday' | 'waiting';
+        /**
+         * When `true`, returns individual initiative actions for sub-role circles instead of role-owned actions. Omit or pass `false` for the default behavior.
+         *
+         */
+        individual_initiative?: boolean;
     };
     url: '/roles/{id}/subroles/actions';
 };
@@ -1994,7 +3105,7 @@ export type ListSubrolesActionsErrors = {
      */
     404: ProblemDetails;
     /**
-     * Validation error.
+     * Validation error — for example, a request body fails schema validation, or a path/query parameter does not match the expected TypeID format (`<prefix>_<32hex>`).
      */
     422: ProblemDetails;
 };
@@ -2045,6 +3156,10 @@ export type ListSubrolesPoliciesErrors = {
      * Resource not found or API v5 not enabled for this organization.
      */
     404: ProblemDetails;
+    /**
+     * Validation error — for example, a request body fails schema validation, or a path/query parameter does not match the expected TypeID format (`<prefix>_<32hex>`).
+     */
+    422: ProblemDetails;
 };
 
 export type ListSubrolesPoliciesError = ListSubrolesPoliciesErrors[keyof ListSubrolesPoliciesErrors];
@@ -2117,6 +3232,10 @@ export type GetRoleTreeErrors = {
      * Resource not found or API v5 not enabled for this organization.
      */
     404: ProblemDetails;
+    /**
+     * Validation error — for example, a request body fails schema validation, or a path/query parameter does not match the expected TypeID format (`<prefix>_<32hex>`).
+     */
+    422: ProblemDetails;
 };
 
 export type GetRoleTreeError = GetRoleTreeErrors[keyof GetRoleTreeErrors];
@@ -2190,7 +3309,13 @@ export type GetRoleContextData = {
          */
         id: string;
     };
-    query?: never;
+    query?: {
+        /**
+         * When true, inline every linked skill's body in the response regardless of the per-link `load_at_boot` flag. Default: false (only boot-loaded skills are inlined).
+         *
+         */
+        include_skills?: boolean;
+    };
     url: '/roles/{id}/context';
 };
 
@@ -2203,6 +3328,10 @@ export type GetRoleContextErrors = {
      * Resource not found or API v5 not enabled for this organization.
      */
     404: ProblemDetails;
+    /**
+     * Validation error — for example, a request body fails schema validation, or a path/query parameter does not match the expected TypeID format (`<prefix>_<32hex>`).
+     */
+    422: ProblemDetails;
 };
 
 export type GetRoleContextError = GetRoleContextErrors[keyof GetRoleContextErrors];
@@ -2312,11 +3441,11 @@ export type CreateActorErrors = {
      */
     401: ProblemDetails;
     /**
-     * Not authorized to perform this action.
+     * Not authorized to perform this action. Denials raised by skill authorization rules carry a machine-readable `reason` extension member distinguishing the rule that denied — see `ProblemDetails.reason`.
      */
     403: ProblemDetails;
     /**
-     * Validation error.
+     * Validation error — for example, a request body fails schema validation, or a path/query parameter does not match the expected TypeID format (`<prefix>_<32hex>`).
      */
     422: ProblemDetails;
 };
@@ -2352,7 +3481,7 @@ export type DeleteActorErrors = {
      */
     401: ProblemDetails;
     /**
-     * Not authorized to perform this action.
+     * Not authorized to perform this action. Denials raised by skill authorization rules carry a machine-readable `reason` extension member distinguishing the rule that denied — see `ProblemDetails.reason`.
      */
     403: ProblemDetails;
     /**
@@ -2446,7 +3575,7 @@ export type UpdateActorErrors = {
      */
     401: ProblemDetails;
     /**
-     * Not authorized to perform this action.
+     * Not authorized to perform this action. Denials raised by skill authorization rules carry a machine-readable `reason` extension member distinguishing the rule that denied — see `ProblemDetails.reason`.
      */
     403: ProblemDetails;
     /**
@@ -2454,7 +3583,7 @@ export type UpdateActorErrors = {
      */
     404: ProblemDetails;
     /**
-     * Validation error.
+     * Validation error — for example, a request body fails schema validation, or a path/query parameter does not match the expected TypeID format (`<prefix>_<32hex>`).
      */
     422: ProblemDetails;
 };
@@ -2582,20 +3711,14 @@ export type ListMyProjectsData = {
          */
         status?: 'archived' | 'cancelled' | 'completed' | 'current' | 'scheduled' | 'someday' | 'waiting';
         /**
-         * **Transition-only.** When `true`, each resource in the response
-         * additionally carries a `legacy_id` field — its v3 sequential integer id
-         * — so v3-keyed integrators can correlate v5 TypeIDs with the numeric IDs
-         * they already hold during migration. Default is off (`legacy_id` is
-         * omitted unless explicitly requested).
-         *
-         * This is a temporary v3→v5 bridge and **NOT a permanent part of the v5
-         * contract**: it retires when the v3 API retires. See the "Legacy IDs
-         * (transition-only)" section in the API overview. Applies to the standard
-         * resource list/show endpoints and `/me`; nested `?include=` embeds are
-         * out of scope.
+         * Only items whose `actor_id` is this person (`per_`) or agent (`agt_`). Splits the items of a role filled by several people. An unknown, invisible, or malformed id returns an empty list, not an error.
+         */
+        actor_id?: string;
+        /**
+         * When `true`, returns the requester's individual initiative projects instead of role-owned projects. Omit or pass `false` for the default behavior (role-owned projects only). Any other value returns 422.
          *
          */
-        include_legacy_id?: boolean;
+        individual_initiative?: boolean;
     };
     url: '/me/projects';
 };
@@ -2613,6 +3736,10 @@ export type ListMyProjectsErrors = {
      * Resource not found or API v5 not enabled for this organization.
      */
     404: ProblemDetails;
+    /**
+     * Validation error — for example, a request body fails schema validation, or a path/query parameter does not match the expected TypeID format (`<prefix>_<32hex>`).
+     */
+    422: ProblemDetails;
 };
 
 export type ListMyProjectsError = ListMyProjectsErrors[keyof ListMyProjectsErrors];
@@ -2648,20 +3775,14 @@ export type ListMyActionsData = {
          */
         status?: 'archived' | 'cancelled' | 'completed' | 'current' | 'scheduled' | 'someday' | 'waiting';
         /**
-         * **Transition-only.** When `true`, each resource in the response
-         * additionally carries a `legacy_id` field — its v3 sequential integer id
-         * — so v3-keyed integrators can correlate v5 TypeIDs with the numeric IDs
-         * they already hold during migration. Default is off (`legacy_id` is
-         * omitted unless explicitly requested).
-         *
-         * This is a temporary v3→v5 bridge and **NOT a permanent part of the v5
-         * contract**: it retires when the v3 API retires. See the "Legacy IDs
-         * (transition-only)" section in the API overview. Applies to the standard
-         * resource list/show endpoints and `/me`; nested `?include=` embeds are
-         * out of scope.
+         * Only items whose `actor_id` is this person (`per_`) or agent (`agt_`). Splits the items of a role filled by several people. An unknown, invisible, or malformed id returns an empty list, not an error.
+         */
+        actor_id?: string;
+        /**
+         * When `true`, returns the requester's individual initiative actions instead of role-owned actions. Omit or pass `false` for the default behavior (role-owned actions only). Any other value returns 422.
          *
          */
-        include_legacy_id?: boolean;
+        individual_initiative?: boolean;
     };
     url: '/me/actions';
 };
@@ -2676,7 +3797,7 @@ export type ListMyActionsErrors = {
      */
     404: ProblemDetails;
     /**
-     * Validation error.
+     * Validation error — for example, a request body fails schema validation, or a path/query parameter does not match the expected TypeID format (`<prefix>_<32hex>`).
      */
     422: ProblemDetails;
 };
@@ -2697,12 +3818,120 @@ export type ListMyActionsResponses = {
 
 export type ListMyActionsResponse = ListMyActionsResponses[keyof ListMyActionsResponses];
 
+export type ListMyMessagesData = {
+    body?: never;
+    path?: never;
+    query?: {
+        /**
+         * Number of results per page (1–500, default 100). Values above the maximum return `400 Bad Request`; blank, zero, negative, or non-numeric values fall back to the default of 100.
+         */
+        per_page?: number;
+        /**
+         * Cursor from a previous response's `meta.pagination.next_cursor`.
+         */
+        cursor?: string;
+        /**
+         * When `true`, return only messages created after the caller's
+         * watermark on each channel.
+         *
+         */
+        unread?: boolean;
+        /**
+         * Only this role's channels, using its watermarks with `unread`.
+         * The caller must currently fill the role (422 otherwise). Unlike
+         * on `GET /channels/{channel_id}/messages`, `role` works without
+         * `unread`: here it also selects channels.
+         *
+         */
+        role?: string;
+        /**
+         * Return only messages created strictly after this time.
+         */
+        since?: string;
+    };
+    url: '/me/messages';
+};
+
+export type ListMyMessagesErrors = {
+    /**
+     * The request was malformed — for example, `per_page` exceeds the maximum allowed value. The `detail` describes the specific issue.
+     */
+    400: ProblemDetails;
+    /**
+     * Missing or invalid API key.
+     */
+    401: ProblemDetails;
+    /**
+     * Resource not found or API v5 not enabled for this organization.
+     */
+    404: ProblemDetails;
+    /**
+     * Validation error — for example, a request body fails schema validation, or a path/query parameter does not match the expected TypeID format (`<prefix>_<32hex>`).
+     */
+    422: ProblemDetails;
+};
+
+export type ListMyMessagesError = ListMyMessagesErrors[keyof ListMyMessagesErrors];
+
+export type ListMyMessagesResponses = {
+    /**
+     * A paginated list of messages.
+     */
+    200: MessageListResponse;
+};
+
+export type ListMyMessagesResponse = ListMyMessagesResponses[keyof ListMyMessagesResponses];
+
+export type MarkMyMessagesReadData = {
+    body: {
+        /**
+         * The message to mark read up to, from any channel.
+         */
+        up_to: string;
+        /**
+         * Only this role's channels and watermarks. The caller must fill it.
+         */
+        role?: string;
+    };
+    path?: never;
+    query?: never;
+    url: '/me/messages/read';
+};
+
+export type MarkMyMessagesReadErrors = {
+    /**
+     * Missing or invalid API key.
+     */
+    401: ProblemDetails;
+    /**
+     * Resource not found or API v5 not enabled for this organization.
+     */
+    404: ProblemDetails;
+    /**
+     * Validation error — for example, a request body fails schema validation, or a path/query parameter does not match the expected TypeID format (`<prefix>_<32hex>`).
+     */
+    422: ProblemDetails;
+};
+
+export type MarkMyMessagesReadError = MarkMyMessagesReadErrors[keyof MarkMyMessagesReadErrors];
+
+export type MarkMyMessagesReadResponses = {
+    /**
+     * The read states that advanced.
+     */
+    200: {
+        data: Array<ChannelReadState>;
+    };
+};
+
+export type MarkMyMessagesReadResponse = MarkMyMessagesReadResponses[keyof MarkMyMessagesReadResponses];
+
 export type GetMyContextData = {
     body?: never;
     path?: never;
     query?: {
         /**
-         * Optional role API ID. When provided, the response includes the role's definition, governance context, and org skills index.
+         * Optional role API ID. When provided, the response includes the role's definition and governance context.
          *
          */
         role?: string;
@@ -2742,7 +3971,7 @@ export type GetAgentContextData = {
     };
     query?: {
         /**
-         * Optional role API ID. When provided, the response includes the role's definition, governance context, and org skills index.
+         * Optional role API ID. When provided, the response includes the role's definition and governance context.
          *
          */
         role?: string;
@@ -2759,6 +3988,10 @@ export type GetAgentContextErrors = {
      * Resource not found or API v5 not enabled for this organization.
      */
     404: ProblemDetails;
+    /**
+     * Validation error — for example, a request body fails schema validation, or a path/query parameter does not match the expected TypeID format (`<prefix>_<32hex>`).
+     */
+    422: ProblemDetails;
 };
 
 export type GetAgentContextError = GetAgentContextErrors[keyof GetAgentContextErrors];
@@ -2845,11 +4078,11 @@ export type CreatePersonErrors = {
      */
     401: ProblemDetails;
     /**
-     * Not authorized to perform this action.
+     * Not authorized to perform this action. Denials raised by skill authorization rules carry a machine-readable `reason` extension member distinguishing the rule that denied — see `ProblemDetails.reason`.
      */
     403: ProblemDetails;
     /**
-     * Validation error.
+     * Validation error — for example, a request body fails schema validation, or a path/query parameter does not match the expected TypeID format (`<prefix>_<32hex>`).
      */
     422: ProblemDetails;
 };
@@ -2882,13 +4115,17 @@ export type DeletePersonErrors = {
      */
     401: ProblemDetails;
     /**
-     * Not authorized to perform this action.
+     * Not authorized to perform this action. Denials raised by skill authorization rules carry a machine-readable `reason` extension member distinguishing the rule that denied — see `ProblemDetails.reason`.
      */
     403: ProblemDetails;
     /**
      * Resource not found or API v5 not enabled for this organization.
      */
     404: ProblemDetails;
+    /**
+     * Validation error — for example, a request body fails schema validation, or a path/query parameter does not match the expected TypeID format (`<prefix>_<32hex>`).
+     */
+    422: ProblemDetails;
 };
 
 export type DeletePersonError = DeletePersonErrors[keyof DeletePersonErrors];
@@ -2925,6 +4162,10 @@ export type GetPersonErrors = {
      * Resource not found or API v5 not enabled for this organization.
      */
     404: ProblemDetails;
+    /**
+     * Validation error — for example, a request body fails schema validation, or a path/query parameter does not match the expected TypeID format (`<prefix>_<32hex>`).
+     */
+    422: ProblemDetails;
 };
 
 export type GetPersonError = GetPersonErrors[keyof GetPersonErrors];
@@ -2955,7 +4196,7 @@ export type UpdatePersonErrors = {
      */
     401: ProblemDetails;
     /**
-     * Not authorized to perform this action.
+     * Not authorized to perform this action. Denials raised by skill authorization rules carry a machine-readable `reason` extension member distinguishing the rule that denied — see `ProblemDetails.reason`.
      */
     403: ProblemDetails;
     /**
@@ -2963,7 +4204,7 @@ export type UpdatePersonErrors = {
      */
     404: ProblemDetails;
     /**
-     * Validation error.
+     * Validation error — for example, a request body fails schema validation, or a path/query parameter does not match the expected TypeID format (`<prefix>_<32hex>`).
      */
     422: ProblemDetails;
 };
@@ -3020,7 +4261,7 @@ export type ListAgentsErrors = {
      */
     401: ProblemDetails;
     /**
-     * Not authorized to perform this action.
+     * Not authorized to perform this action. Denials raised by skill authorization rules carry a machine-readable `reason` extension member distinguishing the rule that denied — see `ProblemDetails.reason`.
      */
     403: ProblemDetails;
     /**
@@ -3065,13 +4306,17 @@ export type GetAgentErrors = {
      */
     401: ProblemDetails;
     /**
-     * Not authorized to perform this action.
+     * Not authorized to perform this action. Denials raised by skill authorization rules carry a machine-readable `reason` extension member distinguishing the rule that denied — see `ProblemDetails.reason`.
      */
     403: ProblemDetails;
     /**
      * Resource not found or API v5 not enabled for this organization.
      */
     404: ProblemDetails;
+    /**
+     * Validation error — for example, a request body fails schema validation, or a path/query parameter does not match the expected TypeID format (`<prefix>_<32hex>`).
+     */
+    422: ProblemDetails;
 };
 
 export type GetAgentError = GetAgentErrors[keyof GetAgentErrors];
@@ -3131,7 +4376,7 @@ export type ListSkillsErrors = {
      */
     401: ProblemDetails;
     /**
-     * Not authorized to perform this action.
+     * Not authorized to perform this action. Denials raised by skill authorization rules carry a machine-readable `reason` extension member distinguishing the rule that denied — see `ProblemDetails.reason`.
      */
     403: ProblemDetails;
     /**
@@ -3169,7 +4414,7 @@ export type CreateSkillErrors = {
      */
     401: ProblemDetails;
     /**
-     * Not authorized to perform this action.
+     * Not authorized to perform this action. Denials raised by skill authorization rules carry a machine-readable `reason` extension member distinguishing the rule that denied — see `ProblemDetails.reason`.
      */
     403: ProblemDetails;
     /**
@@ -3177,7 +4422,7 @@ export type CreateSkillErrors = {
      */
     404: ProblemDetails;
     /**
-     * Validation error.
+     * Validation error — for example, a request body fails schema validation, or a path/query parameter does not match the expected TypeID format (`<prefix>_<32hex>`).
      */
     422: ProblemDetails;
 };
@@ -3213,13 +4458,17 @@ export type DeleteSkillErrors = {
      */
     401: ProblemDetails;
     /**
-     * Not authorized to perform this action.
+     * Not authorized to perform this action. Denials raised by skill authorization rules carry a machine-readable `reason` extension member distinguishing the rule that denied — see `ProblemDetails.reason`.
      */
     403: ProblemDetails;
     /**
      * Resource not found or API v5 not enabled for this organization.
      */
     404: ProblemDetails;
+    /**
+     * Validation error — for example, a request body fails schema validation, or a path/query parameter does not match the expected TypeID format (`<prefix>_<32hex>`).
+     */
+    422: ProblemDetails;
 };
 
 export type DeleteSkillError = DeleteSkillErrors[keyof DeleteSkillErrors];
@@ -3256,13 +4505,17 @@ export type GetSkillErrors = {
      */
     401: ProblemDetails;
     /**
-     * Not authorized to perform this action.
+     * Not authorized to perform this action. Denials raised by skill authorization rules carry a machine-readable `reason` extension member distinguishing the rule that denied — see `ProblemDetails.reason`.
      */
     403: ProblemDetails;
     /**
      * Resource not found or API v5 not enabled for this organization.
      */
     404: ProblemDetails;
+    /**
+     * Validation error — for example, a request body fails schema validation, or a path/query parameter does not match the expected TypeID format (`<prefix>_<32hex>`).
+     */
+    422: ProblemDetails;
 };
 
 export type GetSkillError = GetSkillErrors[keyof GetSkillErrors];
@@ -3306,7 +4559,7 @@ export type UpdateSkillErrors = {
      */
     401: ProblemDetails;
     /**
-     * Not authorized to perform this action.
+     * Not authorized to perform this action. Denials raised by skill authorization rules carry a machine-readable `reason` extension member distinguishing the rule that denied — see `ProblemDetails.reason`.
      */
     403: ProblemDetails;
     /**
@@ -3321,7 +4574,7 @@ export type UpdateSkillErrors = {
      */
     409: ProblemDetails;
     /**
-     * Validation error.
+     * Validation error — for example, a request body fails schema validation, or a path/query parameter does not match the expected TypeID format (`<prefix>_<32hex>`).
      */
     422: ProblemDetails;
 };
@@ -3338,6 +4591,166 @@ export type UpdateSkillResponses = {
 };
 
 export type UpdateSkillResponse = UpdateSkillResponses[keyof UpdateSkillResponses];
+
+export type ListSkillTagsData = {
+    body?: never;
+    path: {
+        /**
+         * The skill's unique identifier.
+         */
+        skill_id: string;
+    };
+    query?: {
+        /**
+         * Number of results per page (1–500, default 100). Values above the maximum return `400 Bad Request`; blank, zero, negative, or non-numeric values fall back to the default of 100.
+         */
+        per_page?: number;
+        /**
+         * Cursor from a previous response's `meta.pagination.next_cursor`.
+         */
+        cursor?: string;
+        /**
+         * Full-text search filter. Matches against the resource's searchable text
+         * fields using Postgres full-text search (`simple` + `unaccent`). Supports
+         * Google-style syntax: `marketing -intern`, `"exact phrase"`, `foo OR bar`.
+         * Composes with other filters (all AND'd together). Empty or whitespace-only
+         * values are ignored. Malformed queries return no rows rather than an error.
+         *
+         */
+        q?: string;
+    };
+    url: '/skills/{skill_id}/tags';
+};
+
+export type ListSkillTagsErrors = {
+    /**
+     * Missing or invalid API key.
+     */
+    401: ProblemDetails;
+    /**
+     * Not authorized to perform this action. Denials raised by skill authorization rules carry a machine-readable `reason` extension member distinguishing the rule that denied — see `ProblemDetails.reason`.
+     */
+    403: ProblemDetails;
+    /**
+     * Resource not found or API v5 not enabled for this organization.
+     */
+    404: ProblemDetails;
+    /**
+     * Validation error — for example, a request body fails schema validation, or a path/query parameter does not match the expected TypeID format (`<prefix>_<32hex>`).
+     */
+    422: ProblemDetails;
+};
+
+export type ListSkillTagsError = ListSkillTagsErrors[keyof ListSkillTagsErrors];
+
+export type ListSkillTagsResponses = {
+    /**
+     * A paginated list of tags on the skill.
+     */
+    200: {
+        data: Array<Tag>;
+        meta: {
+            pagination: Pagination;
+        };
+    };
+};
+
+export type ListSkillTagsResponse = ListSkillTagsResponses[keyof ListSkillTagsResponses];
+
+export type AddTagToSkillData = {
+    body: {
+        /**
+         * The tag to add.
+         */
+        tag_id: string;
+    };
+    path: {
+        /**
+         * The skill's unique identifier.
+         */
+        skill_id: string;
+    };
+    query?: never;
+    url: '/skills/{skill_id}/tags';
+};
+
+export type AddTagToSkillErrors = {
+    /**
+     * Missing or invalid API key.
+     */
+    401: ProblemDetails;
+    /**
+     * Not authorized to perform this action. Denials raised by skill authorization rules carry a machine-readable `reason` extension member distinguishing the rule that denied — see `ProblemDetails.reason`.
+     */
+    403: ProblemDetails;
+    /**
+     * Resource not found or API v5 not enabled for this organization.
+     */
+    404: ProblemDetails;
+    /**
+     * Validation error — for example, a request body fails schema validation, or a path/query parameter does not match the expected TypeID format (`<prefix>_<32hex>`).
+     */
+    422: ProblemDetails;
+};
+
+export type AddTagToSkillError = AddTagToSkillErrors[keyof AddTagToSkillErrors];
+
+export type AddTagToSkillResponses = {
+    /**
+     * The tag that was added.
+     */
+    201: {
+        data: Tag;
+    };
+};
+
+export type AddTagToSkillResponse = AddTagToSkillResponses[keyof AddTagToSkillResponses];
+
+export type RemoveTagFromSkillData = {
+    body?: never;
+    path: {
+        /**
+         * The skill's unique identifier.
+         */
+        skill_id: string;
+        /**
+         * The tag's unique identifier.
+         */
+        id: string;
+    };
+    query?: never;
+    url: '/skills/{skill_id}/tags/{id}';
+};
+
+export type RemoveTagFromSkillErrors = {
+    /**
+     * Missing or invalid API key.
+     */
+    401: ProblemDetails;
+    /**
+     * Not authorized to perform this action. Denials raised by skill authorization rules carry a machine-readable `reason` extension member distinguishing the rule that denied — see `ProblemDetails.reason`.
+     */
+    403: ProblemDetails;
+    /**
+     * Resource not found or API v5 not enabled for this organization.
+     */
+    404: ProblemDetails;
+    /**
+     * Validation error — for example, a request body fails schema validation, or a path/query parameter does not match the expected TypeID format (`<prefix>_<32hex>`).
+     */
+    422: ProblemDetails;
+};
+
+export type RemoveTagFromSkillError = RemoveTagFromSkillErrors[keyof RemoveTagFromSkillErrors];
+
+export type RemoveTagFromSkillResponses = {
+    /**
+     * Tag removed from skill successfully.
+     */
+    204: void;
+};
+
+export type RemoveTagFromSkillResponse = RemoveTagFromSkillResponses[keyof RemoveTagFromSkillResponses];
 
 export type ListRoleSkillsData = {
     body?: never;
@@ -3375,13 +4788,17 @@ export type ListRoleSkillsErrors = {
      */
     401: ProblemDetails;
     /**
-     * Not authorized to perform this action.
+     * Not authorized to perform this action. Denials raised by skill authorization rules carry a machine-readable `reason` extension member distinguishing the rule that denied — see `ProblemDetails.reason`.
      */
     403: ProblemDetails;
     /**
      * Resource not found or API v5 not enabled for this organization.
      */
     404: ProblemDetails;
+    /**
+     * Validation error — for example, a request body fails schema validation, or a path/query parameter does not match the expected TypeID format (`<prefix>_<32hex>`).
+     */
+    422: ProblemDetails;
 };
 
 export type ListRoleSkillsError = ListRoleSkillsErrors[keyof ListRoleSkillsErrors];
@@ -3406,6 +4823,11 @@ export type LinkSkillToRoleData = {
          * The skill to link.
          */
         skill_id: string;
+        /**
+         * Whether the skill body is inlined in the role's boot context (`true`) or listed as an index entry for on-demand fetching (`false`). Defaults to `true`.
+         *
+         */
+        load_at_boot?: boolean;
     };
     path: {
         /**
@@ -3423,13 +4845,17 @@ export type LinkSkillToRoleErrors = {
      */
     401: ProblemDetails;
     /**
-     * Not authorized to perform this action.
+     * Not authorized to perform this action. Denials raised by skill authorization rules carry a machine-readable `reason` extension member distinguishing the rule that denied — see `ProblemDetails.reason`.
      */
     403: ProblemDetails;
     /**
      * Resource not found or API v5 not enabled for this organization.
      */
     404: ProblemDetails;
+    /**
+     * Validation error — for example, a request body fails schema validation, or a path/query parameter does not match the expected TypeID format (`<prefix>_<32hex>`).
+     */
+    422: ProblemDetails;
 };
 
 export type LinkSkillToRoleError = LinkSkillToRoleErrors[keyof LinkSkillToRoleErrors];
@@ -3467,13 +4893,17 @@ export type UnlinkSkillFromRoleErrors = {
      */
     401: ProblemDetails;
     /**
-     * Not authorized to perform this action.
+     * Not authorized to perform this action. Denials raised by skill authorization rules carry a machine-readable `reason` extension member distinguishing the rule that denied — see `ProblemDetails.reason`.
      */
     403: ProblemDetails;
     /**
      * Resource not found or API v5 not enabled for this organization.
      */
     404: ProblemDetails;
+    /**
+     * Validation error — for example, a request body fails schema validation, or a path/query parameter does not match the expected TypeID format (`<prefix>_<32hex>`).
+     */
+    422: ProblemDetails;
 };
 
 export type UnlinkSkillFromRoleError = UnlinkSkillFromRoleErrors[keyof UnlinkSkillFromRoleErrors];
@@ -3487,6 +4917,125 @@ export type UnlinkSkillFromRoleResponses = {
 
 export type UnlinkSkillFromRoleResponse = UnlinkSkillFromRoleResponses[keyof UnlinkSkillFromRoleResponses];
 
+export type UpdateRoleSkillLinkData = {
+    body: {
+        /**
+         * Whether the skill body is inlined in the role's boot context (`true`) or listed as an index entry for on-demand fetching (`false`).
+         *
+         */
+        load_at_boot?: boolean;
+    };
+    path: {
+        /**
+         * The role's unique identifier.
+         */
+        role_id: string;
+        /**
+         * The skill's unique identifier.
+         */
+        id: string;
+    };
+    query?: never;
+    url: '/roles/{role_id}/skills/{id}';
+};
+
+export type UpdateRoleSkillLinkErrors = {
+    /**
+     * Missing or invalid API key.
+     */
+    401: ProblemDetails;
+    /**
+     * Not authorized to perform this action. Denials raised by skill authorization rules carry a machine-readable `reason` extension member distinguishing the rule that denied — see `ProblemDetails.reason`.
+     */
+    403: ProblemDetails;
+    /**
+     * Resource not found or API v5 not enabled for this organization.
+     */
+    404: ProblemDetails;
+    /**
+     * Validation error — for example, a request body fails schema validation, or a path/query parameter does not match the expected TypeID format (`<prefix>_<32hex>`).
+     */
+    422: ProblemDetails;
+};
+
+export type UpdateRoleSkillLinkError = UpdateRoleSkillLinkErrors[keyof UpdateRoleSkillLinkErrors];
+
+export type UpdateRoleSkillLinkResponses = {
+    /**
+     * The skill whose link was updated.
+     */
+    200: {
+        data: Skill;
+    };
+};
+
+export type UpdateRoleSkillLinkResponse = UpdateRoleSkillLinkResponses[keyof UpdateRoleSkillLinkResponses];
+
+export type ListAgentSkillsData = {
+    body?: never;
+    path: {
+        /**
+         * The agent's unique identifier.
+         */
+        agent_id: string;
+    };
+    query?: {
+        /**
+         * Number of results per page (1–500, default 100). Values above the maximum return `400 Bad Request`; blank, zero, negative, or non-numeric values fall back to the default of 100.
+         */
+        per_page?: number;
+        /**
+         * Cursor from a previous response's `meta.pagination.next_cursor`.
+         */
+        cursor?: string;
+        /**
+         * Full-text search filter. Matches against the resource's searchable text
+         * fields using Postgres full-text search (`simple` + `unaccent`). Supports
+         * Google-style syntax: `marketing -intern`, `"exact phrase"`, `foo OR bar`.
+         * Composes with other filters (all AND'd together). Empty or whitespace-only
+         * values are ignored. Malformed queries return no rows rather than an error.
+         *
+         */
+        q?: string;
+    };
+    url: '/agents/{agent_id}/skills';
+};
+
+export type ListAgentSkillsErrors = {
+    /**
+     * Missing or invalid API key.
+     */
+    401: ProblemDetails;
+    /**
+     * Not authorized to perform this action. Denials raised by skill authorization rules carry a machine-readable `reason` extension member distinguishing the rule that denied — see `ProblemDetails.reason`.
+     */
+    403: ProblemDetails;
+    /**
+     * Resource not found or API v5 not enabled for this organization.
+     */
+    404: ProblemDetails;
+    /**
+     * Validation error — for example, a request body fails schema validation, or a path/query parameter does not match the expected TypeID format (`<prefix>_<32hex>`).
+     */
+    422: ProblemDetails;
+};
+
+export type ListAgentSkillsError = ListAgentSkillsErrors[keyof ListAgentSkillsErrors];
+
+export type ListAgentSkillsResponses = {
+    /**
+     * A paginated list of skills linked to the agent.
+     */
+    200: {
+        data: Array<Skill>;
+        meta: {
+            pagination: Pagination;
+        };
+    };
+};
+
+export type ListAgentSkillsResponse = ListAgentSkillsResponses[keyof ListAgentSkillsResponses];
+
 export type LinkSkillToAgentData = {
     body: {
         /**
@@ -3494,10 +5043,10 @@ export type LinkSkillToAgentData = {
          */
         skill_id: string;
         /**
-         * Optional. Controls which of the agent's session contexts load this skill. Defaults to `global`. Unrecognized values are ignored (the link is created with the default scope).
+         * Whether the skill body is inlined in the agent's boot context (`true`) or listed as an index entry for on-demand fetching (`false`). Defaults to `true`.
          *
          */
-        context_scope?: 'global' | 'master_only';
+        load_at_boot?: boolean;
     };
     path: {
         /**
@@ -3515,13 +5064,17 @@ export type LinkSkillToAgentErrors = {
      */
     401: ProblemDetails;
     /**
-     * Not authorized to perform this action.
+     * Not authorized to perform this action. Denials raised by skill authorization rules carry a machine-readable `reason` extension member distinguishing the rule that denied — see `ProblemDetails.reason`.
      */
     403: ProblemDetails;
     /**
      * Resource not found or API v5 not enabled for this organization.
      */
     404: ProblemDetails;
+    /**
+     * Validation error — for example, a request body fails schema validation, or a path/query parameter does not match the expected TypeID format (`<prefix>_<32hex>`).
+     */
+    422: ProblemDetails;
 };
 
 export type LinkSkillToAgentError = LinkSkillToAgentErrors[keyof LinkSkillToAgentErrors];
@@ -3555,13 +5108,17 @@ export type UnlinkSkillFromAgentErrors = {
      */
     401: ProblemDetails;
     /**
-     * Not authorized to perform this action.
+     * Not authorized to perform this action. Denials raised by skill authorization rules carry a machine-readable `reason` extension member distinguishing the rule that denied — see `ProblemDetails.reason`.
      */
     403: ProblemDetails;
     /**
      * Resource not found or API v5 not enabled for this organization.
      */
     404: ProblemDetails;
+    /**
+     * Validation error — for example, a request body fails schema validation, or a path/query parameter does not match the expected TypeID format (`<prefix>_<32hex>`).
+     */
+    422: ProblemDetails;
 };
 
 export type UnlinkSkillFromAgentError = UnlinkSkillFromAgentErrors[keyof UnlinkSkillFromAgentErrors];
@@ -3608,6 +5165,10 @@ export type ListRoleAssignmentsErrors = {
      * Resource not found or API v5 not enabled for this organization.
      */
     404: ProblemDetails;
+    /**
+     * Validation error — for example, a request body fails schema validation, or a path/query parameter does not match the expected TypeID format (`<prefix>_<32hex>`).
+     */
+    422: ProblemDetails;
 };
 
 export type ListRoleAssignmentsError = ListRoleAssignmentsErrors[keyof ListRoleAssignmentsErrors];
@@ -3646,7 +5207,7 @@ export type CreateRoleAssignmentErrors = {
      */
     401: ProblemDetails;
     /**
-     * Not authorized to perform this action.
+     * Not authorized to perform this action. Denials raised by skill authorization rules carry a machine-readable `reason` extension member distinguishing the rule that denied — see `ProblemDetails.reason`.
      */
     403: ProblemDetails;
     /**
@@ -3654,7 +5215,7 @@ export type CreateRoleAssignmentErrors = {
      */
     404: ProblemDetails;
     /**
-     * Validation error.
+     * Validation error — for example, a request body fails schema validation, or a path/query parameter does not match the expected TypeID format (`<prefix>_<32hex>`).
      */
     422: ProblemDetails;
 };
@@ -3741,13 +5302,17 @@ export type DeleteAssignmentErrors = {
      */
     401: ProblemDetails;
     /**
-     * Not authorized to perform this action.
+     * Not authorized to perform this action. Denials raised by skill authorization rules carry a machine-readable `reason` extension member distinguishing the rule that denied — see `ProblemDetails.reason`.
      */
     403: ProblemDetails;
     /**
      * Resource not found or API v5 not enabled for this organization.
      */
     404: ProblemDetails;
+    /**
+     * Validation error — for example, a request body fails schema validation, or a path/query parameter does not match the expected TypeID format (`<prefix>_<32hex>`).
+     */
+    422: ProblemDetails;
 };
 
 export type DeleteAssignmentError = DeleteAssignmentErrors[keyof DeleteAssignmentErrors];
@@ -3779,7 +5344,7 @@ export type UpdateAssignmentErrors = {
      */
     401: ProblemDetails;
     /**
-     * Not authorized to perform this action.
+     * Not authorized to perform this action. Denials raised by skill authorization rules carry a machine-readable `reason` extension member distinguishing the rule that denied — see `ProblemDetails.reason`.
      */
     403: ProblemDetails;
     /**
@@ -3787,7 +5352,7 @@ export type UpdateAssignmentErrors = {
      */
     404: ProblemDetails;
     /**
-     * Validation error.
+     * Validation error — for example, a request body fails schema validation, or a path/query parameter does not match the expected TypeID format (`<prefix>_<32hex>`).
      */
     422: ProblemDetails;
 };
@@ -3836,20 +5401,14 @@ export type ListRoleActionsData = {
          */
         status?: 'archived' | 'cancelled' | 'completed' | 'current' | 'scheduled' | 'someday' | 'waiting';
         /**
-         * **Transition-only.** When `true`, each resource in the response
-         * additionally carries a `legacy_id` field — its v3 sequential integer id
-         * — so v3-keyed integrators can correlate v5 TypeIDs with the numeric IDs
-         * they already hold during migration. Default is off (`legacy_id` is
-         * omitted unless explicitly requested).
-         *
-         * This is a temporary v3→v5 bridge and **NOT a permanent part of the v5
-         * contract**: it retires when the v3 API retires. See the "Legacy IDs
-         * (transition-only)" section in the API overview. Applies to the standard
-         * resource list/show endpoints and `/me`; nested `?include=` embeds are
-         * out of scope.
+         * Only items whose `actor_id` is this person (`per_`) or agent (`agt_`). Splits the items of a role filled by several people. An unknown, invisible, or malformed id returns an empty list, not an error.
+         */
+        actor_id?: string;
+        /**
+         * When `true`, returns individual initiative actions for this role's circle instead of role-owned actions. Omit or pass `false` for the default behavior (role-owned actions only).
          *
          */
-        include_legacy_id?: boolean;
+        individual_initiative?: boolean;
     };
     url: '/roles/{role_id}/actions';
 };
@@ -3867,6 +5426,10 @@ export type ListRoleActionsErrors = {
      * Resource not found or API v5 not enabled for this organization.
      */
     404: ProblemDetails;
+    /**
+     * Validation error — for example, a request body fails schema validation, or a path/query parameter does not match the expected TypeID format (`<prefix>_<32hex>`).
+     */
+    422: ProblemDetails;
 };
 
 export type ListRoleActionsError = ListRoleActionsErrors[keyof ListRoleActionsErrors];
@@ -3903,7 +5466,7 @@ export type CreateActionErrors = {
      */
     401: ProblemDetails;
     /**
-     * Not authorized to perform this action.
+     * Not authorized to perform this action. Denials raised by skill authorization rules carry a machine-readable `reason` extension member distinguishing the rule that denied — see `ProblemDetails.reason`.
      */
     403: ProblemDetails;
     /**
@@ -3911,7 +5474,7 @@ export type CreateActionErrors = {
      */
     404: ProblemDetails;
     /**
-     * Validation error.
+     * Validation error — for example, a request body fails schema validation, or a path/query parameter does not match the expected TypeID format (`<prefix>_<32hex>`).
      */
     422: ProblemDetails;
 };
@@ -3947,13 +5510,17 @@ export type DeleteActionErrors = {
      */
     401: ProblemDetails;
     /**
-     * Not authorized to perform this action.
+     * Not authorized to perform this action. Denials raised by skill authorization rules carry a machine-readable `reason` extension member distinguishing the rule that denied — see `ProblemDetails.reason`.
      */
     403: ProblemDetails;
     /**
      * Resource not found or API v5 not enabled for this organization.
      */
     404: ProblemDetails;
+    /**
+     * Validation error — for example, a request body fails schema validation, or a path/query parameter does not match the expected TypeID format (`<prefix>_<32hex>`).
+     */
+    422: ProblemDetails;
 };
 
 export type DeleteActionError = DeleteActionErrors[keyof DeleteActionErrors];
@@ -3975,23 +5542,7 @@ export type GetActionData = {
          */
         id: string;
     };
-    query?: {
-        /**
-         * **Transition-only.** When `true`, each resource in the response
-         * additionally carries a `legacy_id` field — its v3 sequential integer id
-         * — so v3-keyed integrators can correlate v5 TypeIDs with the numeric IDs
-         * they already hold during migration. Default is off (`legacy_id` is
-         * omitted unless explicitly requested).
-         *
-         * This is a temporary v3→v5 bridge and **NOT a permanent part of the v5
-         * contract**: it retires when the v3 API retires. See the "Legacy IDs
-         * (transition-only)" section in the API overview. Applies to the standard
-         * resource list/show endpoints and `/me`; nested `?include=` embeds are
-         * out of scope.
-         *
-         */
-        include_legacy_id?: boolean;
-    };
+    query?: never;
     url: '/actions/{id}';
 };
 
@@ -4004,6 +5555,10 @@ export type GetActionErrors = {
      * Resource not found or API v5 not enabled for this organization.
      */
     404: ProblemDetails;
+    /**
+     * Validation error — for example, a request body fails schema validation, or a path/query parameter does not match the expected TypeID format (`<prefix>_<32hex>`).
+     */
+    422: ProblemDetails;
 };
 
 export type GetActionError = GetActionErrors[keyof GetActionErrors];
@@ -4037,7 +5592,7 @@ export type UpdateActionErrors = {
      */
     401: ProblemDetails;
     /**
-     * Not authorized to perform this action.
+     * Not authorized to perform this action. Denials raised by skill authorization rules carry a machine-readable `reason` extension member distinguishing the rule that denied — see `ProblemDetails.reason`.
      */
     403: ProblemDetails;
     /**
@@ -4045,7 +5600,7 @@ export type UpdateActionErrors = {
      */
     404: ProblemDetails;
     /**
-     * Validation error.
+     * Validation error — for example, a request body fails schema validation, or a path/query parameter does not match the expected TypeID format (`<prefix>_<32hex>`).
      */
     422: ProblemDetails;
 };
@@ -4081,13 +5636,17 @@ export type UncompleteActionErrors = {
      */
     401: ProblemDetails;
     /**
-     * Not authorized to perform this action.
+     * Not authorized to perform this action. Denials raised by skill authorization rules carry a machine-readable `reason` extension member distinguishing the rule that denied — see `ProblemDetails.reason`.
      */
     403: ProblemDetails;
     /**
      * Resource not found or API v5 not enabled for this organization.
      */
     404: ProblemDetails;
+    /**
+     * Validation error — for example, a request body fails schema validation, or a path/query parameter does not match the expected TypeID format (`<prefix>_<32hex>`).
+     */
+    422: ProblemDetails;
 };
 
 export type UncompleteActionError = UncompleteActionErrors[keyof UncompleteActionErrors];
@@ -4121,13 +5680,17 @@ export type CompleteActionErrors = {
      */
     401: ProblemDetails;
     /**
-     * Not authorized to perform this action.
+     * Not authorized to perform this action. Denials raised by skill authorization rules carry a machine-readable `reason` extension member distinguishing the rule that denied — see `ProblemDetails.reason`.
      */
     403: ProblemDetails;
     /**
      * Resource not found or API v5 not enabled for this organization.
      */
     404: ProblemDetails;
+    /**
+     * Validation error — for example, a request body fails schema validation, or a path/query parameter does not match the expected TypeID format (`<prefix>_<32hex>`).
+     */
+    422: ProblemDetails;
 };
 
 export type CompleteActionError = CompleteActionErrors[keyof CompleteActionErrors];
@@ -4142,6 +5705,162 @@ export type CompleteActionResponses = {
 };
 
 export type CompleteActionResponse = CompleteActionResponses[keyof CompleteActionResponses];
+
+export type ListActionTagsData = {
+    body?: never;
+    path: {
+        /**
+         * The action's unique identifier.
+         */
+        action_id: string;
+    };
+    query?: {
+        /**
+         * Number of results per page (1–500, default 100). Values above the maximum return `400 Bad Request`; blank, zero, negative, or non-numeric values fall back to the default of 100.
+         */
+        per_page?: number;
+        /**
+         * Cursor from a previous response's `meta.pagination.next_cursor`.
+         */
+        cursor?: string;
+        /**
+         * Full-text search filter. Matches against the resource's searchable text
+         * fields using Postgres full-text search (`simple` + `unaccent`). Supports
+         * Google-style syntax: `marketing -intern`, `"exact phrase"`, `foo OR bar`.
+         * Composes with other filters (all AND'd together). Empty or whitespace-only
+         * values are ignored. Malformed queries return no rows rather than an error.
+         *
+         */
+        q?: string;
+    };
+    url: '/actions/{action_id}/tags';
+};
+
+export type ListActionTagsErrors = {
+    /**
+     * Missing or invalid API key.
+     */
+    401: ProblemDetails;
+    /**
+     * Resource not found or API v5 not enabled for this organization.
+     */
+    404: ProblemDetails;
+    /**
+     * Validation error — for example, a request body fails schema validation, or a path/query parameter does not match the expected TypeID format (`<prefix>_<32hex>`).
+     */
+    422: ProblemDetails;
+};
+
+export type ListActionTagsError = ListActionTagsErrors[keyof ListActionTagsErrors];
+
+export type ListActionTagsResponses = {
+    /**
+     * A paginated list of tags on the action.
+     */
+    200: {
+        data: Array<Tag>;
+        meta: {
+            pagination: Pagination;
+        };
+    };
+};
+
+export type ListActionTagsResponse = ListActionTagsResponses[keyof ListActionTagsResponses];
+
+export type AddTagToActionData = {
+    body: {
+        /**
+         * The tag to add.
+         */
+        tag_id: string;
+    };
+    path: {
+        /**
+         * The action's unique identifier.
+         */
+        action_id: string;
+    };
+    query?: never;
+    url: '/actions/{action_id}/tags';
+};
+
+export type AddTagToActionErrors = {
+    /**
+     * Missing or invalid API key.
+     */
+    401: ProblemDetails;
+    /**
+     * Not authorized to perform this action. Denials raised by skill authorization rules carry a machine-readable `reason` extension member distinguishing the rule that denied — see `ProblemDetails.reason`.
+     */
+    403: ProblemDetails;
+    /**
+     * Resource not found or API v5 not enabled for this organization.
+     */
+    404: ProblemDetails;
+    /**
+     * Validation error — for example, a request body fails schema validation, or a path/query parameter does not match the expected TypeID format (`<prefix>_<32hex>`).
+     */
+    422: ProblemDetails;
+};
+
+export type AddTagToActionError = AddTagToActionErrors[keyof AddTagToActionErrors];
+
+export type AddTagToActionResponses = {
+    /**
+     * The tag that was added.
+     */
+    201: {
+        data: Tag;
+    };
+};
+
+export type AddTagToActionResponse = AddTagToActionResponses[keyof AddTagToActionResponses];
+
+export type RemoveTagFromActionData = {
+    body?: never;
+    path: {
+        /**
+         * The action's unique identifier.
+         */
+        action_id: string;
+        /**
+         * The tag's unique identifier.
+         */
+        id: string;
+    };
+    query?: never;
+    url: '/actions/{action_id}/tags/{id}';
+};
+
+export type RemoveTagFromActionErrors = {
+    /**
+     * Missing or invalid API key.
+     */
+    401: ProblemDetails;
+    /**
+     * Not authorized to perform this action. Denials raised by skill authorization rules carry a machine-readable `reason` extension member distinguishing the rule that denied — see `ProblemDetails.reason`.
+     */
+    403: ProblemDetails;
+    /**
+     * Resource not found or API v5 not enabled for this organization.
+     */
+    404: ProblemDetails;
+    /**
+     * Validation error — for example, a request body fails schema validation, or a path/query parameter does not match the expected TypeID format (`<prefix>_<32hex>`).
+     */
+    422: ProblemDetails;
+};
+
+export type RemoveTagFromActionError = RemoveTagFromActionErrors[keyof RemoveTagFromActionErrors];
+
+export type RemoveTagFromActionResponses = {
+    /**
+     * Tag removed from action successfully.
+     */
+    204: void;
+};
+
+export type RemoveTagFromActionResponse = RemoveTagFromActionResponses[keyof RemoveTagFromActionResponses];
 
 export type ListRoleChecklistItemsData = {
     body?: never;
@@ -4181,6 +5900,10 @@ export type ListRoleChecklistItemsErrors = {
      * Resource not found or API v5 not enabled for this organization.
      */
     404: ProblemDetails;
+    /**
+     * Validation error — for example, a request body fails schema validation, or a path/query parameter does not match the expected TypeID format (`<prefix>_<32hex>`).
+     */
+    422: ProblemDetails;
 };
 
 export type ListRoleChecklistItemsError = ListRoleChecklistItemsErrors[keyof ListRoleChecklistItemsErrors];
@@ -4217,7 +5940,7 @@ export type CreateChecklistItemErrors = {
      */
     401: ProblemDetails;
     /**
-     * Not authorized to perform this action.
+     * Not authorized to perform this action. Denials raised by skill authorization rules carry a machine-readable `reason` extension member distinguishing the rule that denied — see `ProblemDetails.reason`.
      */
     403: ProblemDetails;
     /**
@@ -4225,7 +5948,7 @@ export type CreateChecklistItemErrors = {
      */
     404: ProblemDetails;
     /**
-     * Validation error.
+     * Validation error — for example, a request body fails schema validation, or a path/query parameter does not match the expected TypeID format (`<prefix>_<32hex>`).
      */
     422: ProblemDetails;
 };
@@ -4261,13 +5984,17 @@ export type DeleteChecklistItemErrors = {
      */
     401: ProblemDetails;
     /**
-     * Not authorized to perform this action.
+     * Not authorized to perform this action. Denials raised by skill authorization rules carry a machine-readable `reason` extension member distinguishing the rule that denied — see `ProblemDetails.reason`.
      */
     403: ProblemDetails;
     /**
      * Resource not found or API v5 not enabled for this organization.
      */
     404: ProblemDetails;
+    /**
+     * Validation error — for example, a request body fails schema validation, or a path/query parameter does not match the expected TypeID format (`<prefix>_<32hex>`).
+     */
+    422: ProblemDetails;
 };
 
 export type DeleteChecklistItemError = DeleteChecklistItemErrors[keyof DeleteChecklistItemErrors];
@@ -4302,6 +6029,10 @@ export type GetChecklistItemErrors = {
      * Resource not found or API v5 not enabled for this organization.
      */
     404: ProblemDetails;
+    /**
+     * Validation error — for example, a request body fails schema validation, or a path/query parameter does not match the expected TypeID format (`<prefix>_<32hex>`).
+     */
+    422: ProblemDetails;
 };
 
 export type GetChecklistItemError = GetChecklistItemErrors[keyof GetChecklistItemErrors];
@@ -4335,7 +6066,7 @@ export type UpdateChecklistItemErrors = {
      */
     401: ProblemDetails;
     /**
-     * Not authorized to perform this action.
+     * Not authorized to perform this action. Denials raised by skill authorization rules carry a machine-readable `reason` extension member distinguishing the rule that denied — see `ProblemDetails.reason`.
      */
     403: ProblemDetails;
     /**
@@ -4343,7 +6074,7 @@ export type UpdateChecklistItemErrors = {
      */
     404: ProblemDetails;
     /**
-     * Validation error.
+     * Validation error — for example, a request body fails schema validation, or a path/query parameter does not match the expected TypeID format (`<prefix>_<32hex>`).
      */
     422: ProblemDetails;
 };
@@ -4399,6 +6130,10 @@ export type ListRoleMetricsErrors = {
      * Resource not found or API v5 not enabled for this organization.
      */
     404: ProblemDetails;
+    /**
+     * Validation error — for example, a request body fails schema validation, or a path/query parameter does not match the expected TypeID format (`<prefix>_<32hex>`).
+     */
+    422: ProblemDetails;
 };
 
 export type ListRoleMetricsError = ListRoleMetricsErrors[keyof ListRoleMetricsErrors];
@@ -4435,7 +6170,7 @@ export type CreateMetricErrors = {
      */
     401: ProblemDetails;
     /**
-     * Not authorized to perform this action.
+     * Not authorized to perform this action. Denials raised by skill authorization rules carry a machine-readable `reason` extension member distinguishing the rule that denied — see `ProblemDetails.reason`.
      */
     403: ProblemDetails;
     /**
@@ -4443,7 +6178,7 @@ export type CreateMetricErrors = {
      */
     404: ProblemDetails;
     /**
-     * Validation error.
+     * Validation error — for example, a request body fails schema validation, or a path/query parameter does not match the expected TypeID format (`<prefix>_<32hex>`).
      */
     422: ProblemDetails;
 };
@@ -4479,13 +6214,17 @@ export type DeleteMetricErrors = {
      */
     401: ProblemDetails;
     /**
-     * Not authorized to perform this action.
+     * Not authorized to perform this action. Denials raised by skill authorization rules carry a machine-readable `reason` extension member distinguishing the rule that denied — see `ProblemDetails.reason`.
      */
     403: ProblemDetails;
     /**
      * Resource not found or API v5 not enabled for this organization.
      */
     404: ProblemDetails;
+    /**
+     * Validation error — for example, a request body fails schema validation, or a path/query parameter does not match the expected TypeID format (`<prefix>_<32hex>`).
+     */
+    422: ProblemDetails;
 };
 
 export type DeleteMetricError = DeleteMetricErrors[keyof DeleteMetricErrors];
@@ -4520,6 +6259,10 @@ export type GetMetricErrors = {
      * Resource not found or API v5 not enabled for this organization.
      */
     404: ProblemDetails;
+    /**
+     * Validation error — for example, a request body fails schema validation, or a path/query parameter does not match the expected TypeID format (`<prefix>_<32hex>`).
+     */
+    422: ProblemDetails;
 };
 
 export type GetMetricError = GetMetricErrors[keyof GetMetricErrors];
@@ -4553,7 +6296,7 @@ export type UpdateMetricErrors = {
      */
     401: ProblemDetails;
     /**
-     * Not authorized to perform this action.
+     * Not authorized to perform this action. Denials raised by skill authorization rules carry a machine-readable `reason` extension member distinguishing the rule that denied — see `ProblemDetails.reason`.
      */
     403: ProblemDetails;
     /**
@@ -4561,7 +6304,7 @@ export type UpdateMetricErrors = {
      */
     404: ProblemDetails;
     /**
-     * Validation error.
+     * Validation error — for example, a request body fails schema validation, or a path/query parameter does not match the expected TypeID format (`<prefix>_<32hex>`).
      */
     422: ProblemDetails;
 };
@@ -4613,6 +6356,10 @@ export type ListRoleTensionsErrors = {
      * Resource not found or API v5 not enabled for this organization.
      */
     404: ProblemDetails;
+    /**
+     * Validation error — for example, a request body fails schema validation, or a path/query parameter does not match the expected TypeID format (`<prefix>_<32hex>`).
+     */
+    422: ProblemDetails;
 };
 
 export type ListRoleTensionsError = ListRoleTensionsErrors[keyof ListRoleTensionsErrors];
@@ -4649,7 +6396,7 @@ export type CreateTensionErrors = {
      */
     401: ProblemDetails;
     /**
-     * Not authorized to perform this action.
+     * Not authorized to perform this action. Denials raised by skill authorization rules carry a machine-readable `reason` extension member distinguishing the rule that denied — see `ProblemDetails.reason`.
      */
     403: ProblemDetails;
     /**
@@ -4709,6 +6456,10 @@ export type ListSubrolesTensionsErrors = {
      * Resource not found or API v5 not enabled for this organization.
      */
     404: ProblemDetails;
+    /**
+     * Validation error — for example, a request body fails schema validation, or a path/query parameter does not match the expected TypeID format (`<prefix>_<32hex>`).
+     */
+    422: ProblemDetails;
 };
 
 export type ListSubrolesTensionsError = ListSubrolesTensionsErrors[keyof ListSubrolesTensionsErrors];
@@ -4745,13 +6496,17 @@ export type DeleteTensionErrors = {
      */
     401: ProblemDetails;
     /**
-     * Not authorized to perform this action.
+     * Not authorized to perform this action. Denials raised by skill authorization rules carry a machine-readable `reason` extension member distinguishing the rule that denied — see `ProblemDetails.reason`.
      */
     403: ProblemDetails;
     /**
      * Resource not found or API v5 not enabled for this organization.
      */
     404: ProblemDetails;
+    /**
+     * Validation error — for example, a request body fails schema validation, or a path/query parameter does not match the expected TypeID format (`<prefix>_<32hex>`).
+     */
+    422: ProblemDetails;
 };
 
 export type DeleteTensionError = DeleteTensionErrors[keyof DeleteTensionErrors];
@@ -4786,6 +6541,10 @@ export type GetTensionErrors = {
      * Resource not found or API v5 not enabled for this organization.
      */
     404: ProblemDetails;
+    /**
+     * Validation error — for example, a request body fails schema validation, or a path/query parameter does not match the expected TypeID format (`<prefix>_<32hex>`).
+     */
+    422: ProblemDetails;
 };
 
 export type GetTensionError = GetTensionErrors[keyof GetTensionErrors];
@@ -4819,7 +6578,7 @@ export type UpdateTensionErrors = {
      */
     401: ProblemDetails;
     /**
-     * Not authorized to perform this action.
+     * Not authorized to perform this action. Denials raised by skill authorization rules carry a machine-readable `reason` extension member distinguishing the rule that denied — see `ProblemDetails.reason`.
      */
     403: ProblemDetails;
     /**
@@ -4888,6 +6647,10 @@ export type ListRolePoliciesErrors = {
      * Resource not found or API v5 not enabled for this organization.
      */
     404: ProblemDetails;
+    /**
+     * Validation error — for example, a request body fails schema validation, or a path/query parameter does not match the expected TypeID format (`<prefix>_<32hex>`).
+     */
+    422: ProblemDetails;
 };
 
 export type ListRolePoliciesError = ListRolePoliciesErrors[keyof ListRolePoliciesErrors];
@@ -4927,6 +6690,10 @@ export type GetPolicyErrors = {
      * Resource not found or API v5 not enabled for this organization.
      */
     404: ProblemDetails;
+    /**
+     * Validation error — for example, a request body fails schema validation, or a path/query parameter does not match the expected TypeID format (`<prefix>_<32hex>`).
+     */
+    422: ProblemDetails;
 };
 
 export type GetPolicyError = GetPolicyErrors[keyof GetPolicyErrors];
@@ -4985,6 +6752,10 @@ export type ListRoleDomainsErrors = {
      * Resource not found or API v5 not enabled for this organization.
      */
     404: ProblemDetails;
+    /**
+     * Validation error — for example, a request body fails schema validation, or a path/query parameter does not match the expected TypeID format (`<prefix>_<32hex>`).
+     */
+    422: ProblemDetails;
 };
 
 export type ListRoleDomainsError = ListRoleDomainsErrors[keyof ListRoleDomainsErrors];
@@ -5029,6 +6800,10 @@ export type GetDomainErrors = {
      * Resource not found or API v5 not enabled for this organization.
      */
     404: ProblemDetails;
+    /**
+     * Validation error — for example, a request body fails schema validation, or a path/query parameter does not match the expected TypeID format (`<prefix>_<32hex>`).
+     */
+    422: ProblemDetails;
 };
 
 export type GetDomainError = GetDomainErrors[keyof GetDomainErrors];
@@ -5062,13 +6837,17 @@ export type DeleteRoleStrategyErrors = {
      */
     401: ProblemDetails;
     /**
-     * Not authorized to perform this action.
+     * Not authorized to perform this action. Denials raised by skill authorization rules carry a machine-readable `reason` extension member distinguishing the rule that denied — see `ProblemDetails.reason`.
      */
     403: ProblemDetails;
     /**
      * Resource not found or API v5 not enabled for this organization.
      */
     404: ProblemDetails;
+    /**
+     * Validation error — for example, a request body fails schema validation, or a path/query parameter does not match the expected TypeID format (`<prefix>_<32hex>`).
+     */
+    422: ProblemDetails;
 };
 
 export type DeleteRoleStrategyError = DeleteRoleStrategyErrors[keyof DeleteRoleStrategyErrors];
@@ -5103,6 +6882,10 @@ export type GetRoleStrategyErrors = {
      * Resource not found or API v5 not enabled for this organization.
      */
     404: ProblemDetails;
+    /**
+     * Validation error — for example, a request body fails schema validation, or a path/query parameter does not match the expected TypeID format (`<prefix>_<32hex>`).
+     */
+    422: ProblemDetails;
 };
 
 export type GetRoleStrategyError = GetRoleStrategyErrors[keyof GetRoleStrategyErrors];
@@ -5136,7 +6919,7 @@ export type UpdateRoleStrategyErrors = {
      */
     401: ProblemDetails;
     /**
-     * Not authorized to perform this action.
+     * Not authorized to perform this action. Denials raised by skill authorization rules carry a machine-readable `reason` extension member distinguishing the rule that denied — see `ProblemDetails.reason`.
      */
     403: ProblemDetails;
     /**
@@ -5144,7 +6927,7 @@ export type UpdateRoleStrategyErrors = {
      */
     404: ProblemDetails;
     /**
-     * Validation error.
+     * Validation error — for example, a request body fails schema validation, or a path/query parameter does not match the expected TypeID format (`<prefix>_<32hex>`).
      */
     422: ProblemDetails;
 };
@@ -5205,6 +6988,10 @@ export type ListRoleNotesErrors = {
      * Resource not found or API v5 not enabled for this organization.
      */
     404: ProblemDetails;
+    /**
+     * Validation error — for example, a request body fails schema validation, or a path/query parameter does not match the expected TypeID format (`<prefix>_<32hex>`).
+     */
+    422: ProblemDetails;
 };
 
 export type ListRoleNotesError = ListRoleNotesErrors[keyof ListRoleNotesErrors];
@@ -5241,7 +7028,7 @@ export type CreateRoleNoteErrors = {
      */
     401: ProblemDetails;
     /**
-     * Not authorized to perform this action.
+     * Not authorized to perform this action. Denials raised by skill authorization rules carry a machine-readable `reason` extension member distinguishing the rule that denied — see `ProblemDetails.reason`.
      */
     403: ProblemDetails;
     /**
@@ -5249,7 +7036,7 @@ export type CreateRoleNoteErrors = {
      */
     404: ProblemDetails;
     /**
-     * Validation error.
+     * Validation error — for example, a request body fails schema validation, or a path/query parameter does not match the expected TypeID format (`<prefix>_<32hex>`).
      */
     422: ProblemDetails;
 };
@@ -5287,6 +7074,21 @@ export type ListNotesData = {
          *
          */
         query?: string;
+        /**
+         * Filter to notes tagged with ALL supplied tag names
+         * (case-insensitive, AND semantics).
+         *
+         */
+        tags?: Array<string>;
+        /**
+         * Full-text search filter. Matches against the resource's searchable text
+         * fields using Postgres full-text search (`simple` + `unaccent`). Supports
+         * Google-style syntax: `marketing -intern`, `"exact phrase"`, `foo OR bar`.
+         * Composes with other filters (all AND'd together). Empty or whitespace-only
+         * values are ignored. Malformed queries return no rows rather than an error.
+         *
+         */
+        q?: string;
         /**
          * Number of results per page (1–500, default 100). Values above the maximum return `400 Bad Request`; blank, zero, negative, or non-numeric values fall back to the default of 100.
          */
@@ -5343,13 +7145,17 @@ export type DeleteNoteErrors = {
      */
     401: ProblemDetails;
     /**
-     * Not authorized to perform this action.
+     * Not authorized to perform this action. Denials raised by skill authorization rules carry a machine-readable `reason` extension member distinguishing the rule that denied — see `ProblemDetails.reason`.
      */
     403: ProblemDetails;
     /**
      * Resource not found or API v5 not enabled for this organization.
      */
     404: ProblemDetails;
+    /**
+     * Validation error — for example, a request body fails schema validation, or a path/query parameter does not match the expected TypeID format (`<prefix>_<32hex>`).
+     */
+    422: ProblemDetails;
 };
 
 export type DeleteNoteError = DeleteNoteErrors[keyof DeleteNoteErrors];
@@ -5384,6 +7190,10 @@ export type GetNoteErrors = {
      * Resource not found or API v5 not enabled for this organization.
      */
     404: ProblemDetails;
+    /**
+     * Validation error — for example, a request body fails schema validation, or a path/query parameter does not match the expected TypeID format (`<prefix>_<32hex>`).
+     */
+    422: ProblemDetails;
 };
 
 export type GetNoteError = GetNoteErrors[keyof GetNoteErrors];
@@ -5427,7 +7237,7 @@ export type UpdateNoteErrors = {
      */
     401: ProblemDetails;
     /**
-     * Not authorized to perform this action.
+     * Not authorized to perform this action. Denials raised by skill authorization rules carry a machine-readable `reason` extension member distinguishing the rule that denied — see `ProblemDetails.reason`.
      */
     403: ProblemDetails;
     /**
@@ -5442,7 +7252,7 @@ export type UpdateNoteErrors = {
      */
     409: ProblemDetails;
     /**
-     * Validation error.
+     * Validation error — for example, a request body fails schema validation, or a path/query parameter does not match the expected TypeID format (`<prefix>_<32hex>`).
      */
     422: ProblemDetails;
 };
@@ -5460,6 +7270,166 @@ export type UpdateNoteResponses = {
 };
 
 export type UpdateNoteResponse = UpdateNoteResponses[keyof UpdateNoteResponses];
+
+export type ListNoteTagsData = {
+    body?: never;
+    path: {
+        /**
+         * The note's unique identifier.
+         */
+        note_id: string;
+    };
+    query?: {
+        /**
+         * Number of results per page (1–500, default 100). Values above the maximum return `400 Bad Request`; blank, zero, negative, or non-numeric values fall back to the default of 100.
+         */
+        per_page?: number;
+        /**
+         * Cursor from a previous response's `meta.pagination.next_cursor`.
+         */
+        cursor?: string;
+        /**
+         * Full-text search filter. Matches against the resource's searchable text
+         * fields using Postgres full-text search (`simple` + `unaccent`). Supports
+         * Google-style syntax: `marketing -intern`, `"exact phrase"`, `foo OR bar`.
+         * Composes with other filters (all AND'd together). Empty or whitespace-only
+         * values are ignored. Malformed queries return no rows rather than an error.
+         *
+         */
+        q?: string;
+    };
+    url: '/notes/{note_id}/tags';
+};
+
+export type ListNoteTagsErrors = {
+    /**
+     * Missing or invalid API key.
+     */
+    401: ProblemDetails;
+    /**
+     * Not authorized to perform this action. Denials raised by skill authorization rules carry a machine-readable `reason` extension member distinguishing the rule that denied — see `ProblemDetails.reason`.
+     */
+    403: ProblemDetails;
+    /**
+     * Resource not found or API v5 not enabled for this organization.
+     */
+    404: ProblemDetails;
+    /**
+     * Validation error — for example, a request body fails schema validation, or a path/query parameter does not match the expected TypeID format (`<prefix>_<32hex>`).
+     */
+    422: ProblemDetails;
+};
+
+export type ListNoteTagsError = ListNoteTagsErrors[keyof ListNoteTagsErrors];
+
+export type ListNoteTagsResponses = {
+    /**
+     * A paginated list of tags on the note.
+     */
+    200: {
+        data: Array<Tag>;
+        meta: {
+            pagination: Pagination;
+        };
+    };
+};
+
+export type ListNoteTagsResponse = ListNoteTagsResponses[keyof ListNoteTagsResponses];
+
+export type AddTagToNoteData = {
+    body: {
+        /**
+         * The tag to add.
+         */
+        tag_id: string;
+    };
+    path: {
+        /**
+         * The note's unique identifier.
+         */
+        note_id: string;
+    };
+    query?: never;
+    url: '/notes/{note_id}/tags';
+};
+
+export type AddTagToNoteErrors = {
+    /**
+     * Missing or invalid API key.
+     */
+    401: ProblemDetails;
+    /**
+     * Not authorized to perform this action. Denials raised by skill authorization rules carry a machine-readable `reason` extension member distinguishing the rule that denied — see `ProblemDetails.reason`.
+     */
+    403: ProblemDetails;
+    /**
+     * Resource not found or API v5 not enabled for this organization.
+     */
+    404: ProblemDetails;
+    /**
+     * Validation error — for example, a request body fails schema validation, or a path/query parameter does not match the expected TypeID format (`<prefix>_<32hex>`).
+     */
+    422: ProblemDetails;
+};
+
+export type AddTagToNoteError = AddTagToNoteErrors[keyof AddTagToNoteErrors];
+
+export type AddTagToNoteResponses = {
+    /**
+     * The tag that was added.
+     */
+    201: {
+        data: Tag;
+    };
+};
+
+export type AddTagToNoteResponse = AddTagToNoteResponses[keyof AddTagToNoteResponses];
+
+export type RemoveTagFromNoteData = {
+    body?: never;
+    path: {
+        /**
+         * The note's unique identifier.
+         */
+        note_id: string;
+        /**
+         * The tag's unique identifier.
+         */
+        id: string;
+    };
+    query?: never;
+    url: '/notes/{note_id}/tags/{id}';
+};
+
+export type RemoveTagFromNoteErrors = {
+    /**
+     * Missing or invalid API key.
+     */
+    401: ProblemDetails;
+    /**
+     * Not authorized to perform this action. Denials raised by skill authorization rules carry a machine-readable `reason` extension member distinguishing the rule that denied — see `ProblemDetails.reason`.
+     */
+    403: ProblemDetails;
+    /**
+     * Resource not found or API v5 not enabled for this organization.
+     */
+    404: ProblemDetails;
+    /**
+     * Validation error — for example, a request body fails schema validation, or a path/query parameter does not match the expected TypeID format (`<prefix>_<32hex>`).
+     */
+    422: ProblemDetails;
+};
+
+export type RemoveTagFromNoteError = RemoveTagFromNoteErrors[keyof RemoveTagFromNoteErrors];
+
+export type RemoveTagFromNoteResponses = {
+    /**
+     * Tag removed from note successfully.
+     */
+    204: void;
+};
+
+export type RemoveTagFromNoteResponse = RemoveTagFromNoteResponses[keyof RemoveTagFromNoteResponses];
 
 export type ListRoleProjectsData = {
     body?: never;
@@ -5492,6 +7462,10 @@ export type ListRoleProjectsData = {
          */
         status?: 'archived' | 'cancelled' | 'completed' | 'current' | 'scheduled' | 'someday' | 'waiting';
         /**
+         * Only items whose `actor_id` is this person (`per_`) or agent (`agt_`). Splits the items of a role filled by several people. An unknown, invisible, or malformed id returns an empty list, not an error.
+         */
+        actor_id?: string;
+        /**
          * Filter projects by tag name (case-insensitive).
          */
         tag?: string;
@@ -5501,21 +7475,6 @@ export type ListRoleProjectsData = {
          *
          */
         include?: Array<'sub_projects' | 'actions'>;
-        /**
-         * **Transition-only.** When `true`, each resource in the response
-         * additionally carries a `legacy_id` field — its v3 sequential integer id
-         * — so v3-keyed integrators can correlate v5 TypeIDs with the numeric IDs
-         * they already hold during migration. Default is off (`legacy_id` is
-         * omitted unless explicitly requested).
-         *
-         * This is a temporary v3→v5 bridge and **NOT a permanent part of the v5
-         * contract**: it retires when the v3 API retires. See the "Legacy IDs
-         * (transition-only)" section in the API overview. Applies to the standard
-         * resource list/show endpoints and `/me`; nested `?include=` embeds are
-         * out of scope.
-         *
-         */
-        include_legacy_id?: boolean;
     };
     url: '/roles/{role_id}/projects';
 };
@@ -5533,6 +7492,10 @@ export type ListRoleProjectsErrors = {
      * Resource not found or API v5 not enabled for this organization.
      */
     404: ProblemDetails;
+    /**
+     * Validation error — for example, a request body fails schema validation, or a path/query parameter does not match the expected TypeID format (`<prefix>_<32hex>`).
+     */
+    422: ProblemDetails;
 };
 
 export type ListRoleProjectsError = ListRoleProjectsErrors[keyof ListRoleProjectsErrors];
@@ -5569,7 +7532,7 @@ export type CreateRoleProjectErrors = {
      */
     401: ProblemDetails;
     /**
-     * Not authorized to perform this action.
+     * Not authorized to perform this action. Denials raised by skill authorization rules carry a machine-readable `reason` extension member distinguishing the rule that denied — see `ProblemDetails.reason`.
      */
     403: ProblemDetails;
     /**
@@ -5577,7 +7540,7 @@ export type CreateRoleProjectErrors = {
      */
     404: ProblemDetails;
     /**
-     * Validation error.
+     * Validation error — for example, a request body fails schema validation, or a path/query parameter does not match the expected TypeID format (`<prefix>_<32hex>`).
      */
     422: ProblemDetails;
 };
@@ -5617,20 +7580,9 @@ export type ListProjectActionsData = {
          */
         status?: 'archived' | 'cancelled' | 'completed' | 'current' | 'scheduled' | 'someday' | 'waiting';
         /**
-         * **Transition-only.** When `true`, each resource in the response
-         * additionally carries a `legacy_id` field — its v3 sequential integer id
-         * — so v3-keyed integrators can correlate v5 TypeIDs with the numeric IDs
-         * they already hold during migration. Default is off (`legacy_id` is
-         * omitted unless explicitly requested).
-         *
-         * This is a temporary v3→v5 bridge and **NOT a permanent part of the v5
-         * contract**: it retires when the v3 API retires. See the "Legacy IDs
-         * (transition-only)" section in the API overview. Applies to the standard
-         * resource list/show endpoints and `/me`; nested `?include=` embeds are
-         * out of scope.
-         *
+         * Only items whose `actor_id` is this person (`per_`) or agent (`agt_`). Splits the items of a role filled by several people. An unknown, invisible, or malformed id returns an empty list, not an error.
          */
-        include_legacy_id?: boolean;
+        actor_id?: string;
     };
     url: '/projects/{project_id}/actions';
 };
@@ -5644,6 +7596,10 @@ export type ListProjectActionsErrors = {
      * Resource not found or API v5 not enabled for this organization.
      */
     404: ProblemDetails;
+    /**
+     * Validation error — for example, a request body fails schema validation, or a path/query parameter does not match the expected TypeID format (`<prefix>_<32hex>`).
+     */
+    422: ProblemDetails;
 };
 
 export type ListProjectActionsError = ListProjectActionsErrors[keyof ListProjectActionsErrors];
@@ -5679,21 +7635,6 @@ export type ListSubProjectsData = {
          * Cursor from a previous response's `meta.pagination.next_cursor`.
          */
         cursor?: string;
-        /**
-         * **Transition-only.** When `true`, each resource in the response
-         * additionally carries a `legacy_id` field — its v3 sequential integer id
-         * — so v3-keyed integrators can correlate v5 TypeIDs with the numeric IDs
-         * they already hold during migration. Default is off (`legacy_id` is
-         * omitted unless explicitly requested).
-         *
-         * This is a temporary v3→v5 bridge and **NOT a permanent part of the v5
-         * contract**: it retires when the v3 API retires. See the "Legacy IDs
-         * (transition-only)" section in the API overview. Applies to the standard
-         * resource list/show endpoints and `/me`; nested `?include=` embeds are
-         * out of scope.
-         *
-         */
-        include_legacy_id?: boolean;
     };
     url: '/projects/{id}/sub_projects';
 };
@@ -5707,6 +7648,10 @@ export type ListSubProjectsErrors = {
      * Resource not found or API v5 not enabled for this organization.
      */
     404: ProblemDetails;
+    /**
+     * Validation error — for example, a request body fails schema validation, or a path/query parameter does not match the expected TypeID format (`<prefix>_<32hex>`).
+     */
+    422: ProblemDetails;
 };
 
 export type ListSubProjectsError = ListSubProjectsErrors[keyof ListSubProjectsErrors];
@@ -5743,13 +7688,17 @@ export type DeleteProjectErrors = {
      */
     401: ProblemDetails;
     /**
-     * Not authorized to perform this action.
+     * Not authorized to perform this action. Denials raised by skill authorization rules carry a machine-readable `reason` extension member distinguishing the rule that denied — see `ProblemDetails.reason`.
      */
     403: ProblemDetails;
     /**
      * Resource not found or API v5 not enabled for this organization.
      */
     404: ProblemDetails;
+    /**
+     * Validation error — for example, a request body fails schema validation, or a path/query parameter does not match the expected TypeID format (`<prefix>_<32hex>`).
+     */
+    422: ProblemDetails;
 };
 
 export type DeleteProjectError = DeleteProjectErrors[keyof DeleteProjectErrors];
@@ -5780,21 +7729,6 @@ export type GetProjectData = {
          *
          */
         include?: Array<'sub_projects' | 'actions'>;
-        /**
-         * **Transition-only.** When `true`, each resource in the response
-         * additionally carries a `legacy_id` field — its v3 sequential integer id
-         * — so v3-keyed integrators can correlate v5 TypeIDs with the numeric IDs
-         * they already hold during migration. Default is off (`legacy_id` is
-         * omitted unless explicitly requested).
-         *
-         * This is a temporary v3→v5 bridge and **NOT a permanent part of the v5
-         * contract**: it retires when the v3 API retires. See the "Legacy IDs
-         * (transition-only)" section in the API overview. Applies to the standard
-         * resource list/show endpoints and `/me`; nested `?include=` embeds are
-         * out of scope.
-         *
-         */
-        include_legacy_id?: boolean;
     };
     url: '/projects/{id}';
 };
@@ -5808,6 +7742,10 @@ export type GetProjectErrors = {
      * Resource not found or API v5 not enabled for this organization.
      */
     404: ProblemDetails;
+    /**
+     * Validation error — for example, a request body fails schema validation, or a path/query parameter does not match the expected TypeID format (`<prefix>_<32hex>`).
+     */
+    422: ProblemDetails;
 };
 
 export type GetProjectError = GetProjectErrors[keyof GetProjectErrors];
@@ -5841,7 +7779,7 @@ export type UpdateProjectErrors = {
      */
     401: ProblemDetails;
     /**
-     * Not authorized to perform this action.
+     * Not authorized to perform this action. Denials raised by skill authorization rules carry a machine-readable `reason` extension member distinguishing the rule that denied — see `ProblemDetails.reason`.
      */
     403: ProblemDetails;
     /**
@@ -5849,7 +7787,7 @@ export type UpdateProjectErrors = {
      */
     404: ProblemDetails;
     /**
-     * Validation error.
+     * Validation error — for example, a request body fails schema validation, or a path/query parameter does not match the expected TypeID format (`<prefix>_<32hex>`).
      */
     422: ProblemDetails;
 };
@@ -5867,6 +7805,162 @@ export type UpdateProjectResponses = {
 
 export type UpdateProjectResponse = UpdateProjectResponses[keyof UpdateProjectResponses];
 
+export type ListProjectTagsData = {
+    body?: never;
+    path: {
+        /**
+         * The project's unique identifier.
+         */
+        project_id: string;
+    };
+    query?: {
+        /**
+         * Number of results per page (1–500, default 100). Values above the maximum return `400 Bad Request`; blank, zero, negative, or non-numeric values fall back to the default of 100.
+         */
+        per_page?: number;
+        /**
+         * Cursor from a previous response's `meta.pagination.next_cursor`.
+         */
+        cursor?: string;
+        /**
+         * Full-text search filter. Matches against the resource's searchable text
+         * fields using Postgres full-text search (`simple` + `unaccent`). Supports
+         * Google-style syntax: `marketing -intern`, `"exact phrase"`, `foo OR bar`.
+         * Composes with other filters (all AND'd together). Empty or whitespace-only
+         * values are ignored. Malformed queries return no rows rather than an error.
+         *
+         */
+        q?: string;
+    };
+    url: '/projects/{project_id}/tags';
+};
+
+export type ListProjectTagsErrors = {
+    /**
+     * Missing or invalid API key.
+     */
+    401: ProblemDetails;
+    /**
+     * Resource not found or API v5 not enabled for this organization.
+     */
+    404: ProblemDetails;
+    /**
+     * Validation error — for example, a request body fails schema validation, or a path/query parameter does not match the expected TypeID format (`<prefix>_<32hex>`).
+     */
+    422: ProblemDetails;
+};
+
+export type ListProjectTagsError = ListProjectTagsErrors[keyof ListProjectTagsErrors];
+
+export type ListProjectTagsResponses = {
+    /**
+     * A paginated list of tags on the project.
+     */
+    200: {
+        data: Array<Tag>;
+        meta: {
+            pagination: Pagination;
+        };
+    };
+};
+
+export type ListProjectTagsResponse = ListProjectTagsResponses[keyof ListProjectTagsResponses];
+
+export type AddTagToProjectData = {
+    body: {
+        /**
+         * The tag to add.
+         */
+        tag_id: string;
+    };
+    path: {
+        /**
+         * The project's unique identifier.
+         */
+        project_id: string;
+    };
+    query?: never;
+    url: '/projects/{project_id}/tags';
+};
+
+export type AddTagToProjectErrors = {
+    /**
+     * Missing or invalid API key.
+     */
+    401: ProblemDetails;
+    /**
+     * Not authorized to perform this action. Denials raised by skill authorization rules carry a machine-readable `reason` extension member distinguishing the rule that denied — see `ProblemDetails.reason`.
+     */
+    403: ProblemDetails;
+    /**
+     * Resource not found or API v5 not enabled for this organization.
+     */
+    404: ProblemDetails;
+    /**
+     * Validation error — for example, a request body fails schema validation, or a path/query parameter does not match the expected TypeID format (`<prefix>_<32hex>`).
+     */
+    422: ProblemDetails;
+};
+
+export type AddTagToProjectError = AddTagToProjectErrors[keyof AddTagToProjectErrors];
+
+export type AddTagToProjectResponses = {
+    /**
+     * The tag that was added.
+     */
+    201: {
+        data: Tag;
+    };
+};
+
+export type AddTagToProjectResponse = AddTagToProjectResponses[keyof AddTagToProjectResponses];
+
+export type RemoveTagFromProjectData = {
+    body?: never;
+    path: {
+        /**
+         * The project's unique identifier.
+         */
+        project_id: string;
+        /**
+         * The tag's unique identifier.
+         */
+        id: string;
+    };
+    query?: never;
+    url: '/projects/{project_id}/tags/{id}';
+};
+
+export type RemoveTagFromProjectErrors = {
+    /**
+     * Missing or invalid API key.
+     */
+    401: ProblemDetails;
+    /**
+     * Not authorized to perform this action. Denials raised by skill authorization rules carry a machine-readable `reason` extension member distinguishing the rule that denied — see `ProblemDetails.reason`.
+     */
+    403: ProblemDetails;
+    /**
+     * Resource not found or API v5 not enabled for this organization.
+     */
+    404: ProblemDetails;
+    /**
+     * Validation error — for example, a request body fails schema validation, or a path/query parameter does not match the expected TypeID format (`<prefix>_<32hex>`).
+     */
+    422: ProblemDetails;
+};
+
+export type RemoveTagFromProjectError = RemoveTagFromProjectErrors[keyof RemoveTagFromProjectErrors];
+
+export type RemoveTagFromProjectResponses = {
+    /**
+     * Tag removed from project successfully.
+     */
+    204: void;
+};
+
+export type RemoveTagFromProjectResponse = RemoveTagFromProjectResponses[keyof RemoveTagFromProjectResponses];
+
 export type ListProposalsData = {
     body?: never;
     path?: never;
@@ -5881,7 +7975,7 @@ export type ListProposalsData = {
          */
         role_id?: string;
         /**
-         * Filter to proposals created by this person.
+         * Filter to proposals created by this actor (`agt_` or `per_` id).
          */
         proposer_id?: string;
         /**
@@ -5941,7 +8035,7 @@ export type CreateProposalErrors = {
      */
     401: ProblemDetails;
     /**
-     * Not authorized to perform this action.
+     * Not authorized to perform this action. Denials raised by skill authorization rules carry a machine-readable `reason` extension member distinguishing the rule that denied — see `ProblemDetails.reason`.
      */
     403: ProblemDetails;
     /**
@@ -5949,7 +8043,7 @@ export type CreateProposalErrors = {
      */
     404: ProblemDetails;
     /**
-     * Validation error.
+     * Validation error — for example, a request body fails schema validation, or a path/query parameter does not match the expected TypeID format (`<prefix>_<32hex>`).
      */
     422: ProblemDetails;
 };
@@ -5988,6 +8082,10 @@ export type GetProposalErrors = {
      * Resource not found or API v5 not enabled for this organization.
      */
     404: ProblemDetails;
+    /**
+     * Validation error — for example, a request body fails schema validation, or a path/query parameter does not match the expected TypeID format (`<prefix>_<32hex>`).
+     */
+    422: ProblemDetails;
 };
 
 export type GetProposalError = GetProposalErrors[keyof GetProposalErrors];
@@ -6021,7 +8119,7 @@ export type ProposeProposalErrors = {
      */
     401: ProblemDetails;
     /**
-     * Not authorized to perform this action.
+     * Not authorized to perform this action. Denials raised by skill authorization rules carry a machine-readable `reason` extension member distinguishing the rule that denied — see `ProblemDetails.reason`.
      */
     403: ProblemDetails;
     /**
@@ -6029,7 +8127,7 @@ export type ProposeProposalErrors = {
      */
     404: ProblemDetails;
     /**
-     * Validation error.
+     * Validation error — for example, a request body fails schema validation, or a path/query parameter does not match the expected TypeID format (`<prefix>_<32hex>`).
      */
     422: ProblemDetails;
 };
@@ -6065,7 +8163,7 @@ export type WithdrawProposalErrors = {
      */
     401: ProblemDetails;
     /**
-     * Not authorized to perform this action.
+     * Not authorized to perform this action. Denials raised by skill authorization rules carry a machine-readable `reason` extension member distinguishing the rule that denied — see `ProblemDetails.reason`.
      */
     403: ProblemDetails;
     /**
@@ -6073,7 +8171,7 @@ export type WithdrawProposalErrors = {
      */
     404: ProblemDetails;
     /**
-     * Validation error.
+     * Validation error — for example, a request body fails schema validation, or a path/query parameter does not match the expected TypeID format (`<prefix>_<32hex>`).
      */
     422: ProblemDetails;
 };
@@ -6090,6 +8188,150 @@ export type WithdrawProposalResponses = {
 };
 
 export type WithdrawProposalResponse = WithdrawProposalResponses[keyof WithdrawProposalResponses];
+
+export type CreateProposalChangeData = {
+    body: {
+        change: ProposalChange;
+    };
+    path: {
+        /**
+         * Proposal ID (TypeID).
+         */
+        proposal_id: string;
+    };
+    query?: never;
+    url: '/proposals/{proposal_id}/changes';
+};
+
+export type CreateProposalChangeErrors = {
+    /**
+     * Missing or invalid API key.
+     */
+    401: ProblemDetails;
+    /**
+     * Not authorized to perform this action. Denials raised by skill authorization rules carry a machine-readable `reason` extension member distinguishing the rule that denied — see `ProblemDetails.reason`.
+     */
+    403: ProblemDetails;
+    /**
+     * Resource not found or API v5 not enabled for this organization.
+     */
+    404: ProblemDetails;
+    /**
+     * Validation error — for example, a request body fails schema validation, or a path/query parameter does not match the expected TypeID format (`<prefix>_<32hex>`).
+     */
+    422: ProblemDetails;
+};
+
+export type CreateProposalChangeError = CreateProposalChangeErrors[keyof CreateProposalChangeErrors];
+
+export type CreateProposalChangeResponses = {
+    /**
+     * Change added; the updated proposal.
+     */
+    201: {
+        data: Proposal;
+    };
+};
+
+export type CreateProposalChangeResponse = CreateProposalChangeResponses[keyof CreateProposalChangeResponses];
+
+export type DeleteProposalChangeData = {
+    body?: never;
+    path: {
+        /**
+         * Proposal ID (TypeID).
+         */
+        proposal_id: string;
+        /**
+         * Change ID (TypeID), from the proposal's `changes[].id`.
+         */
+        id: string;
+    };
+    query?: never;
+    url: '/proposals/{proposal_id}/changes/{id}';
+};
+
+export type DeleteProposalChangeErrors = {
+    /**
+     * Missing or invalid API key.
+     */
+    401: ProblemDetails;
+    /**
+     * Not authorized to perform this action. Denials raised by skill authorization rules carry a machine-readable `reason` extension member distinguishing the rule that denied — see `ProblemDetails.reason`.
+     */
+    403: ProblemDetails;
+    /**
+     * Resource not found or API v5 not enabled for this organization.
+     */
+    404: ProblemDetails;
+    /**
+     * Validation error — for example, a request body fails schema validation, or a path/query parameter does not match the expected TypeID format (`<prefix>_<32hex>`).
+     */
+    422: ProblemDetails;
+};
+
+export type DeleteProposalChangeError = DeleteProposalChangeErrors[keyof DeleteProposalChangeErrors];
+
+export type DeleteProposalChangeResponses = {
+    /**
+     * Change removed; the updated proposal.
+     */
+    200: {
+        data: Proposal;
+    };
+};
+
+export type DeleteProposalChangeResponse = DeleteProposalChangeResponses[keyof DeleteProposalChangeResponses];
+
+export type UpdateProposalChangeData = {
+    body: {
+        change: ProposalChange;
+    };
+    path: {
+        /**
+         * Proposal ID (TypeID).
+         */
+        proposal_id: string;
+        /**
+         * Change ID (TypeID), from the proposal's `changes[].id`.
+         */
+        id: string;
+    };
+    query?: never;
+    url: '/proposals/{proposal_id}/changes/{id}';
+};
+
+export type UpdateProposalChangeErrors = {
+    /**
+     * Missing or invalid API key.
+     */
+    401: ProblemDetails;
+    /**
+     * Not authorized to perform this action. Denials raised by skill authorization rules carry a machine-readable `reason` extension member distinguishing the rule that denied — see `ProblemDetails.reason`.
+     */
+    403: ProblemDetails;
+    /**
+     * Resource not found or API v5 not enabled for this organization.
+     */
+    404: ProblemDetails;
+    /**
+     * Validation error — for example, a request body fails schema validation, or a path/query parameter does not match the expected TypeID format (`<prefix>_<32hex>`).
+     */
+    422: ProblemDetails;
+};
+
+export type UpdateProposalChangeError = UpdateProposalChangeErrors[keyof UpdateProposalChangeErrors];
+
+export type UpdateProposalChangeResponses = {
+    /**
+     * Change replaced; the updated proposal.
+     */
+    200: {
+        data: Proposal;
+    };
+};
+
+export type UpdateProposalChangeResponse = UpdateProposalChangeResponses[keyof UpdateProposalChangeResponses];
 
 export type CreateProposalResponseData = {
     body: CreateProposalResponseRequest;
@@ -6109,7 +8351,7 @@ export type CreateProposalResponseErrors = {
      */
     401: ProblemDetails;
     /**
-     * Not authorized to perform this action.
+     * Not authorized to perform this action. Denials raised by skill authorization rules carry a machine-readable `reason` extension member distinguishing the rule that denied — see `ProblemDetails.reason`.
      */
     403: ProblemDetails;
     /**
@@ -6117,7 +8359,7 @@ export type CreateProposalResponseErrors = {
      */
     404: ProblemDetails;
     /**
-     * Validation error.
+     * Validation error — for example, a request body fails schema validation, or a path/query parameter does not match the expected TypeID format (`<prefix>_<32hex>`).
      */
     422: ProblemDetails;
 };
@@ -6150,6 +8392,23 @@ export type GetOrgRuleData = {
     query?: never;
     url: '/orgs/{org_id}/rules/{section_key}';
 };
+
+export type GetOrgRuleErrors = {
+    /**
+     * Missing or invalid API key.
+     */
+    401: ProblemDetails;
+    /**
+     * Resource not found or API v5 not enabled for this organization.
+     */
+    404: ProblemDetails;
+    /**
+     * Validation error — for example, a request body fails schema validation, or a path/query parameter does not match the expected TypeID format (`<prefix>_<32hex>`).
+     */
+    422: ProblemDetails;
+};
+
+export type GetOrgRuleError = GetOrgRuleErrors[keyof GetOrgRuleErrors];
 
 export type GetOrgRuleResponses = {
     /**
@@ -6189,13 +8448,17 @@ export type ListRoleCustomFieldsErrors = {
      */
     401: ProblemDetails;
     /**
-     * Not authorized to perform this action.
+     * Not authorized to perform this action. Denials raised by skill authorization rules carry a machine-readable `reason` extension member distinguishing the rule that denied — see `ProblemDetails.reason`.
      */
     403: ProblemDetails;
     /**
      * Resource not found or API v5 not enabled for this organization.
      */
     404: ProblemDetails;
+    /**
+     * Validation error — for example, a request body fails schema validation, or a path/query parameter does not match the expected TypeID format (`<prefix>_<32hex>`).
+     */
+    422: ProblemDetails;
 };
 
 export type ListRoleCustomFieldsError = ListRoleCustomFieldsErrors[keyof ListRoleCustomFieldsErrors];
@@ -6232,7 +8495,7 @@ export type CreateRoleCustomFieldErrors = {
      */
     401: ProblemDetails;
     /**
-     * Not authorized to perform this action.
+     * Not authorized to perform this action. Denials raised by skill authorization rules carry a machine-readable `reason` extension member distinguishing the rule that denied — see `ProblemDetails.reason`.
      */
     403: ProblemDetails;
     /**
@@ -6240,7 +8503,7 @@ export type CreateRoleCustomFieldErrors = {
      */
     404: ProblemDetails;
     /**
-     * Validation error.
+     * Validation error — for example, a request body fails schema validation, or a path/query parameter does not match the expected TypeID format (`<prefix>_<32hex>`).
      */
     422: ProblemDetails;
 };
@@ -6276,13 +8539,17 @@ export type DeleteCustomFieldErrors = {
      */
     401: ProblemDetails;
     /**
-     * Not authorized to perform this action.
+     * Not authorized to perform this action. Denials raised by skill authorization rules carry a machine-readable `reason` extension member distinguishing the rule that denied — see `ProblemDetails.reason`.
      */
     403: ProblemDetails;
     /**
      * Resource not found or API v5 not enabled for this organization.
      */
     404: ProblemDetails;
+    /**
+     * Validation error — for example, a request body fails schema validation, or a path/query parameter does not match the expected TypeID format (`<prefix>_<32hex>`).
+     */
+    422: ProblemDetails;
 };
 
 export type DeleteCustomFieldError = DeleteCustomFieldErrors[keyof DeleteCustomFieldErrors];
@@ -6314,13 +8581,17 @@ export type GetCustomFieldErrors = {
      */
     401: ProblemDetails;
     /**
-     * Not authorized to perform this action.
+     * Not authorized to perform this action. Denials raised by skill authorization rules carry a machine-readable `reason` extension member distinguishing the rule that denied — see `ProblemDetails.reason`.
      */
     403: ProblemDetails;
     /**
      * Resource not found or API v5 not enabled for this organization.
      */
     404: ProblemDetails;
+    /**
+     * Validation error — for example, a request body fails schema validation, or a path/query parameter does not match the expected TypeID format (`<prefix>_<32hex>`).
+     */
+    422: ProblemDetails;
 };
 
 export type GetCustomFieldError = GetCustomFieldErrors[keyof GetCustomFieldErrors];
@@ -6354,7 +8625,7 @@ export type UpdateCustomFieldErrors = {
      */
     401: ProblemDetails;
     /**
-     * Not authorized to perform this action.
+     * Not authorized to perform this action. Denials raised by skill authorization rules carry a machine-readable `reason` extension member distinguishing the rule that denied — see `ProblemDetails.reason`.
      */
     403: ProblemDetails;
     /**
@@ -6362,7 +8633,7 @@ export type UpdateCustomFieldErrors = {
      */
     404: ProblemDetails;
     /**
-     * Validation error.
+     * Validation error — for example, a request body fails schema validation, or a path/query parameter does not match the expected TypeID format (`<prefix>_<32hex>`).
      */
     422: ProblemDetails;
 };
@@ -6380,18 +8651,76 @@ export type UpdateCustomFieldResponses = {
 
 export type UpdateCustomFieldResponse = UpdateCustomFieldResponses[keyof UpdateCustomFieldResponses];
 
+export type TranslateIdData = {
+    body?: never;
+    path?: never;
+    query: {
+        /**
+         * The resource type to look up.
+         */
+        type: 'accountability' | 'action' | 'agent' | 'agent_session' | 'assignment' | 'channel' | 'checklist_item' | 'custom_field' | 'domain' | 'goal' | 'membership' | 'message' | 'metric' | 'organization' | 'person' | 'policy' | 'progress_update' | 'project' | 'proposal' | 'proposal_response' | 'role' | 'role_note' | 'skill' | 'tag' | 'target' | 'tension';
+        /**
+         * The integer databaseId to translate.
+         */
+        database_id: number;
+    };
+    url: '/id_translations';
+};
+
+export type TranslateIdErrors = {
+    /**
+     * The request was malformed — for example, `per_page` exceeds the maximum allowed value. The `detail` describes the specific issue.
+     */
+    400: ProblemDetails;
+    /**
+     * Missing or invalid API key.
+     */
+    401: ProblemDetails;
+    /**
+     * Resource not found or API v5 not enabled for this organization.
+     */
+    404: ProblemDetails;
+};
+
+export type TranslateIdError = TranslateIdErrors[keyof TranslateIdErrors];
+
+export type TranslateIdResponses = {
+    /**
+     * The translated ID.
+     */
+    200: {
+        data: {
+            /**
+             * The resource type.
+             */
+            type: string;
+            /**
+             * The integer databaseId that was translated.
+             */
+            database_id: number;
+            /**
+             * The TypeID for the record.
+             */
+            id: string;
+        };
+    };
+};
+
+export type TranslateIdResponse = TranslateIdResponses[keyof TranslateIdResponses];
+
 export type SearchData = {
     body?: never;
     path?: never;
     query: {
         /**
-         * The search query string. Supports websearch syntax.
+         * The search query string. Supports websearch syntax (quoted phrases, OR, negation). The last term is prefix-matched for type-as-you-search.
          */
         query: string;
         /**
          * Comma-separated list of resource types to search. Defaults to all
          * types. Valid values: role, note, project, action, skill, actor,
-         * policy, domain.
+         * policy, domain, circle, membership, goal, target, metric,
+         * checklist_item, tag. Returns 400 if any value is not on this list.
          *
          */
         types?: string;
@@ -6471,13 +8800,17 @@ export type ListRoleTagsErrors = {
      */
     401: ProblemDetails;
     /**
-     * Not authorized to perform this action.
+     * Not authorized to perform this action. Denials raised by skill authorization rules carry a machine-readable `reason` extension member distinguishing the rule that denied — see `ProblemDetails.reason`.
      */
     403: ProblemDetails;
     /**
      * Resource not found or API v5 not enabled for this organization.
      */
     404: ProblemDetails;
+    /**
+     * Validation error — for example, a request body fails schema validation, or a path/query parameter does not match the expected TypeID format (`<prefix>_<32hex>`).
+     */
+    422: ProblemDetails;
 };
 
 export type ListRoleTagsError = ListRoleTagsErrors[keyof ListRoleTagsErrors];
@@ -6519,13 +8852,17 @@ export type AddTagToRoleErrors = {
      */
     401: ProblemDetails;
     /**
-     * Not authorized to perform this action.
+     * Not authorized to perform this action. Denials raised by skill authorization rules carry a machine-readable `reason` extension member distinguishing the rule that denied — see `ProblemDetails.reason`.
      */
     403: ProblemDetails;
     /**
      * Resource not found or API v5 not enabled for this organization.
      */
     404: ProblemDetails;
+    /**
+     * Validation error — for example, a request body fails schema validation, or a path/query parameter does not match the expected TypeID format (`<prefix>_<32hex>`).
+     */
+    422: ProblemDetails;
 };
 
 export type AddTagToRoleError = AddTagToRoleErrors[keyof AddTagToRoleErrors];
@@ -6563,13 +8900,17 @@ export type RemoveTagFromRoleErrors = {
      */
     401: ProblemDetails;
     /**
-     * Not authorized to perform this action.
+     * Not authorized to perform this action. Denials raised by skill authorization rules carry a machine-readable `reason` extension member distinguishing the rule that denied — see `ProblemDetails.reason`.
      */
     403: ProblemDetails;
     /**
      * Resource not found or API v5 not enabled for this organization.
      */
     404: ProblemDetails;
+    /**
+     * Validation error — for example, a request body fails schema validation, or a path/query parameter does not match the expected TypeID format (`<prefix>_<32hex>`).
+     */
+    422: ProblemDetails;
 };
 
 export type RemoveTagFromRoleError = RemoveTagFromRoleErrors[keyof RemoveTagFromRoleErrors];
@@ -6603,7 +8944,7 @@ export type ListTagsErrors = {
      */
     401: ProblemDetails;
     /**
-     * Not authorized to perform this action.
+     * Not authorized to perform this action. Denials raised by skill authorization rules carry a machine-readable `reason` extension member distinguishing the rule that denied — see `ProblemDetails.reason`.
      */
     403: ProblemDetails;
 };
@@ -6637,11 +8978,11 @@ export type CreateTagErrors = {
      */
     401: ProblemDetails;
     /**
-     * Not authorized to perform this action.
+     * Not authorized to perform this action. Denials raised by skill authorization rules carry a machine-readable `reason` extension member distinguishing the rule that denied — see `ProblemDetails.reason`.
      */
     403: ProblemDetails;
     /**
-     * Validation error.
+     * Validation error — for example, a request body fails schema validation, or a path/query parameter does not match the expected TypeID format (`<prefix>_<32hex>`).
      */
     422: ProblemDetails;
 };
@@ -6677,13 +9018,17 @@ export type DeleteTagErrors = {
      */
     401: ProblemDetails;
     /**
-     * Not authorized to perform this action.
+     * Not authorized to perform this action. Denials raised by skill authorization rules carry a machine-readable `reason` extension member distinguishing the rule that denied — see `ProblemDetails.reason`.
      */
     403: ProblemDetails;
     /**
      * Resource not found or API v5 not enabled for this organization.
      */
     404: ProblemDetails;
+    /**
+     * Validation error — for example, a request body fails schema validation, or a path/query parameter does not match the expected TypeID format (`<prefix>_<32hex>`).
+     */
+    422: ProblemDetails;
 };
 
 export type DeleteTagError = DeleteTagErrors[keyof DeleteTagErrors];
@@ -6715,13 +9060,17 @@ export type GetTagErrors = {
      */
     401: ProblemDetails;
     /**
-     * Not authorized to perform this action.
+     * Not authorized to perform this action. Denials raised by skill authorization rules carry a machine-readable `reason` extension member distinguishing the rule that denied — see `ProblemDetails.reason`.
      */
     403: ProblemDetails;
     /**
      * Resource not found or API v5 not enabled for this organization.
      */
     404: ProblemDetails;
+    /**
+     * Validation error — for example, a request body fails schema validation, or a path/query parameter does not match the expected TypeID format (`<prefix>_<32hex>`).
+     */
+    422: ProblemDetails;
 };
 
 export type GetTagError = GetTagErrors[keyof GetTagErrors];
@@ -6755,7 +9104,7 @@ export type UpdateTagErrors = {
      */
     401: ProblemDetails;
     /**
-     * Not authorized to perform this action.
+     * Not authorized to perform this action. Denials raised by skill authorization rules carry a machine-readable `reason` extension member distinguishing the rule that denied — see `ProblemDetails.reason`.
      */
     403: ProblemDetails;
     /**
@@ -6763,7 +9112,7 @@ export type UpdateTagErrors = {
      */
     404: ProblemDetails;
     /**
-     * Validation error.
+     * Validation error — for example, a request body fails schema validation, or a path/query parameter does not match the expected TypeID format (`<prefix>_<32hex>`).
      */
     422: ProblemDetails;
 };
@@ -6814,13 +9163,17 @@ export type ListRoleGoalsErrors = {
      */
     401: ProblemDetails;
     /**
-     * Not authorized to perform this action.
+     * Not authorized to perform this action. Denials raised by skill authorization rules carry a machine-readable `reason` extension member distinguishing the rule that denied — see `ProblemDetails.reason`.
      */
     403: ProblemDetails;
     /**
      * Resource not found or API v5 not enabled for this organization.
      */
     404: ProblemDetails;
+    /**
+     * Validation error — for example, a request body fails schema validation, or a path/query parameter does not match the expected TypeID format (`<prefix>_<32hex>`).
+     */
+    422: ProblemDetails;
 };
 
 export type ListRoleGoalsError = ListRoleGoalsErrors[keyof ListRoleGoalsErrors];
@@ -6857,7 +9210,7 @@ export type CreateRoleGoalErrors = {
      */
     401: ProblemDetails;
     /**
-     * Not authorized to perform this action.
+     * Not authorized to perform this action. Denials raised by skill authorization rules carry a machine-readable `reason` extension member distinguishing the rule that denied — see `ProblemDetails.reason`.
      */
     403: ProblemDetails;
     /**
@@ -6865,7 +9218,7 @@ export type CreateRoleGoalErrors = {
      */
     404: ProblemDetails;
     /**
-     * Validation error.
+     * Validation error — for example, a request body fails schema validation, or a path/query parameter does not match the expected TypeID format (`<prefix>_<32hex>`).
      */
     422: ProblemDetails;
 };
@@ -6910,13 +9263,17 @@ export type ListRoleSubrolesGoalsErrors = {
      */
     401: ProblemDetails;
     /**
-     * Not authorized to perform this action.
+     * Not authorized to perform this action. Denials raised by skill authorization rules carry a machine-readable `reason` extension member distinguishing the rule that denied — see `ProblemDetails.reason`.
      */
     403: ProblemDetails;
     /**
      * Resource not found or API v5 not enabled for this organization.
      */
     404: ProblemDetails;
+    /**
+     * Validation error — for example, a request body fails schema validation, or a path/query parameter does not match the expected TypeID format (`<prefix>_<32hex>`).
+     */
+    422: ProblemDetails;
 };
 
 export type ListRoleSubrolesGoalsError = ListRoleSubrolesGoalsErrors[keyof ListRoleSubrolesGoalsErrors];
@@ -6953,13 +9310,17 @@ export type DeleteGoalErrors = {
      */
     401: ProblemDetails;
     /**
-     * Not authorized to perform this action.
+     * Not authorized to perform this action. Denials raised by skill authorization rules carry a machine-readable `reason` extension member distinguishing the rule that denied — see `ProblemDetails.reason`.
      */
     403: ProblemDetails;
     /**
      * Resource not found or API v5 not enabled for this organization.
      */
     404: ProblemDetails;
+    /**
+     * Validation error — for example, a request body fails schema validation, or a path/query parameter does not match the expected TypeID format (`<prefix>_<32hex>`).
+     */
+    422: ProblemDetails;
 };
 
 export type DeleteGoalError = DeleteGoalErrors[keyof DeleteGoalErrors];
@@ -6997,13 +9358,17 @@ export type GetGoalErrors = {
      */
     401: ProblemDetails;
     /**
-     * Not authorized to perform this action.
+     * Not authorized to perform this action. Denials raised by skill authorization rules carry a machine-readable `reason` extension member distinguishing the rule that denied — see `ProblemDetails.reason`.
      */
     403: ProblemDetails;
     /**
      * Resource not found or API v5 not enabled for this organization.
      */
     404: ProblemDetails;
+    /**
+     * Validation error — for example, a request body fails schema validation, or a path/query parameter does not match the expected TypeID format (`<prefix>_<32hex>`).
+     */
+    422: ProblemDetails;
 };
 
 export type GetGoalError = GetGoalErrors[keyof GetGoalErrors];
@@ -7037,7 +9402,7 @@ export type UpdateGoalErrors = {
      */
     401: ProblemDetails;
     /**
-     * Not authorized to perform this action.
+     * Not authorized to perform this action. Denials raised by skill authorization rules carry a machine-readable `reason` extension member distinguishing the rule that denied — see `ProblemDetails.reason`.
      */
     403: ProblemDetails;
     /**
@@ -7045,7 +9410,7 @@ export type UpdateGoalErrors = {
      */
     404: ProblemDetails;
     /**
-     * Validation error.
+     * Validation error — for example, a request body fails schema validation, or a path/query parameter does not match the expected TypeID format (`<prefix>_<32hex>`).
      */
     422: ProblemDetails;
 };
@@ -7090,13 +9455,17 @@ export type ListGoalSupportingProjectsErrors = {
      */
     401: ProblemDetails;
     /**
-     * Not authorized to perform this action.
+     * Not authorized to perform this action. Denials raised by skill authorization rules carry a machine-readable `reason` extension member distinguishing the rule that denied — see `ProblemDetails.reason`.
      */
     403: ProblemDetails;
     /**
      * Resource not found or API v5 not enabled for this organization.
      */
     404: ProblemDetails;
+    /**
+     * Validation error — for example, a request body fails schema validation, or a path/query parameter does not match the expected TypeID format (`<prefix>_<32hex>`).
+     */
+    422: ProblemDetails;
 };
 
 export type ListGoalSupportingProjectsError = ListGoalSupportingProjectsErrors[keyof ListGoalSupportingProjectsErrors];
@@ -7138,7 +9507,7 @@ export type LinkGoalSupportingProjectErrors = {
      */
     401: ProblemDetails;
     /**
-     * Not authorized to perform this action.
+     * Not authorized to perform this action. Denials raised by skill authorization rules carry a machine-readable `reason` extension member distinguishing the rule that denied — see `ProblemDetails.reason`.
      */
     403: ProblemDetails;
     /**
@@ -7146,7 +9515,7 @@ export type LinkGoalSupportingProjectErrors = {
      */
     404: ProblemDetails;
     /**
-     * Validation error.
+     * Validation error — for example, a request body fails schema validation, or a path/query parameter does not match the expected TypeID format (`<prefix>_<32hex>`).
      */
     422: ProblemDetails;
 };
@@ -7186,13 +9555,17 @@ export type UnlinkGoalSupportingProjectErrors = {
      */
     401: ProblemDetails;
     /**
-     * Not authorized to perform this action.
+     * Not authorized to perform this action. Denials raised by skill authorization rules carry a machine-readable `reason` extension member distinguishing the rule that denied — see `ProblemDetails.reason`.
      */
     403: ProblemDetails;
     /**
      * Resource not found or API v5 not enabled for this organization.
      */
     404: ProblemDetails;
+    /**
+     * Validation error — for example, a request body fails schema validation, or a path/query parameter does not match the expected TypeID format (`<prefix>_<32hex>`).
+     */
+    422: ProblemDetails;
 };
 
 export type UnlinkGoalSupportingProjectError = UnlinkGoalSupportingProjectErrors[keyof UnlinkGoalSupportingProjectErrors];
@@ -7213,7 +9586,7 @@ export type ListGoalTargetsData = {
     };
     query?: {
         /**
-         * Number of results per page (1–500, default 100). Values above the maximum return `400 Bad Request`; blank, zero, negative, or non-numeric values fall back to the default of 100.
+         * Number of results per page for the goal and target endpoints. Omit `per_page` and these endpoints return 25 records. The maximum is 500; a larger value returns `400 Bad Request`. A blank, zero, negative, or non-numeric value is not rejected — it sets the page size to 100, not to 25.
          */
         per_page?: number;
         /**
@@ -7230,13 +9603,17 @@ export type ListGoalTargetsErrors = {
      */
     401: ProblemDetails;
     /**
-     * Not authorized to perform this action.
+     * Not authorized to perform this action. Denials raised by skill authorization rules carry a machine-readable `reason` extension member distinguishing the rule that denied — see `ProblemDetails.reason`.
      */
     403: ProblemDetails;
     /**
      * Resource not found or API v5 not enabled for this organization.
      */
     404: ProblemDetails;
+    /**
+     * Validation error — for example, a request body fails schema validation, or a path/query parameter does not match the expected TypeID format (`<prefix>_<32hex>`).
+     */
+    422: ProblemDetails;
 };
 
 export type ListGoalTargetsError = ListGoalTargetsErrors[keyof ListGoalTargetsErrors];
@@ -7270,7 +9647,7 @@ export type CreateGoalTargetErrors = {
      */
     401: ProblemDetails;
     /**
-     * Not authorized to perform this action.
+     * Not authorized to perform this action. Denials raised by skill authorization rules carry a machine-readable `reason` extension member distinguishing the rule that denied — see `ProblemDetails.reason`.
      */
     403: ProblemDetails;
     /**
@@ -7278,7 +9655,7 @@ export type CreateGoalTargetErrors = {
      */
     404: ProblemDetails;
     /**
-     * Validation error.
+     * Validation error — for example, a request body fails schema validation, or a path/query parameter does not match the expected TypeID format (`<prefix>_<32hex>`).
      */
     422: ProblemDetails;
 };
@@ -7303,7 +9680,7 @@ export type ListGoalProgressUpdatesData = {
     };
     query?: {
         /**
-         * Number of results per page (1–500, default 100). Values above the maximum return `400 Bad Request`; blank, zero, negative, or non-numeric values fall back to the default of 100.
+         * Number of results per page for the goal and target endpoints. Omit `per_page` and these endpoints return 25 records. The maximum is 500; a larger value returns `400 Bad Request`. A blank, zero, negative, or non-numeric value is not rejected — it sets the page size to 100, not to 25.
          */
         per_page?: number;
         /**
@@ -7320,13 +9697,17 @@ export type ListGoalProgressUpdatesErrors = {
      */
     401: ProblemDetails;
     /**
-     * Not authorized to perform this action.
+     * Not authorized to perform this action. Denials raised by skill authorization rules carry a machine-readable `reason` extension member distinguishing the rule that denied — see `ProblemDetails.reason`.
      */
     403: ProblemDetails;
     /**
      * Resource not found or API v5 not enabled for this organization.
      */
     404: ProblemDetails;
+    /**
+     * Validation error — for example, a request body fails schema validation, or a path/query parameter does not match the expected TypeID format (`<prefix>_<32hex>`).
+     */
+    422: ProblemDetails;
 };
 
 export type ListGoalProgressUpdatesError = ListGoalProgressUpdatesErrors[keyof ListGoalProgressUpdatesErrors];
@@ -7360,7 +9741,7 @@ export type CreateGoalProgressUpdateErrors = {
      */
     401: ProblemDetails;
     /**
-     * Not authorized to perform this action.
+     * Not authorized to perform this action. Denials raised by skill authorization rules carry a machine-readable `reason` extension member distinguishing the rule that denied — see `ProblemDetails.reason`.
      */
     403: ProblemDetails;
     /**
@@ -7368,7 +9749,7 @@ export type CreateGoalProgressUpdateErrors = {
      */
     404: ProblemDetails;
     /**
-     * Validation error.
+     * Validation error — for example, a request body fails schema validation, or a path/query parameter does not match the expected TypeID format (`<prefix>_<32hex>`).
      */
     422: ProblemDetails;
 };
@@ -7401,13 +9782,17 @@ export type DeleteTargetErrors = {
      */
     401: ProblemDetails;
     /**
-     * Not authorized to perform this action.
+     * Not authorized to perform this action. Denials raised by skill authorization rules carry a machine-readable `reason` extension member distinguishing the rule that denied — see `ProblemDetails.reason`.
      */
     403: ProblemDetails;
     /**
      * Resource not found or API v5 not enabled for this organization.
      */
     404: ProblemDetails;
+    /**
+     * Validation error — for example, a request body fails schema validation, or a path/query parameter does not match the expected TypeID format (`<prefix>_<32hex>`).
+     */
+    422: ProblemDetails;
 };
 
 export type DeleteTargetError = DeleteTargetErrors[keyof DeleteTargetErrors];
@@ -7436,13 +9821,17 @@ export type GetTargetErrors = {
      */
     401: ProblemDetails;
     /**
-     * Not authorized to perform this action.
+     * Not authorized to perform this action. Denials raised by skill authorization rules carry a machine-readable `reason` extension member distinguishing the rule that denied — see `ProblemDetails.reason`.
      */
     403: ProblemDetails;
     /**
      * Resource not found or API v5 not enabled for this organization.
      */
     404: ProblemDetails;
+    /**
+     * Validation error — for example, a request body fails schema validation, or a path/query parameter does not match the expected TypeID format (`<prefix>_<32hex>`).
+     */
+    422: ProblemDetails;
 };
 
 export type GetTargetError = GetTargetErrors[keyof GetTargetErrors];
@@ -7473,7 +9862,7 @@ export type UpdateTargetErrors = {
      */
     401: ProblemDetails;
     /**
-     * Not authorized to perform this action.
+     * Not authorized to perform this action. Denials raised by skill authorization rules carry a machine-readable `reason` extension member distinguishing the rule that denied — see `ProblemDetails.reason`.
      */
     403: ProblemDetails;
     /**
@@ -7481,7 +9870,7 @@ export type UpdateTargetErrors = {
      */
     404: ProblemDetails;
     /**
-     * Validation error.
+     * Validation error — for example, a request body fails schema validation, or a path/query parameter does not match the expected TypeID format (`<prefix>_<32hex>`).
      */
     422: ProblemDetails;
 };
@@ -7506,7 +9895,7 @@ export type ListTargetProgressUpdatesData = {
     };
     query?: {
         /**
-         * Number of results per page (1–500, default 100). Values above the maximum return `400 Bad Request`; blank, zero, negative, or non-numeric values fall back to the default of 100.
+         * Number of results per page for the goal and target endpoints. Omit `per_page` and these endpoints return 25 records. The maximum is 500; a larger value returns `400 Bad Request`. A blank, zero, negative, or non-numeric value is not rejected — it sets the page size to 100, not to 25.
          */
         per_page?: number;
         /**
@@ -7523,13 +9912,17 @@ export type ListTargetProgressUpdatesErrors = {
      */
     401: ProblemDetails;
     /**
-     * Not authorized to perform this action.
+     * Not authorized to perform this action. Denials raised by skill authorization rules carry a machine-readable `reason` extension member distinguishing the rule that denied — see `ProblemDetails.reason`.
      */
     403: ProblemDetails;
     /**
      * Resource not found or API v5 not enabled for this organization.
      */
     404: ProblemDetails;
+    /**
+     * Validation error — for example, a request body fails schema validation, or a path/query parameter does not match the expected TypeID format (`<prefix>_<32hex>`).
+     */
+    422: ProblemDetails;
 };
 
 export type ListTargetProgressUpdatesError = ListTargetProgressUpdatesErrors[keyof ListTargetProgressUpdatesErrors];
@@ -7563,7 +9956,7 @@ export type CreateTargetProgressUpdateErrors = {
      */
     401: ProblemDetails;
     /**
-     * Not authorized to perform this action.
+     * Not authorized to perform this action. Denials raised by skill authorization rules carry a machine-readable `reason` extension member distinguishing the rule that denied — see `ProblemDetails.reason`.
      */
     403: ProblemDetails;
     /**
@@ -7571,7 +9964,7 @@ export type CreateTargetProgressUpdateErrors = {
      */
     404: ProblemDetails;
     /**
-     * Validation error.
+     * Validation error — for example, a request body fails schema validation, or a path/query parameter does not match the expected TypeID format (`<prefix>_<32hex>`).
      */
     422: ProblemDetails;
 };
@@ -7588,6 +9981,40 @@ export type CreateTargetProgressUpdateResponses = {
 };
 
 export type CreateTargetProgressUpdateResponse = CreateTargetProgressUpdateResponses[keyof CreateTargetProgressUpdateResponses];
+
+export type GetRoleChannelData = {
+    body?: never;
+    path: {
+        /**
+         * The role's api_id.
+         */
+        id: string;
+    };
+    query?: never;
+    url: '/roles/{id}/channel';
+};
+
+export type GetRoleChannelErrors = {
+    /**
+     * Missing or invalid API key.
+     */
+    401: ProblemDetails;
+    /**
+     * Resource not found or API v5 not enabled for this organization.
+     */
+    404: ProblemDetails;
+};
+
+export type GetRoleChannelError = GetRoleChannelErrors[keyof GetRoleChannelErrors];
+
+export type GetRoleChannelResponses = {
+    /**
+     * The role's channel.
+     */
+    200: ChannelDetailResponse;
+};
+
+export type GetRoleChannelResponse = GetRoleChannelResponses[keyof GetRoleChannelResponses];
 
 export type ListChannelsData = {
     body?: never;
@@ -7635,7 +10062,7 @@ export type GetChannelData = {
     body?: never;
     path: {
         /**
-         * The channel's `chn_…` id, or the bound role's `role_…` id.
+         * The channel's `chn_…` id.
          */
         id: string;
     };
@@ -7671,10 +10098,16 @@ export type MarkChannelReadData = {
          * Optional role api_id to scope the watermark to.
          */
         role?: string;
+        /**
+         * Advance to this message's `created_at` instead of now. The
+         * message must be in this channel (422 otherwise).
+         *
+         */
+        up_to?: string;
     };
     path: {
         /**
-         * The channel's `chn_…` id, or the bound role's `role_…` id.
+         * The channel's `chn_…` id.
          */
         id: string;
     };
@@ -7688,7 +10121,7 @@ export type MarkChannelReadErrors = {
      */
     401: ProblemDetails;
     /**
-     * Not authorized to perform this action.
+     * Not authorized to perform this action. Denials raised by skill authorization rules carry a machine-readable `reason` extension member distinguishing the rule that denied — see `ProblemDetails.reason`.
      */
     403: ProblemDetails;
     /**
@@ -7696,7 +10129,7 @@ export type MarkChannelReadErrors = {
      */
     404: ProblemDetails;
     /**
-     * Validation error.
+     * Validation error — for example, a request body fails schema validation, or a path/query parameter does not match the expected TypeID format (`<prefix>_<32hex>`).
      */
     422: ProblemDetails;
 };
@@ -7716,7 +10149,7 @@ export type ListChannelMessagesData = {
     body?: never;
     path: {
         /**
-         * The channel's id (accepts channel or role api_id).
+         * The channel's `chn_…` id.
          */
         channel_id: string;
     };
@@ -7729,6 +10162,31 @@ export type ListChannelMessagesData = {
          * Cursor from a previous response's `meta.pagination.next_cursor`.
          */
         cursor?: string;
+        /**
+         * When `true`, return only messages created after the caller's read
+         * watermark (see `POST /channels/{id}/read`).
+         *
+         */
+        unread?: boolean;
+        /**
+         * With `unread=true`, use this role's watermark instead of the
+         * caller's newest. The caller must currently fill the role (422
+         * otherwise); 422 without `unread=true`.
+         *
+         */
+        role?: string;
+        /**
+         * Return only messages created strictly after this time.
+         */
+        since?: string;
+        /**
+         * `asc` (oldest first, the default) or `desc` (newest first).
+         */
+        order?: 'asc' | 'desc';
+        /**
+         * When `true`, also return replies inside threads.
+         */
+        include_thread_messages?: boolean;
     };
     url: '/channels/{channel_id}/messages';
 };
@@ -7746,6 +10204,10 @@ export type ListChannelMessagesErrors = {
      * Resource not found or API v5 not enabled for this organization.
      */
     404: ProblemDetails;
+    /**
+     * Validation error — for example, a request body fails schema validation, or a path/query parameter does not match the expected TypeID format (`<prefix>_<32hex>`).
+     */
+    422: ProblemDetails;
 };
 
 export type ListChannelMessagesError = ListChannelMessagesErrors[keyof ListChannelMessagesErrors];
@@ -7763,7 +10225,7 @@ export type CreateChannelMessageData = {
     body: MessageInput;
     path: {
         /**
-         * The channel's id (accepts channel or role api_id).
+         * The channel's `chn_…` id.
          */
         channel_id: string;
     };
@@ -7777,7 +10239,7 @@ export type CreateChannelMessageErrors = {
      */
     401: ProblemDetails;
     /**
-     * Not authorized to perform this action.
+     * Not authorized to perform this action. Denials raised by skill authorization rules carry a machine-readable `reason` extension member distinguishing the rule that denied — see `ProblemDetails.reason`.
      */
     403: ProblemDetails;
     /**
@@ -7785,7 +10247,7 @@ export type CreateChannelMessageErrors = {
      */
     404: ProblemDetails;
     /**
-     * Validation error.
+     * Validation error — for example, a request body fails schema validation, or a path/query parameter does not match the expected TypeID format (`<prefix>_<32hex>`).
      */
     422: ProblemDetails;
 };
@@ -7800,6 +10262,375 @@ export type CreateChannelMessageResponses = {
 };
 
 export type CreateChannelMessageResponse = CreateChannelMessageResponses[keyof CreateChannelMessageResponses];
+
+export type ListChannelThreadsData = {
+    body?: never;
+    path: {
+        /**
+         * The channel's `chn_…` id.
+         */
+        channel_id: string;
+    };
+    query?: {
+        /**
+         * Number of results per page (1–500, default 100). Values above the maximum return `400 Bad Request`; blank, zero, negative, or non-numeric values fall back to the default of 100.
+         */
+        per_page?: number;
+        /**
+         * Cursor from a previous response's `meta.pagination.next_cursor`.
+         */
+        cursor?: string;
+        /**
+         * Only the thread anchored to this entity.
+         */
+        anchored_to_id?: string;
+        /**
+         * Only the thread with this topic.
+         */
+        topic?: string;
+    };
+    url: '/channels/{channel_id}/threads';
+};
+
+export type ListChannelThreadsErrors = {
+    /**
+     * The request was malformed — for example, `per_page` exceeds the maximum allowed value. The `detail` describes the specific issue.
+     */
+    400: ProblemDetails;
+    /**
+     * Missing or invalid API key.
+     */
+    401: ProblemDetails;
+    /**
+     * Resource not found or API v5 not enabled for this organization.
+     */
+    404: ProblemDetails;
+    /**
+     * Validation error — for example, a request body fails schema validation, or a path/query parameter does not match the expected TypeID format (`<prefix>_<32hex>`).
+     */
+    422: ProblemDetails;
+};
+
+export type ListChannelThreadsError = ListChannelThreadsErrors[keyof ListChannelThreadsErrors];
+
+export type ListChannelThreadsResponses = {
+    /**
+     * A paginated list of threads.
+     */
+    200: {
+        data: Array<Thread>;
+        meta: {
+            pagination: Pagination;
+        };
+    };
+};
+
+export type ListChannelThreadsResponse = ListChannelThreadsResponses[keyof ListChannelThreadsResponses];
+
+export type CreateChannelThreadData = {
+    body: ThreadInput;
+    path: {
+        /**
+         * The channel's `chn_…` id.
+         */
+        channel_id: string;
+    };
+    query?: never;
+    url: '/channels/{channel_id}/threads';
+};
+
+export type CreateChannelThreadErrors = {
+    /**
+     * Missing or invalid API key.
+     */
+    401: ProblemDetails;
+    /**
+     * Not authorized to perform this action. Denials raised by skill authorization rules carry a machine-readable `reason` extension member distinguishing the rule that denied — see `ProblemDetails.reason`.
+     */
+    403: ProblemDetails;
+    /**
+     * Resource not found or API v5 not enabled for this organization.
+     */
+    404: ProblemDetails;
+    /**
+     * Validation error — for example, a request body fails schema validation, or a path/query parameter does not match the expected TypeID format (`<prefix>_<32hex>`).
+     */
+    422: ProblemDetails;
+};
+
+export type CreateChannelThreadError = CreateChannelThreadErrors[keyof CreateChannelThreadErrors];
+
+export type CreateChannelThreadResponses = {
+    /**
+     * The thread already existed.
+     */
+    200: {
+        data: Thread;
+    };
+    /**
+     * The created thread.
+     */
+    201: {
+        data: Thread;
+    };
+};
+
+export type CreateChannelThreadResponse = CreateChannelThreadResponses[keyof CreateChannelThreadResponses];
+
+export type GetThreadData = {
+    body?: never;
+    path: {
+        /**
+         * The thread's api_id.
+         */
+        id: string;
+    };
+    query?: never;
+    url: '/threads/{id}';
+};
+
+export type GetThreadErrors = {
+    /**
+     * Missing or invalid API key.
+     */
+    401: ProblemDetails;
+    /**
+     * Resource not found or API v5 not enabled for this organization.
+     */
+    404: ProblemDetails;
+};
+
+export type GetThreadError = GetThreadErrors[keyof GetThreadErrors];
+
+export type GetThreadResponses = {
+    /**
+     * A single thread.
+     */
+    200: {
+        data: Thread;
+    };
+};
+
+export type GetThreadResponse = GetThreadResponses[keyof GetThreadResponses];
+
+export type UpdateThreadData = {
+    body: ThreadPromotionInput;
+    path: {
+        /**
+         * The thread's api_id.
+         */
+        id: string;
+    };
+    query?: never;
+    url: '/threads/{id}';
+};
+
+export type UpdateThreadErrors = {
+    /**
+     * Missing or invalid API key.
+     */
+    401: ProblemDetails;
+    /**
+     * Not authorized to perform this action. Denials raised by skill authorization rules carry a machine-readable `reason` extension member distinguishing the rule that denied — see `ProblemDetails.reason`.
+     */
+    403: ProblemDetails;
+    /**
+     * Resource not found or API v5 not enabled for this organization.
+     */
+    404: ProblemDetails;
+    /**
+     * Validation error — for example, a request body fails schema validation, or a path/query parameter does not match the expected TypeID format (`<prefix>_<32hex>`).
+     */
+    422: ProblemDetails;
+};
+
+export type UpdateThreadError = UpdateThreadErrors[keyof UpdateThreadErrors];
+
+export type UpdateThreadResponses = {
+    /**
+     * The promoted thread.
+     */
+    200: {
+        data: Thread;
+    };
+};
+
+export type UpdateThreadResponse = UpdateThreadResponses[keyof UpdateThreadResponses];
+
+export type ListThreadMessagesData = {
+    body?: never;
+    path: {
+        /**
+         * The thread's api_id.
+         */
+        thread_id: string;
+    };
+    query?: {
+        /**
+         * Number of results per page (1–500, default 100). Values above the maximum return `400 Bad Request`; blank, zero, negative, or non-numeric values fall back to the default of 100.
+         */
+        per_page?: number;
+        /**
+         * Cursor from a previous response's `meta.pagination.next_cursor`.
+         */
+        cursor?: string;
+        /**
+         * `asc` (oldest first, the default) or `desc` (newest first).
+         */
+        order?: 'asc' | 'desc';
+    };
+    url: '/threads/{thread_id}/messages';
+};
+
+export type ListThreadMessagesErrors = {
+    /**
+     * The request was malformed — for example, `per_page` exceeds the maximum allowed value. The `detail` describes the specific issue.
+     */
+    400: ProblemDetails;
+    /**
+     * Missing or invalid API key.
+     */
+    401: ProblemDetails;
+    /**
+     * Resource not found or API v5 not enabled for this organization.
+     */
+    404: ProblemDetails;
+    /**
+     * Validation error — for example, a request body fails schema validation, or a path/query parameter does not match the expected TypeID format (`<prefix>_<32hex>`).
+     */
+    422: ProblemDetails;
+};
+
+export type ListThreadMessagesError = ListThreadMessagesErrors[keyof ListThreadMessagesErrors];
+
+export type ListThreadMessagesResponses = {
+    /**
+     * A paginated list of messages.
+     */
+    200: MessageListResponse;
+};
+
+export type ListThreadMessagesResponse = ListThreadMessagesResponses[keyof ListThreadMessagesResponses];
+
+export type CreateThreadMessageData = {
+    body: MessageInput;
+    path: {
+        /**
+         * The thread's api_id.
+         */
+        thread_id: string;
+    };
+    query?: never;
+    url: '/threads/{thread_id}/messages';
+};
+
+export type CreateThreadMessageErrors = {
+    /**
+     * Missing or invalid API key.
+     */
+    401: ProblemDetails;
+    /**
+     * Not authorized to perform this action. Denials raised by skill authorization rules carry a machine-readable `reason` extension member distinguishing the rule that denied — see `ProblemDetails.reason`.
+     */
+    403: ProblemDetails;
+    /**
+     * Resource not found or API v5 not enabled for this organization.
+     */
+    404: ProblemDetails;
+    /**
+     * Validation error — for example, a request body fails schema validation, or a path/query parameter does not match the expected TypeID format (`<prefix>_<32hex>`).
+     */
+    422: ProblemDetails;
+};
+
+export type CreateThreadMessageError = CreateThreadMessageErrors[keyof CreateThreadMessageErrors];
+
+export type CreateThreadMessageResponses = {
+    /**
+     * The created message.
+     */
+    201: MessageDetailResponse;
+};
+
+export type CreateThreadMessageResponse = CreateThreadMessageResponses[keyof CreateThreadMessageResponses];
+
+export type GetProjectThreadData = {
+    body?: never;
+    path: {
+        /**
+         * The project's api_id.
+         */
+        project_id: string;
+    };
+    query?: never;
+    url: '/projects/{project_id}/thread';
+};
+
+export type GetProjectThreadErrors = {
+    /**
+     * Missing or invalid API key.
+     */
+    401: ProblemDetails;
+    /**
+     * Resource not found or API v5 not enabled for this organization.
+     */
+    404: ProblemDetails;
+};
+
+export type GetProjectThreadError = GetProjectThreadErrors[keyof GetProjectThreadErrors];
+
+export type GetProjectThreadResponses = {
+    /**
+     * The project's thread.
+     */
+    200: {
+        data: Thread;
+    };
+};
+
+export type GetProjectThreadResponse = GetProjectThreadResponses[keyof GetProjectThreadResponses];
+
+export type CreateProjectThreadMessageData = {
+    body: MessageInput;
+    path: {
+        /**
+         * The project's api_id.
+         */
+        project_id: string;
+    };
+    query?: never;
+    url: '/projects/{project_id}/thread/messages';
+};
+
+export type CreateProjectThreadMessageErrors = {
+    /**
+     * Missing or invalid API key.
+     */
+    401: ProblemDetails;
+    /**
+     * Not authorized to perform this action. Denials raised by skill authorization rules carry a machine-readable `reason` extension member distinguishing the rule that denied — see `ProblemDetails.reason`.
+     */
+    403: ProblemDetails;
+    /**
+     * Resource not found or API v5 not enabled for this organization.
+     */
+    404: ProblemDetails;
+    /**
+     * Validation error — for example, a request body fails schema validation, or a path/query parameter does not match the expected TypeID format (`<prefix>_<32hex>`).
+     */
+    422: ProblemDetails;
+};
+
+export type CreateProjectThreadMessageError = CreateProjectThreadMessageErrors[keyof CreateProjectThreadMessageErrors];
+
+export type CreateProjectThreadMessageResponses = {
+    /**
+     * The created message.
+     */
+    201: MessageDetailResponse;
+};
+
+export type CreateProjectThreadMessageResponse = CreateProjectThreadMessageResponses[keyof CreateProjectThreadMessageResponses];
 
 export type DeleteMessageData = {
     body?: never;
@@ -7819,7 +10650,7 @@ export type DeleteMessageErrors = {
      */
     401: ProblemDetails;
     /**
-     * Not authorized to perform this action.
+     * Not authorized to perform this action. Denials raised by skill authorization rules carry a machine-readable `reason` extension member distinguishing the rule that denied — see `ProblemDetails.reason`.
      */
     403: ProblemDetails;
     /**
@@ -7857,7 +10688,7 @@ export type UpdateMessageErrors = {
      */
     401: ProblemDetails;
     /**
-     * Not authorized to perform this action.
+     * Not authorized to perform this action. Denials raised by skill authorization rules carry a machine-readable `reason` extension member distinguishing the rule that denied — see `ProblemDetails.reason`.
      */
     403: ProblemDetails;
     /**
@@ -7865,7 +10696,7 @@ export type UpdateMessageErrors = {
      */
     404: ProblemDetails;
     /**
-     * Validation error.
+     * Validation error — for example, a request body fails schema validation, or a path/query parameter does not match the expected TypeID format (`<prefix>_<32hex>`).
      */
     422: ProblemDetails;
 };
@@ -7880,3 +10711,568 @@ export type UpdateMessageResponses = {
 };
 
 export type UpdateMessageResponse = UpdateMessageResponses[keyof UpdateMessageResponses];
+
+export type CreateSessionData = {
+    body: {
+        session: {
+            /**
+             * Role to start a session for. Agent must be assigned.
+             */
+            role_id?: string;
+            /**
+             * Topic scoping the session (e.g. ticket ID).
+             */
+            topic?: string;
+            /**
+             * Optional client-provided session identifier. When both sides carry one and they differ, the call returns 409.
+             *
+             */
+            identifier?: string;
+            /**
+             * When true, end any existing active session for the same scope and start a fresh one instead of returning it.
+             *
+             */
+            supersede?: boolean;
+        };
+    };
+    path: {
+        /**
+         * The agent's unique identifier.
+         */
+        agent_id: string;
+    };
+    query?: {
+        /**
+         * When true, inline every linked skill's body in the context response regardless of the per-link `load_at_boot` flag. Default: false (only boot-loaded skills are inlined).
+         *
+         */
+        include_skills?: boolean;
+        /**
+         * When true, skip returning context (caller already has it). Session is still registered; only the context blob is omitted.
+         *
+         */
+        preloaded?: boolean;
+    };
+    url: '/agents/{agent_id}/sessions';
+};
+
+export type CreateSessionErrors = {
+    /**
+     * Missing or invalid API key.
+     */
+    401: ProblemDetails;
+    /**
+     * Not authorized to perform this action. Denials raised by skill authorization rules carry a machine-readable `reason` extension member distinguishing the rule that denied — see `ProblemDetails.reason`.
+     */
+    403: ProblemDetails;
+    /**
+     * An active session exists for this scope under a different identifier, or in another organization.
+     *
+     */
+    409: unknown;
+};
+
+export type CreateSessionError = CreateSessionErrors[keyof CreateSessionErrors];
+
+export type CreateSessionResponses = {
+    /**
+     * An active session already existed for this scope; it is returned unchanged.
+     */
+    200: {
+        data: AgentSession;
+    };
+    /**
+     * Session created.
+     */
+    201: {
+        data: AgentSession;
+    };
+};
+
+export type CreateSessionResponse = CreateSessionResponses[keyof CreateSessionResponses];
+
+export type ListSessionsData = {
+    body?: never;
+    path?: never;
+    query?: {
+        /**
+         * Limit to sessions in this state. `active` is the reconciliation
+         * query — it pulls just the open records. Any other value returns
+         * `422 Unprocessable Entity`.
+         *
+         */
+        status?: 'active' | 'ended';
+        /**
+         * Limit to sessions belonging to this agent.
+         */
+        agent_id?: string;
+        /**
+         * Limit to sessions started for this role.
+         */
+        role_id?: string;
+        /**
+         * Exact match on the session's topic (e.g. a ticket id).
+         */
+        topic?: string;
+        /**
+         * Exact match on the client-supplied identifier. Lets a caller that
+         * knows its own identifier look up its own record — and so recover
+         * its `sess_…` id — without guessing.
+         *
+         */
+        identifier?: string;
+        /**
+         * Number of results per page (1–500, default 100). Values above the maximum return `400 Bad Request`; blank, zero, negative, or non-numeric values fall back to the default of 100.
+         */
+        per_page?: number;
+        /**
+         * Cursor from a previous response's `meta.pagination.next_cursor`.
+         */
+        cursor?: string;
+    };
+    url: '/sessions';
+};
+
+export type ListSessionsErrors = {
+    /**
+     * The request was malformed — for example, `per_page` exceeds the maximum allowed value. The `detail` describes the specific issue.
+     */
+    400: ProblemDetails;
+    /**
+     * Missing or invalid API key.
+     */
+    401: ProblemDetails;
+    /**
+     * Not authorized to perform this action. Denials raised by skill authorization rules carry a machine-readable `reason` extension member distinguishing the rule that denied — see `ProblemDetails.reason`.
+     */
+    403: ProblemDetails;
+    /**
+     * Resource not found or API v5 not enabled for this organization.
+     */
+    404: ProblemDetails;
+    /**
+     * Validation error — for example, a request body fails schema validation, or a path/query parameter does not match the expected TypeID format (`<prefix>_<32hex>`).
+     */
+    422: ProblemDetails;
+};
+
+export type ListSessionsError = ListSessionsErrors[keyof ListSessionsErrors];
+
+export type ListSessionsResponses = {
+    /**
+     * A paginated list of agent sessions.
+     */
+    200: AgentSessionListResponse;
+};
+
+export type ListSessionsResponse = ListSessionsResponses[keyof ListSessionsResponses];
+
+export type GetSessionData = {
+    body?: never;
+    path: {
+        /**
+         * The session's unique identifier.
+         */
+        id: string;
+    };
+    query?: never;
+    url: '/sessions/{id}';
+};
+
+export type GetSessionErrors = {
+    /**
+     * Missing or invalid API key.
+     */
+    401: ProblemDetails;
+    /**
+     * Not authorized to perform this action. Denials raised by skill authorization rules carry a machine-readable `reason` extension member distinguishing the rule that denied — see `ProblemDetails.reason`.
+     */
+    403: ProblemDetails;
+    /**
+     * Resource not found or API v5 not enabled for this organization.
+     */
+    404: ProblemDetails;
+    /**
+     * Validation error — for example, a request body fails schema validation, or a path/query parameter does not match the expected TypeID format (`<prefix>_<32hex>`).
+     */
+    422: ProblemDetails;
+};
+
+export type GetSessionError = GetSessionErrors[keyof GetSessionErrors];
+
+export type GetSessionResponses = {
+    /**
+     * A single agent session.
+     */
+    200: {
+        data: AgentSession;
+    };
+};
+
+export type GetSessionResponse = GetSessionResponses[keyof GetSessionResponses];
+
+export type HeartbeatSessionData = {
+    body?: {
+        session?: {
+            telemetry?: {
+                /**
+                 * Context window usage percentage (0–100).
+                 */
+                context_used_pct?: number;
+            };
+        };
+    };
+    path: {
+        /**
+         * The agent's `agt_…` id.
+         */
+        agent_id: string;
+        /**
+         * The session's `sess_…` id.
+         */
+        id: string;
+    };
+    query?: never;
+    url: '/agents/{agent_id}/sessions/{id}/heartbeat';
+};
+
+export type HeartbeatSessionErrors = {
+    /**
+     * Missing or invalid API key.
+     */
+    401: ProblemDetails;
+    /**
+     * Not authorized to perform this action. Denials raised by skill authorization rules carry a machine-readable `reason` extension member distinguishing the rule that denied — see `ProblemDetails.reason`.
+     */
+    403: ProblemDetails;
+    /**
+     * Resource not found or API v5 not enabled for this organization.
+     */
+    404: ProblemDetails;
+};
+
+export type HeartbeatSessionError = HeartbeatSessionErrors[keyof HeartbeatSessionErrors];
+
+export type HeartbeatSessionResponses = {
+    /**
+     * Heartbeat recorded. Returns the updated session.
+     */
+    200: {
+        data: AgentSession;
+    };
+};
+
+export type HeartbeatSessionResponse = HeartbeatSessionResponses[keyof HeartbeatSessionResponses];
+
+export type BatchHeartbeatSessionsData = {
+    body: {
+        /**
+         * Session ids to heartbeat.
+         */
+        session_ids: Array<string>;
+        /**
+         * Per-session telemetry keyed by session id.
+         */
+        telemetry?: {
+            [key: string]: {
+                context_used_pct?: number;
+            };
+        };
+    };
+    path?: never;
+    query?: never;
+    url: '/sessions/heartbeat';
+};
+
+export type BatchHeartbeatSessionsErrors = {
+    /**
+     * Missing or invalid API key.
+     */
+    401: ProblemDetails;
+    /**
+     * Not authorized to perform this action. Denials raised by skill authorization rules carry a machine-readable `reason` extension member distinguishing the rule that denied — see `ProblemDetails.reason`.
+     */
+    403: ProblemDetails;
+};
+
+export type BatchHeartbeatSessionsError = BatchHeartbeatSessionsErrors[keyof BatchHeartbeatSessionsErrors];
+
+export type BatchHeartbeatSessionsResponses = {
+    /**
+     * Per-session heartbeat results.
+     */
+    200: {
+        data: Array<{
+            id: string;
+            status: 'ok' | 'forbidden' | 'not_found';
+        }>;
+    };
+};
+
+export type BatchHeartbeatSessionsResponse = BatchHeartbeatSessionsResponses[keyof BatchHeartbeatSessionsResponses];
+
+export type ListWorkRequestsData = {
+    body?: never;
+    path?: never;
+    query?: {
+        /**
+         * Filter by the requesting role.
+         */
+        from_role_id?: string;
+        /**
+         * Filter by the target role.
+         */
+        to_role_id?: string;
+        /**
+         * Filter by status.
+         */
+        status?: 'requested' | 'accepted' | 'accepted_with_edits' | 'rejected';
+        per_page?: number;
+        /**
+         * Cursor for pagination (api_id of the last item on the previous page).
+         */
+        cursor?: string;
+    };
+    url: '/work_requests';
+};
+
+export type ListWorkRequestsErrors = {
+    /**
+     * Missing or invalid API key.
+     */
+    401: ProblemDetails;
+    /**
+     * Not authorized to perform this action. Denials raised by skill authorization rules carry a machine-readable `reason` extension member distinguishing the rule that denied — see `ProblemDetails.reason`.
+     */
+    403: ProblemDetails;
+    /**
+     * Validation error — for example, a request body fails schema validation, or a path/query parameter does not match the expected TypeID format (`<prefix>_<32hex>`).
+     */
+    422: ProblemDetails;
+};
+
+export type ListWorkRequestsError = ListWorkRequestsErrors[keyof ListWorkRequestsErrors];
+
+export type ListWorkRequestsResponses = {
+    /**
+     * A paginated list of work requests.
+     */
+    200: {
+        data: Array<WorkRequestSummary>;
+        meta: {
+            pagination: Pagination;
+        };
+    };
+};
+
+export type ListWorkRequestsResponse = ListWorkRequestsResponses[keyof ListWorkRequestsResponses];
+
+export type CreateWorkRequestData = {
+    body: WorkRequestInput;
+    path?: never;
+    query?: never;
+    url: '/work_requests';
+};
+
+export type CreateWorkRequestErrors = {
+    /**
+     * Missing or invalid API key.
+     */
+    401: ProblemDetails;
+    /**
+     * Not authorized to perform this action. Denials raised by skill authorization rules carry a machine-readable `reason` extension member distinguishing the rule that denied — see `ProblemDetails.reason`.
+     */
+    403: ProblemDetails;
+    /**
+     * Resource not found or API v5 not enabled for this organization.
+     */
+    404: ProblemDetails;
+    /**
+     * Validation error — for example, a request body fails schema validation, or a path/query parameter does not match the expected TypeID format (`<prefix>_<32hex>`).
+     */
+    422: ProblemDetails;
+};
+
+export type CreateWorkRequestError = CreateWorkRequestErrors[keyof CreateWorkRequestErrors];
+
+export type CreateWorkRequestResponses = {
+    /**
+     * The created work request.
+     */
+    201: {
+        data: WorkRequest;
+    };
+};
+
+export type CreateWorkRequestResponse = CreateWorkRequestResponses[keyof CreateWorkRequestResponses];
+
+export type GetWorkRequestData = {
+    body?: never;
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/work_requests/{id}';
+};
+
+export type GetWorkRequestErrors = {
+    /**
+     * Missing or invalid API key.
+     */
+    401: ProblemDetails;
+    /**
+     * Not authorized to perform this action. Denials raised by skill authorization rules carry a machine-readable `reason` extension member distinguishing the rule that denied — see `ProblemDetails.reason`.
+     */
+    403: ProblemDetails;
+    /**
+     * Resource not found or API v5 not enabled for this organization.
+     */
+    404: ProblemDetails;
+};
+
+export type GetWorkRequestError = GetWorkRequestErrors[keyof GetWorkRequestErrors];
+
+export type GetWorkRequestResponses = {
+    /**
+     * The work request.
+     */
+    200: {
+        data: WorkRequest;
+    };
+};
+
+export type GetWorkRequestResponse = GetWorkRequestResponses[keyof GetWorkRequestResponses];
+
+export type AcceptWorkRequestData = {
+    body?: never;
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/work_requests/{id}/accept';
+};
+
+export type AcceptWorkRequestErrors = {
+    /**
+     * Missing or invalid API key.
+     */
+    401: ProblemDetails;
+    /**
+     * Not authorized to perform this action. Denials raised by skill authorization rules carry a machine-readable `reason` extension member distinguishing the rule that denied — see `ProblemDetails.reason`.
+     */
+    403: ProblemDetails;
+    /**
+     * Resource not found or API v5 not enabled for this organization.
+     */
+    404: ProblemDetails;
+    /**
+     * Validation error — for example, a request body fails schema validation, or a path/query parameter does not match the expected TypeID format (`<prefix>_<32hex>`).
+     */
+    422: ProblemDetails;
+};
+
+export type AcceptWorkRequestError = AcceptWorkRequestErrors[keyof AcceptWorkRequestErrors];
+
+export type AcceptWorkRequestResponses = {
+    /**
+     * The accepted work request.
+     */
+    200: {
+        data: WorkRequest;
+    };
+};
+
+export type AcceptWorkRequestResponse = AcceptWorkRequestResponses[keyof AcceptWorkRequestResponses];
+
+export type AcceptWorkRequestWithEditsData = {
+    body?: {
+        work_request?: {
+            /**
+             * Updated description for the work item.
+             */
+            description?: string;
+            /**
+             * Updated note for the work item.
+             */
+            note?: string | null;
+        };
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/work_requests/{id}/accept_with_edits';
+};
+
+export type AcceptWorkRequestWithEditsErrors = {
+    /**
+     * Missing or invalid API key.
+     */
+    401: ProblemDetails;
+    /**
+     * Not authorized to perform this action. Denials raised by skill authorization rules carry a machine-readable `reason` extension member distinguishing the rule that denied — see `ProblemDetails.reason`.
+     */
+    403: ProblemDetails;
+    /**
+     * Resource not found or API v5 not enabled for this organization.
+     */
+    404: ProblemDetails;
+    /**
+     * Validation error — for example, a request body fails schema validation, or a path/query parameter does not match the expected TypeID format (`<prefix>_<32hex>`).
+     */
+    422: ProblemDetails;
+};
+
+export type AcceptWorkRequestWithEditsError = AcceptWorkRequestWithEditsErrors[keyof AcceptWorkRequestWithEditsErrors];
+
+export type AcceptWorkRequestWithEditsResponses = {
+    /**
+     * The accepted work request.
+     */
+    200: {
+        data: WorkRequest;
+    };
+};
+
+export type AcceptWorkRequestWithEditsResponse = AcceptWorkRequestWithEditsResponses[keyof AcceptWorkRequestWithEditsResponses];
+
+export type RejectWorkRequestData = {
+    body?: never;
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/work_requests/{id}/reject';
+};
+
+export type RejectWorkRequestErrors = {
+    /**
+     * Missing or invalid API key.
+     */
+    401: ProblemDetails;
+    /**
+     * Not authorized to perform this action. Denials raised by skill authorization rules carry a machine-readable `reason` extension member distinguishing the rule that denied — see `ProblemDetails.reason`.
+     */
+    403: ProblemDetails;
+    /**
+     * Resource not found or API v5 not enabled for this organization.
+     */
+    404: ProblemDetails;
+    /**
+     * Validation error — for example, a request body fails schema validation, or a path/query parameter does not match the expected TypeID format (`<prefix>_<32hex>`).
+     */
+    422: ProblemDetails;
+};
+
+export type RejectWorkRequestError = RejectWorkRequestErrors[keyof RejectWorkRequestErrors];
+
+export type RejectWorkRequestResponses = {
+    /**
+     * The rejected work request.
+     */
+    200: {
+        data: WorkRequest;
+    };
+};
+
+export type RejectWorkRequestResponse = RejectWorkRequestResponses[keyof RejectWorkRequestResponses];

@@ -1,9 +1,14 @@
 import { paginateAll } from '../glassfrog/client.js'
 import type { Client } from '../glassfrog/generated/client/index.js'
-import { listMyRoles, listRoleProjects, listSubProjects } from '../glassfrog/generated/sdk.gen.js'
+import {
+  listMyProjects,
+  listMyRoles,
+  listRoleProjects,
+  listSubProjects,
+} from '../glassfrog/generated/sdk.gen.js'
 import type { Project, Role } from '../glassfrog/generated/types.gen.js'
 import type { DesiredNode } from './hierarchy-diff.js'
-import { pruneToOwned } from './ownership.js'
+import { isOwnedBy, pruneToOwned } from './ownership.js'
 
 /** Statuses that mean a project is done with; they are not mirrored into Todoist. */
 const INACTIVE_STATUSES = new Set(['completed', 'cancelled', 'archived'])
@@ -21,7 +26,8 @@ export function isActive(status: string): boolean {
 }
 
 /**
- * Reads the Glassfrog side of the mirror, from the roles the user personally fills.
+ * Reads the Glassfrog side of the mirror: the roles the user personally fills, and the user's
+ * individual-initiative projects, which sit directly under the root alongside the roles.
  *
  * Scope is deliberately `/me/roles` rather than the whole organization: Glassfrog has no
  * org-wide action listing, so a full-org mirror would cost one request per role on every
@@ -39,7 +45,8 @@ export async function buildDesiredTree(
   client: Client,
   options: {
     maxDepth?: number
-    ownedProjectIds?: (projects: Project[]) => Promise<Set<string>>
+    /** The user's actor id. When given, the tree is narrowed to the user's own projects. */
+    actorId?: string
   } = {},
 ): Promise<DesiredNode[]> {
   const maxDepth = options.maxDepth ?? 10
@@ -71,7 +78,7 @@ export async function buildDesiredTree(
       const response = await listRoleProjects({
         client,
         path: { role_id: role.id },
-        query: { cursor, per_page: perPage, include_legacy_id: true },
+        query: { cursor, per_page: perPage },
         throwOnError: true,
       })
       return response.data
@@ -83,11 +90,29 @@ export async function buildDesiredTree(
     }
   }
 
-  if (!options.ownedProjectIds) return nodes
+  // Role listings leave individual initiatives out; they have a listing of their own, which
+  // (like a role's) returns the whole tree, sub-projects included.
+  const initiatives = await paginateAll<Project>(async ({ cursor, perPage }) => {
+    const response = await listMyProjects({
+      client,
+      query: { cursor, per_page: perPage, individual_initiative: true },
+      throwOnError: true,
+    })
+    return response.data
+  })
+
+  for (const project of initiatives) {
+    collectProject(project, null, nodes, seen)
+    await collectSubProjects(client, project, nodes, seen, 1, maxDepth)
+  }
+
+  const { actorId } = options
+  if (!actorId) return nodes
 
   // Everything reachable was read faithfully; only now narrow to the user's own, so the
   // sub-project crawl still finds an owned child under someone else's parent.
-  return pruneToOwned(nodes, await options.ownedProjectIds([...seen.values()]))
+  const owned = [...seen.values()].filter((project) => isOwnedBy(project, actorId))
+  return pruneToOwned(nodes, new Set(owned.map((project) => project.id)))
 }
 
 /**
@@ -98,10 +123,14 @@ export async function buildDesiredTree(
  * **whole tree**, not just its top level — a sub-project listed there would otherwise be
  * attached straight to the role, and whether it was depended on the order the API happened
  * to return things in.
+ *
+ * A top-level individual initiative goes directly under the root (a null parent), whichever
+ * listing it arrived in: it carries the role it was recorded against in `role_id`, but is not
+ * that role's project.
  */
 function collectProject(
   project: Project,
-  fallbackParentId: string,
+  fallbackParentId: string | null,
   nodes: DesiredNode[],
   seen: Map<string, Project>,
 ): boolean {
@@ -113,9 +142,13 @@ function collectProject(
     kind: 'project',
     glassfrogId: project.id,
     name: toProjectName(project.description),
-    parentGlassfrogId: project.parent_project_id ?? fallbackParentId,
+    parentGlassfrogId:
+      project.parent_project_id ?? (project.individual_initiative ? null : fallbackParentId),
     active: isActive(project.status),
     updatedAt: project.updated_at ? new Date(project.updated_at) : null,
+    ...(project.individual_initiative && {
+      individualInitiative: { roleGlassfrogId: project.role_id ?? null },
+    }),
   })
 
   return true
@@ -142,7 +175,7 @@ async function collectSubProjects(
     const response = await listSubProjects({
       client,
       path: { id: project.id },
-      query: { cursor, per_page: perPage, include_legacy_id: true },
+      query: { cursor, per_page: perPage },
       throwOnError: true,
     })
     return response.data

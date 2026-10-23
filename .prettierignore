@@ -1,6 +1,5 @@
 # Generated or vendored — never hand-formatted.
 server/glassfrog/generated/
-server/glassfrog/generated-v3/
 server/todoist/generated/
 openapi/
 drizzle/

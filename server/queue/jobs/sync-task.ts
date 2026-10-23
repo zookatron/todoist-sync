@@ -1,6 +1,7 @@
 import { TodoistRequestError } from '@doist/todoist-sdk'
 import { and, eq } from 'drizzle-orm'
 import { db } from '../../db/index.js'
+import { todoistIntegration } from '../../db/schema/integrations.js'
 import { projectMapping, syncLog, taskMapping } from '../../db/schema/sync.js'
 import { getGlassfrogClient } from '../../glassfrog/client.js'
 import type { Client } from '../../glassfrog/generated/client/index.js'
@@ -8,6 +9,7 @@ import {
   completeAction,
   createAction,
   getAction,
+  getProject,
   uncompleteAction,
   updateAction,
 } from '../../glassfrog/generated/sdk.gen.js'
@@ -20,7 +22,7 @@ import {
   type SideState,
   type TaskSnapshot,
 } from '../../sync/resolve.js'
-import { getOwnership } from '../../sync/ownership.js'
+import { getActorId, isOwnedBy } from '../../sync/ownership.js'
 import { callTodoist } from '../../todoist/client.js'
 import { withLock } from '../../utils/lock.js'
 import { logger } from '../../utils/logger.js'
@@ -67,9 +69,10 @@ async function syncOne(data: TaskJobData): Promise<void> {
   const todoistTaskId = data.todoistTaskId ?? mapping?.todoistTaskId ?? null
 
   const client = await getGlassfrogClient(userId)
+  const actorId = await getActorId(userId, client)
 
   const glassfrog = await withPhase('read-glassfrog-action', () =>
-    readGlassfrogSide(client, glassfrogActionId, (action) => isMineAction(userId, action)),
+    readGlassfrogSide(client, glassfrogActionId, (action) => isOwnedBy(action, actorId)),
   )
   const todoist = await withPhase('read-todoist-task', () => readTodoistSide(userId, todoistTaskId))
 
@@ -147,10 +150,16 @@ async function syncOne(data: TaskJobData): Promise<void> {
 
       case 'create-glassfrog': {
         if (!todoist.task || !todoistTaskId) return
+        const { projectId } = todoist.task
 
-        const roleId = await resolveOwningRole(userId, todoist.task.projectId)
+        const roleId = await withPhase('resolve-owning-role', () =>
+          resolveOwningRole(userId, client, projectId),
+        )
         if (!roleId) {
-          log.warn({ todoistTaskId }, 'Todoist task is not inside a mapped role project; skipping')
+          log.warn(
+            { todoistTaskId },
+            'Todoist task is not inside a mapped role or individual-initiative project; skipping',
+          )
           return
         }
 
@@ -166,14 +175,13 @@ async function syncOne(data: TaskJobData): Promise<void> {
               note: snapshot.description || undefined,
               status: snapshot.completed ? 'completed' : 'current',
               parent_project_id: roleId.projectGlassfrogId,
+              individual_initiative: roleId.individualInitiative,
             },
           },
           throwOnError: true,
         })
 
         const action = response.data.data
-        // Record the owner now rather than look it up: v3 agrees, but this saves the calls.
-        await (await getOwnership(userId)).recordOwned(action.id)
 
         await upsertMapping({
           userId,
@@ -366,17 +374,13 @@ async function findMapping(data: TaskJobData) {
 async function readGlassfrogSide(
   client: Client,
   actionId: string | null,
-  isMine: (action: Action) => Promise<boolean>,
+  isMine: (action: Action) => boolean,
 ): Promise<{ state: SideState; action: Action | null }> {
   if (!actionId) return { state: { present: false }, action: null }
 
   // Not `throwOnError`: the generated client throws the bare response body, which carries
   // no status, so the status has to be read from the result to tell a 404 from a real fault.
-  const result = await getAction({
-    client,
-    path: { id: actionId },
-    query: { include_legacy_id: true },
-  })
+  const result = await getAction({ client, path: { id: actionId } })
 
   // A 404 is the one normal signal that the action was deleted. Anything else (401, 5xx,
   // a network failure) must fail the job: reading it as "deleted" would delete the task.
@@ -397,14 +401,9 @@ async function readGlassfrogSide(
 
   // Still there, but not the user's (a co-filler's, or reassigned away): gone as far as
   // this mirror is concerned, so the Todoist task goes. The Glassfrog action is left alone.
-  if (!(await isMine(action))) return { state: { present: false }, action: null }
+  if (!isMine(action)) return { state: { present: false }, action: null }
 
   return { state: { present: true, snapshot: toGlassfrogSnapshot(action) }, action }
-}
-
-async function isMineAction(userId: string, action: Action): Promise<boolean> {
-  const ownership = await getOwnership(userId)
-  return (await ownership.ownedIds('action', [action])).has(action.id)
 }
 
 async function readTodoistSide(
@@ -466,7 +465,11 @@ async function createTodoistTask(
   return { id: created.id, updatedAt: created.updatedAt ?? null }
 }
 
-/** Finds the Todoist project an action belongs in: its parent project, else its role. */
+/**
+ * Finds the Todoist project an action belongs in: its parent project, else its role — or, for
+ * an individual initiative outside any project, the configured root. An initiative's `role_id`
+ * is only the role it was recorded against, so it is never filed there.
+ */
 async function resolveDestinationProject(userId: string, action: Action): Promise<string | null> {
   if (action.parent_project_id) {
     const projectRow = await db.query.projectMapping.findFirst({
@@ -477,6 +480,17 @@ async function resolveDestinationProject(userId: string, action: Action): Promis
       ),
     })
     if (projectRow) return projectRow.todoistProjectId
+  }
+
+  if (action.individual_initiative) {
+    // An initiative in a project that is not mapped yet waits for the hierarchy pass, like
+    // any other action, rather than landing loose in the root.
+    if (action.parent_project_id) return null
+
+    const integration = await db.query.todoistIntegration.findFirst({
+      where: eq(todoistIntegration.userId, userId),
+    })
+    return integration?.rootTodoistProjectId ?? null
   }
 
   if (!action.role_id) return null
@@ -495,11 +509,22 @@ async function resolveDestinationProject(userId: string, action: Action): Promis
 /**
  * Works out which Glassfrog role (and optionally project) a Todoist task belongs to,
  * from the project it currently sits in.
+ *
+ * Inside an individual initiative the chain tops out at a project rather than a role. The new
+ * action is then an initiative too, recorded against the same role as the project it sits in,
+ * which is read from Glassfrog: creating one needs a role in the URL.
+ *
+ * A task loose in the root is not adopted: there is no role to record it against.
  */
 async function resolveOwningRole(
   userId: string,
+  client: Client,
   todoistProjectId: string,
-): Promise<{ roleGlassfrogId: string; projectGlassfrogId: string | null } | null> {
+): Promise<{
+  roleGlassfrogId: string
+  projectGlassfrogId: string | null
+  individualInitiative: boolean
+} | null> {
   const row = await db.query.projectMapping.findFirst({
     where: and(
       eq(projectMapping.userId, userId),
@@ -508,7 +533,13 @@ async function resolveOwningRole(
   })
 
   if (!row) return null
-  if (row.kind === 'role') return { roleGlassfrogId: row.glassfrogId, projectGlassfrogId: null }
+  if (row.kind === 'role') {
+    return {
+      roleGlassfrogId: row.glassfrogId,
+      projectGlassfrogId: null,
+      individualInitiative: false,
+    }
+  }
 
   // A project: walk up the mapped chain to the owning role.
   let current = row
@@ -526,12 +557,35 @@ async function resolveOwningRole(
     seen.add(parent.glassfrogId)
 
     if (parent.kind === 'role') {
-      return { roleGlassfrogId: parent.glassfrogId, projectGlassfrogId: row.glassfrogId }
+      return {
+        roleGlassfrogId: parent.glassfrogId,
+        projectGlassfrogId: row.glassfrogId,
+        individualInitiative: false,
+      }
     }
     current = parent
   }
 
-  return null
+  // A project chain reaching the root without a role is an individual initiative's.
+  if (current.kind !== 'project' || current.parentGlassfrogId) return null
+
+  const result = await getProject({ client, path: { id: row.glassfrogId } })
+  if (result.response?.status === 404) return null
+  if (result.error !== undefined || !result.data) {
+    const status = result.response?.status ?? 'no response'
+    throw new Error(`Glassfrog GET project ${row.glassfrogId} failed (${status})`, {
+      cause: result.error,
+    })
+  }
+
+  const project = result.data.data
+  if (!project.individual_initiative || !project.role_id) return null
+
+  return {
+    roleGlassfrogId: project.role_id,
+    projectGlassfrogId: project.id,
+    individualInitiative: true,
+  }
 }
 
 async function upsertMapping(args: {

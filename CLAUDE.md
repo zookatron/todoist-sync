@@ -7,7 +7,8 @@ Guidance for Claude Code when working in this repository.
 A personal-use web app that two-way syncs Glassfrog **Actions** with Todoist **Tasks**, and
 keeps the Glassfrog role/project hierarchy in step with a Todoist project tree. **Roles** come
 from Glassfrog alone; **projects** travel both ways — created, completed and renamed from either
-side. Single user per account, self-hosted, polling-based.
+side. The user's **individual initiatives** sit directly under the root, beside the roles.
+Single user per account, self-hosted, polling-based.
 
 ## ⚠️ Version traps — read this before writing any code
 
@@ -84,7 +85,6 @@ yarn lint:fix                          # eslint --fix
 yarn test                              # vitest — needs no postgres, redis or network
 yarn db:generate                       # after editing server/db/schema/
 yarn gen:glassfrog:fetch               # re-vendor + regenerate the Glassfrog client
-yarn gen:glassfrog-v3:fetch            # re-vendor + regenerate the Glassfrog v3 client (ownership only)
 yarn gen:todoist:fetch                 # re-vendor + regenerate the Todoist wire types
 ```
 
@@ -129,9 +129,14 @@ TypeScript directly.
 
 ## API constraints worth remembering
 
-- **Only Glassfrog v3 says who owns an action or project** (`links.person`); v5 attributes
-  everything to the role. `server/glassfrog/generated-v3/` is generated from the vendored v3 spec
-  and used solely by `server/sync/ownership.ts`. See docs/ARCHITECTURE.md "Whose items are mine".
+- **Ownership is `actor_id`.** Actions and projects belong to a role, so a co-filler's show up
+  in `/me/actions` too; each item's `actor_id` (`per_…`) says whose it is. List endpoints take
+  `?actor_id=`. See docs/ARCHITECTURE.md "Whose items are mine".
+- **Role items and individual initiatives are separate listings.** `/me/actions` and
+  `/me/projects` return one or the other depending on `?individual_initiative=` (absent means
+  role items; anything but `true`/`false` is a 422), and `/roles/{id}/projects` leaves
+  initiatives out. An initiative's `role_id` is only the role it was recorded against — and is
+  how one is created, through `POST /roles/{role_id}/…` with `individual_initiative: true`.
 
 - **Glassfrog v5 is beta.** It has **no org-wide action list** and **no `updated_since` filter**.
   Change detection is enumerate-and-diff over `/me/actions` (cursor-paginated). Auth is a static

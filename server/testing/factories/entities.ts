@@ -3,7 +3,7 @@ import { glassfrogIntegration, todoistIntegration } from '../../db/schema/integr
 import { locks } from '../../db/schema/locks.js'
 import { projectMapping, syncLog, taskMapping, user } from '../../db/schema/index.js'
 import { contentHash, type TaskSnapshot } from '../../sync/resolve.js'
-import { GLASSFROG_TEST_API_KEY } from '../glassfrog.js'
+import { GLASSFROG_TEST_API_KEY, ME_ACTOR_ID } from '../glassfrog.js'
 import { TODOIST_TEST_API_KEY } from '../todoist.js'
 import { Factory, FactoryContext } from './factory.js'
 import { nextSequence } from './sequence.js'
@@ -74,7 +74,7 @@ export class TodoistIntegrationFactory extends Factory<TodoistIntegration> {
 
 export class GlassfrogIntegrationFactory extends Factory<GlassfrogIntegration> {
   protected defaults(): Partial<GlassfrogIntegration> {
-    return { apiKey: GLASSFROG_TEST_API_KEY, v3ApiKey: GLASSFROG_TEST_API_KEY, v3PersonId: 1 }
+    return { apiKey: GLASSFROG_TEST_API_KEY, actorId: ME_ACTOR_ID }
   }
 
   protected async builder(data: GlassfrogIntegration): Promise<GlassfrogIntegration> {
@@ -86,9 +86,9 @@ export class GlassfrogIntegrationFactory extends Factory<GlassfrogIntegration> {
     return this.override(async () => ({ userId: await userIdFrom(this.context) }))
   }
 
-  /** A row saved before v3 keys existed: connected, but sync stays off. */
-  withoutV3Key(): this {
-    return this.override({ v3ApiKey: null, v3PersonId: null })
+  /** A row saved before the actor id was stored; the first poll reads it from `/me`. */
+  withoutActorId(): this {
+    return this.override({ actorId: null })
   }
 }
 

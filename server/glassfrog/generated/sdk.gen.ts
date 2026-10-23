@@ -2,7 +2,7 @@
 
 import type { Client, ClientMeta, Options as Options2, RequestResult, TDataShape } from './client';
 import { client } from './client.gen';
-import type { AddTagToRoleData, AddTagToRoleErrors, AddTagToRoleResponses, CompleteActionData, CompleteActionErrors, CompleteActionResponses, CreateActionData, CreateActionErrors, CreateActionResponses, CreateActorData, CreateActorErrors, CreateActorResponses, CreateChannelMessageData, CreateChannelMessageErrors, CreateChannelMessageResponses, CreateChecklistItemData, CreateChecklistItemErrors, CreateChecklistItemResponses, CreateGoalProgressUpdateData, CreateGoalProgressUpdateErrors, CreateGoalProgressUpdateResponses, CreateGoalTargetData, CreateGoalTargetErrors, CreateGoalTargetResponses, CreateMetricData, CreateMetricErrors, CreateMetricResponses, CreatePersonData, CreatePersonErrors, CreatePersonResponses, CreateProposalData, CreateProposalErrors, CreateProposalResponseData, CreateProposalResponseErrors, CreateProposalResponseResponses, CreateProposalResponses, CreateRoleAssignmentData, CreateRoleAssignmentErrors, CreateRoleAssignmentResponses, CreateRoleCustomFieldData, CreateRoleCustomFieldErrors, CreateRoleCustomFieldResponses, CreateRoleGoalData, CreateRoleGoalErrors, CreateRoleGoalResponses, CreateRoleNoteData, CreateRoleNoteErrors, CreateRoleNoteResponses, CreateRoleProjectData, CreateRoleProjectErrors, CreateRoleProjectResponses, CreateSkillData, CreateSkillErrors, CreateSkillResponses, CreateTagData, CreateTagErrors, CreateTagResponses, CreateTargetProgressUpdateData, CreateTargetProgressUpdateErrors, CreateTargetProgressUpdateResponses, CreateTensionData, CreateTensionErrors, CreateTensionResponses, DeleteActionData, DeleteActionErrors, DeleteActionResponses, DeleteActorData, DeleteActorErrors, DeleteActorResponses, DeleteAssignmentData, DeleteAssignmentErrors, DeleteAssignmentResponses, DeleteChecklistItemData, DeleteChecklistItemErrors, DeleteChecklistItemResponses, DeleteCustomFieldData, DeleteCustomFieldErrors, DeleteCustomFieldResponses, DeleteGoalData, DeleteGoalErrors, DeleteGoalResponses, DeleteMessageData, DeleteMessageErrors, DeleteMessageResponses, DeleteMetricData, DeleteMetricErrors, DeleteMetricResponses, DeleteNoteData, DeleteNoteErrors, DeleteNoteResponses, DeletePersonData, DeletePersonErrors, DeletePersonResponses, DeleteProjectData, DeleteProjectErrors, DeleteProjectResponses, DeleteRoleStrategyData, DeleteRoleStrategyErrors, DeleteRoleStrategyResponses, DeleteSkillData, DeleteSkillErrors, DeleteSkillResponses, DeleteTagData, DeleteTagErrors, DeleteTagResponses, DeleteTargetData, DeleteTargetErrors, DeleteTargetResponses, DeleteTensionData, DeleteTensionErrors, DeleteTensionResponses, GetActionData, GetActionErrors, GetActionResponses, GetActorData, GetActorErrors, GetActorResponses, GetAgentContextData, GetAgentContextErrors, GetAgentContextResponses, GetAgentData, GetAgentErrors, GetAgentResponses, GetChannelData, GetChannelErrors, GetChannelResponses, GetChecklistItemData, GetChecklistItemErrors, GetChecklistItemResponses, GetCustomFieldData, GetCustomFieldErrors, GetCustomFieldResponses, GetDomainData, GetDomainErrors, GetDomainResponses, GetGoalData, GetGoalErrors, GetGoalResponses, GetMeData, GetMeErrors, GetMeResponses, GetMetricData, GetMetricErrors, GetMetricResponses, GetMyContextData, GetMyContextErrors, GetMyContextResponses, GetNoteData, GetNoteErrors, GetNoteResponses, GetOrgRuleData, GetOrgRuleResponses, GetOrgTreeData, GetOrgTreeErrors, GetOrgTreeResponses, GetPersonData, GetPersonErrors, GetPersonResponses, GetPolicyData, GetPolicyErrors, GetPolicyResponses, GetProjectData, GetProjectErrors, GetProjectResponses, GetProposalData, GetProposalErrors, GetProposalResponses, GetRoleContextData, GetRoleContextErrors, GetRoleContextResponses, GetRoleData, GetRoleErrors, GetRoleResponses, GetRoleStrategyData, GetRoleStrategyErrors, GetRoleStrategyResponses, GetRoleTreeData, GetRoleTreeErrors, GetRoleTreeResponses, GetSkillData, GetSkillErrors, GetSkillResponses, GetTagData, GetTagErrors, GetTagResponses, GetTargetData, GetTargetErrors, GetTargetResponses, GetTensionData, GetTensionErrors, GetTensionResponses, LinkGoalSupportingProjectData, LinkGoalSupportingProjectErrors, LinkGoalSupportingProjectResponses, LinkSkillToAgentData, LinkSkillToAgentErrors, LinkSkillToAgentResponses, LinkSkillToRoleData, LinkSkillToRoleErrors, LinkSkillToRoleResponses, ListActorAssignmentsData, ListActorAssignmentsErrors, ListActorAssignmentsResponses, ListActorsData, ListActorsErrors, ListActorsResponses, ListAgentsData, ListAgentsErrors, ListAgentsResponses, ListChannelMessagesData, ListChannelMessagesErrors, ListChannelMessagesResponses, ListChannelsData, ListChannelsErrors, ListChannelsResponses, ListGoalProgressUpdatesData, ListGoalProgressUpdatesErrors, ListGoalProgressUpdatesResponses, ListGoalSupportingProjectsData, ListGoalSupportingProjectsErrors, ListGoalSupportingProjectsResponses, ListGoalTargetsData, ListGoalTargetsErrors, ListGoalTargetsResponses, ListMyActionsData, ListMyActionsErrors, ListMyActionsResponses, ListMyProjectsData, ListMyProjectsErrors, ListMyProjectsResponses, ListMyRolesData, ListMyRolesErrors, ListMyRolesResponses, ListNotesData, ListNotesErrors, ListNotesResponses, ListPeopleData, ListPeopleErrors, ListPeopleResponses, ListProjectActionsData, ListProjectActionsErrors, ListProjectActionsResponses, ListProposalsData, ListProposalsErrors, ListProposalsResponses, ListRoleActionsData, ListRoleActionsErrors, ListRoleActionsResponses, ListRoleAssignmentsData, ListRoleAssignmentsErrors, ListRoleAssignmentsResponses, ListRoleChecklistItemsData, ListRoleChecklistItemsErrors, ListRoleChecklistItemsResponses, ListRoleCustomFieldsData, ListRoleCustomFieldsErrors, ListRoleCustomFieldsResponses, ListRoleDomainsData, ListRoleDomainsErrors, ListRoleDomainsResponses, ListRoleGoalsData, ListRoleGoalsErrors, ListRoleGoalsResponses, ListRoleMetricsData, ListRoleMetricsErrors, ListRoleMetricsResponses, ListRoleNotesData, ListRoleNotesErrors, ListRoleNotesResponses, ListRolePoliciesData, ListRolePoliciesErrors, ListRolePoliciesResponses, ListRoleProjectsData, ListRoleProjectsErrors, ListRoleProjectsResponses, ListRolesData, ListRolesErrors, ListRoleSkillsData, ListRoleSkillsErrors, ListRoleSkillsResponses, ListRolesResponses, ListRoleSubrolesGoalsData, ListRoleSubrolesGoalsErrors, ListRoleSubrolesGoalsResponses, ListRoleTagsData, ListRoleTagsErrors, ListRoleTagsResponses, ListRoleTensionsData, ListRoleTensionsErrors, ListRoleTensionsResponses, ListSkillsData, ListSkillsErrors, ListSkillsResponses, ListSubProjectsData, ListSubProjectsErrors, ListSubProjectsResponses, ListSubrolesActionsData, ListSubrolesActionsErrors, ListSubrolesActionsResponses, ListSubrolesActorsData, ListSubrolesActorsErrors, ListSubrolesActorsResponses, ListSubrolesData, ListSubrolesErrors, ListSubrolesPeopleData, ListSubrolesPeopleErrors, ListSubrolesPeopleResponses, ListSubrolesPoliciesData, ListSubrolesPoliciesErrors, ListSubrolesPoliciesResponses, ListSubrolesProjectsData, ListSubrolesProjectsErrors, ListSubrolesProjectsResponses, ListSubrolesResponses, ListSubrolesTensionsData, ListSubrolesTensionsErrors, ListSubrolesTensionsResponses, ListTagsData, ListTagsErrors, ListTagsResponses, ListTargetProgressUpdatesData, ListTargetProgressUpdatesErrors, ListTargetProgressUpdatesResponses, MarkChannelReadData, MarkChannelReadErrors, MarkChannelReadResponses, ProposeProposalData, ProposeProposalErrors, ProposeProposalResponses, RemoveTagFromRoleData, RemoveTagFromRoleErrors, RemoveTagFromRoleResponses, SearchData, SearchErrors, SearchResponses, UncompleteActionData, UncompleteActionErrors, UncompleteActionResponses, UnlinkGoalSupportingProjectData, UnlinkGoalSupportingProjectErrors, UnlinkGoalSupportingProjectResponses, UnlinkSkillFromAgentData, UnlinkSkillFromAgentErrors, UnlinkSkillFromAgentResponses, UnlinkSkillFromRoleData, UnlinkSkillFromRoleErrors, UnlinkSkillFromRoleResponses, UpdateActionData, UpdateActionErrors, UpdateActionResponses, UpdateActorData, UpdateActorErrors, UpdateActorResponses, UpdateAssignmentData, UpdateAssignmentErrors, UpdateAssignmentResponses, UpdateChecklistItemData, UpdateChecklistItemErrors, UpdateChecklistItemResponses, UpdateCustomFieldData, UpdateCustomFieldErrors, UpdateCustomFieldResponses, UpdateGoalData, UpdateGoalErrors, UpdateGoalResponses, UpdateMessageData, UpdateMessageErrors, UpdateMessageResponses, UpdateMetricData, UpdateMetricErrors, UpdateMetricResponses, UpdateNoteData, UpdateNoteErrors, UpdateNoteResponses, UpdatePersonData, UpdatePersonErrors, UpdatePersonResponses, UpdateProjectData, UpdateProjectErrors, UpdateProjectResponses, UpdateRoleStrategyData, UpdateRoleStrategyErrors, UpdateRoleStrategyResponses, UpdateSkillData, UpdateSkillErrors, UpdateSkillResponses, UpdateTagData, UpdateTagErrors, UpdateTagResponses, UpdateTargetData, UpdateTargetErrors, UpdateTargetResponses, UpdateTensionData, UpdateTensionErrors, UpdateTensionResponses, WithdrawProposalData, WithdrawProposalErrors, WithdrawProposalResponses } from './types.gen';
+import type { AcceptWorkRequestData, AcceptWorkRequestErrors, AcceptWorkRequestResponses, AcceptWorkRequestWithEditsData, AcceptWorkRequestWithEditsErrors, AcceptWorkRequestWithEditsResponses, AddTagToActionData, AddTagToActionErrors, AddTagToActionResponses, AddTagToNoteData, AddTagToNoteErrors, AddTagToNoteResponses, AddTagToProjectData, AddTagToProjectErrors, AddTagToProjectResponses, AddTagToRoleData, AddTagToRoleErrors, AddTagToRoleResponses, AddTagToSkillData, AddTagToSkillErrors, AddTagToSkillResponses, BatchHeartbeatSessionsData, BatchHeartbeatSessionsErrors, BatchHeartbeatSessionsResponses, CompleteActionData, CompleteActionErrors, CompleteActionResponses, CreateActionData, CreateActionErrors, CreateActionResponses, CreateActorData, CreateActorErrors, CreateActorResponses, CreateChannelMessageData, CreateChannelMessageErrors, CreateChannelMessageResponses, CreateChannelThreadData, CreateChannelThreadErrors, CreateChannelThreadResponses, CreateChecklistItemData, CreateChecklistItemErrors, CreateChecklistItemResponses, CreateGoalProgressUpdateData, CreateGoalProgressUpdateErrors, CreateGoalProgressUpdateResponses, CreateGoalTargetData, CreateGoalTargetErrors, CreateGoalTargetResponses, CreateMetricData, CreateMetricErrors, CreateMetricResponses, CreatePersonData, CreatePersonErrors, CreatePersonResponses, CreateProjectThreadMessageData, CreateProjectThreadMessageErrors, CreateProjectThreadMessageResponses, CreateProposalChangeData, CreateProposalChangeErrors, CreateProposalChangeResponses, CreateProposalData, CreateProposalErrors, CreateProposalResponseData, CreateProposalResponseErrors, CreateProposalResponseResponses, CreateProposalResponses, CreateRoleAssignmentData, CreateRoleAssignmentErrors, CreateRoleAssignmentResponses, CreateRoleCustomFieldData, CreateRoleCustomFieldErrors, CreateRoleCustomFieldResponses, CreateRoleGoalData, CreateRoleGoalErrors, CreateRoleGoalResponses, CreateRoleNoteData, CreateRoleNoteErrors, CreateRoleNoteResponses, CreateRoleProjectData, CreateRoleProjectErrors, CreateRoleProjectResponses, CreateSessionData, CreateSessionErrors, CreateSessionResponses, CreateSkillData, CreateSkillErrors, CreateSkillResponses, CreateTagData, CreateTagErrors, CreateTagResponses, CreateTargetProgressUpdateData, CreateTargetProgressUpdateErrors, CreateTargetProgressUpdateResponses, CreateTensionData, CreateTensionErrors, CreateTensionResponses, CreateThreadMessageData, CreateThreadMessageErrors, CreateThreadMessageResponses, CreateWorkRequestData, CreateWorkRequestErrors, CreateWorkRequestResponses, DeleteActionData, DeleteActionErrors, DeleteActionResponses, DeleteActorData, DeleteActorErrors, DeleteActorResponses, DeleteAssignmentData, DeleteAssignmentErrors, DeleteAssignmentResponses, DeleteChecklistItemData, DeleteChecklistItemErrors, DeleteChecklistItemResponses, DeleteCustomFieldData, DeleteCustomFieldErrors, DeleteCustomFieldResponses, DeleteGoalData, DeleteGoalErrors, DeleteGoalResponses, DeleteMessageData, DeleteMessageErrors, DeleteMessageResponses, DeleteMetricData, DeleteMetricErrors, DeleteMetricResponses, DeleteNoteData, DeleteNoteErrors, DeleteNoteResponses, DeletePersonData, DeletePersonErrors, DeletePersonResponses, DeleteProjectData, DeleteProjectErrors, DeleteProjectResponses, DeleteProposalChangeData, DeleteProposalChangeErrors, DeleteProposalChangeResponses, DeleteRoleStrategyData, DeleteRoleStrategyErrors, DeleteRoleStrategyResponses, DeleteSkillData, DeleteSkillErrors, DeleteSkillResponses, DeleteTagData, DeleteTagErrors, DeleteTagResponses, DeleteTargetData, DeleteTargetErrors, DeleteTargetResponses, DeleteTensionData, DeleteTensionErrors, DeleteTensionResponses, GetActionData, GetActionErrors, GetActionResponses, GetActorData, GetActorErrors, GetActorResponses, GetAgentContextData, GetAgentContextErrors, GetAgentContextResponses, GetAgentData, GetAgentErrors, GetAgentResponses, GetChannelData, GetChannelErrors, GetChannelResponses, GetChecklistItemData, GetChecklistItemErrors, GetChecklistItemResponses, GetCustomFieldData, GetCustomFieldErrors, GetCustomFieldResponses, GetDomainData, GetDomainErrors, GetDomainResponses, GetGoalData, GetGoalErrors, GetGoalResponses, GetMeData, GetMeErrors, GetMeResponses, GetMetricData, GetMetricErrors, GetMetricResponses, GetMyContextData, GetMyContextErrors, GetMyContextResponses, GetNoteData, GetNoteErrors, GetNoteResponses, GetOrgRuleData, GetOrgRuleErrors, GetOrgRuleResponses, GetOrgTreeData, GetOrgTreeErrors, GetOrgTreeResponses, GetPersonData, GetPersonErrors, GetPersonResponses, GetPolicyData, GetPolicyErrors, GetPolicyResponses, GetProjectData, GetProjectErrors, GetProjectResponses, GetProjectThreadData, GetProjectThreadErrors, GetProjectThreadResponses, GetProposalData, GetProposalErrors, GetProposalResponses, GetRoleChannelData, GetRoleChannelErrors, GetRoleChannelResponses, GetRoleContextData, GetRoleContextErrors, GetRoleContextResponses, GetRoleData, GetRoleErrors, GetRoleResponses, GetRoleStrategyData, GetRoleStrategyErrors, GetRoleStrategyResponses, GetRoleTreeData, GetRoleTreeErrors, GetRoleTreeResponses, GetSessionData, GetSessionErrors, GetSessionResponses, GetSkillData, GetSkillErrors, GetSkillResponses, GetTagData, GetTagErrors, GetTagResponses, GetTargetData, GetTargetErrors, GetTargetResponses, GetTensionData, GetTensionErrors, GetTensionResponses, GetThreadData, GetThreadErrors, GetThreadResponses, GetWorkRequestData, GetWorkRequestErrors, GetWorkRequestResponses, HeartbeatSessionData, HeartbeatSessionErrors, HeartbeatSessionResponses, LinkGoalSupportingProjectData, LinkGoalSupportingProjectErrors, LinkGoalSupportingProjectResponses, LinkSkillToAgentData, LinkSkillToAgentErrors, LinkSkillToAgentResponses, LinkSkillToRoleData, LinkSkillToRoleErrors, LinkSkillToRoleResponses, ListActionTagsData, ListActionTagsErrors, ListActionTagsResponses, ListActorAssignmentsData, ListActorAssignmentsErrors, ListActorAssignmentsResponses, ListActorsData, ListActorsErrors, ListActorsResponses, ListAgentsData, ListAgentsErrors, ListAgentSkillsData, ListAgentSkillsErrors, ListAgentSkillsResponses, ListAgentsResponses, ListChannelMessagesData, ListChannelMessagesErrors, ListChannelMessagesResponses, ListChannelsData, ListChannelsErrors, ListChannelsResponses, ListChannelThreadsData, ListChannelThreadsErrors, ListChannelThreadsResponses, ListGoalProgressUpdatesData, ListGoalProgressUpdatesErrors, ListGoalProgressUpdatesResponses, ListGoalSupportingProjectsData, ListGoalSupportingProjectsErrors, ListGoalSupportingProjectsResponses, ListGoalTargetsData, ListGoalTargetsErrors, ListGoalTargetsResponses, ListMyActionsData, ListMyActionsErrors, ListMyActionsResponses, ListMyMessagesData, ListMyMessagesErrors, ListMyMessagesResponses, ListMyProjectsData, ListMyProjectsErrors, ListMyProjectsResponses, ListMyRolesData, ListMyRolesErrors, ListMyRolesResponses, ListNotesData, ListNotesErrors, ListNotesResponses, ListNoteTagsData, ListNoteTagsErrors, ListNoteTagsResponses, ListPeopleData, ListPeopleErrors, ListPeopleResponses, ListProjectActionsData, ListProjectActionsErrors, ListProjectActionsResponses, ListProjectTagsData, ListProjectTagsErrors, ListProjectTagsResponses, ListProposalsData, ListProposalsErrors, ListProposalsResponses, ListRoleActionsData, ListRoleActionsErrors, ListRoleActionsResponses, ListRoleAssignmentsData, ListRoleAssignmentsErrors, ListRoleAssignmentsResponses, ListRoleChecklistItemsData, ListRoleChecklistItemsErrors, ListRoleChecklistItemsResponses, ListRoleCustomFieldsData, ListRoleCustomFieldsErrors, ListRoleCustomFieldsResponses, ListRoleDomainsData, ListRoleDomainsErrors, ListRoleDomainsResponses, ListRoleGoalsData, ListRoleGoalsErrors, ListRoleGoalsResponses, ListRoleMetricsData, ListRoleMetricsErrors, ListRoleMetricsResponses, ListRoleNotesData, ListRoleNotesErrors, ListRoleNotesResponses, ListRolePoliciesData, ListRolePoliciesErrors, ListRolePoliciesResponses, ListRoleProjectsData, ListRoleProjectsErrors, ListRoleProjectsResponses, ListRolesData, ListRolesErrors, ListRoleSkillsData, ListRoleSkillsErrors, ListRoleSkillsResponses, ListRolesResponses, ListRoleSubrolesGoalsData, ListRoleSubrolesGoalsErrors, ListRoleSubrolesGoalsResponses, ListRoleTagsData, ListRoleTagsErrors, ListRoleTagsResponses, ListRoleTensionsData, ListRoleTensionsErrors, ListRoleTensionsResponses, ListSessionsData, ListSessionsErrors, ListSessionsResponses, ListSkillsData, ListSkillsErrors, ListSkillsResponses, ListSkillTagsData, ListSkillTagsErrors, ListSkillTagsResponses, ListSubProjectsData, ListSubProjectsErrors, ListSubProjectsResponses, ListSubrolesActionsData, ListSubrolesActionsErrors, ListSubrolesActionsResponses, ListSubrolesActorsData, ListSubrolesActorsErrors, ListSubrolesActorsResponses, ListSubrolesData, ListSubrolesErrors, ListSubrolesPeopleData, ListSubrolesPeopleErrors, ListSubrolesPeopleResponses, ListSubrolesPoliciesData, ListSubrolesPoliciesErrors, ListSubrolesPoliciesResponses, ListSubrolesProjectsData, ListSubrolesProjectsErrors, ListSubrolesProjectsResponses, ListSubrolesResponses, ListSubrolesTensionsData, ListSubrolesTensionsErrors, ListSubrolesTensionsResponses, ListTagsData, ListTagsErrors, ListTagsResponses, ListTargetProgressUpdatesData, ListTargetProgressUpdatesErrors, ListTargetProgressUpdatesResponses, ListThreadMessagesData, ListThreadMessagesErrors, ListThreadMessagesResponses, ListWorkRequestsData, ListWorkRequestsErrors, ListWorkRequestsResponses, MarkChannelReadData, MarkChannelReadErrors, MarkChannelReadResponses, MarkMyMessagesReadData, MarkMyMessagesReadErrors, MarkMyMessagesReadResponses, ProposeProposalData, ProposeProposalErrors, ProposeProposalResponses, RejectWorkRequestData, RejectWorkRequestErrors, RejectWorkRequestResponses, RemoveTagFromActionData, RemoveTagFromActionErrors, RemoveTagFromActionResponses, RemoveTagFromNoteData, RemoveTagFromNoteErrors, RemoveTagFromNoteResponses, RemoveTagFromProjectData, RemoveTagFromProjectErrors, RemoveTagFromProjectResponses, RemoveTagFromRoleData, RemoveTagFromRoleErrors, RemoveTagFromRoleResponses, RemoveTagFromSkillData, RemoveTagFromSkillErrors, RemoveTagFromSkillResponses, SearchData, SearchErrors, SearchResponses, TranslateIdData, TranslateIdErrors, TranslateIdResponses, UncompleteActionData, UncompleteActionErrors, UncompleteActionResponses, UnlinkGoalSupportingProjectData, UnlinkGoalSupportingProjectErrors, UnlinkGoalSupportingProjectResponses, UnlinkSkillFromAgentData, UnlinkSkillFromAgentErrors, UnlinkSkillFromAgentResponses, UnlinkSkillFromRoleData, UnlinkSkillFromRoleErrors, UnlinkSkillFromRoleResponses, UpdateActionData, UpdateActionErrors, UpdateActionResponses, UpdateActorData, UpdateActorErrors, UpdateActorResponses, UpdateAssignmentData, UpdateAssignmentErrors, UpdateAssignmentResponses, UpdateChecklistItemData, UpdateChecklistItemErrors, UpdateChecklistItemResponses, UpdateCustomFieldData, UpdateCustomFieldErrors, UpdateCustomFieldResponses, UpdateGoalData, UpdateGoalErrors, UpdateGoalResponses, UpdateMessageData, UpdateMessageErrors, UpdateMessageResponses, UpdateMetricData, UpdateMetricErrors, UpdateMetricResponses, UpdateNoteData, UpdateNoteErrors, UpdateNoteResponses, UpdatePersonData, UpdatePersonErrors, UpdatePersonResponses, UpdateProjectData, UpdateProjectErrors, UpdateProjectResponses, UpdateProposalChangeData, UpdateProposalChangeErrors, UpdateProposalChangeResponses, UpdateRoleSkillLinkData, UpdateRoleSkillLinkErrors, UpdateRoleSkillLinkResponses, UpdateRoleStrategyData, UpdateRoleStrategyErrors, UpdateRoleStrategyResponses, UpdateSkillData, UpdateSkillErrors, UpdateSkillResponses, UpdateTagData, UpdateTagErrors, UpdateTagResponses, UpdateTargetData, UpdateTargetErrors, UpdateTargetResponses, UpdateTensionData, UpdateTensionErrors, UpdateTensionResponses, UpdateThreadData, UpdateThreadErrors, UpdateThreadResponses, WithdrawProposalData, WithdrawProposalErrors, WithdrawProposalResponses } from './types.gen';
 
 export type Options<TData extends TDataShape = TDataShape, ThrowOnError extends boolean = boolean, TResponse = unknown> = Options2<TData, ThrowOnError, TResponse> & {
     /**
@@ -27,7 +27,19 @@ export type Options<TData extends TDataShape = TDataShape, ThrowOnError extends 
  *
  */
 export const listRoles = <ThrowOnError extends boolean = false>(options?: Options<ListRolesData, ThrowOnError>): RequestResult<ListRolesResponses, ListRolesErrors, ThrowOnError> => (options?.client ?? client).get<ListRolesResponses, ListRolesErrors, ThrowOnError>({
-    security: [{ name: 'X-Auth-Token', type: 'apiKey' }, { scheme: 'bearer', type: 'http' }],
+    security: [
+        { name: 'X-Auth-Token', type: 'apiKey' },
+        {
+            key: 'BearerAuth',
+            scheme: 'bearer',
+            type: 'http'
+        },
+        {
+            key: 'OAuth2',
+            scheme: 'bearer',
+            type: 'http'
+        }
+    ],
     url: '/roles',
     ...options
 });
@@ -41,7 +53,19 @@ export const listRoles = <ThrowOnError extends boolean = false>(options?: Option
  */
 export const getRole = <ThrowOnError extends boolean = false>(options: Options<GetRoleData, ThrowOnError>): RequestResult<GetRoleResponses, GetRoleErrors, ThrowOnError> => (options.client ?? client).get<GetRoleResponses, GetRoleErrors, ThrowOnError>({
     querySerializer: { parameters: { include: { array: { explode: false } } } },
-    security: [{ name: 'X-Auth-Token', type: 'apiKey' }, { scheme: 'bearer', type: 'http' }],
+    security: [
+        { name: 'X-Auth-Token', type: 'apiKey' },
+        {
+            key: 'BearerAuth',
+            scheme: 'bearer',
+            type: 'http'
+        },
+        {
+            key: 'OAuth2',
+            scheme: 'bearer',
+            type: 'http'
+        }
+    ],
     url: '/roles/{id}',
     ...options
 });
@@ -62,7 +86,19 @@ export const getRole = <ThrowOnError extends boolean = false>(options: Options<G
  */
 export const listSubroles = <ThrowOnError extends boolean = false>(options: Options<ListSubrolesData, ThrowOnError>): RequestResult<ListSubrolesResponses, ListSubrolesErrors, ThrowOnError> => (options.client ?? client).get<ListSubrolesResponses, ListSubrolesErrors, ThrowOnError>({
     querySerializer: { parameters: { include: { array: { explode: false } } } },
-    security: [{ name: 'X-Auth-Token', type: 'apiKey' }, { scheme: 'bearer', type: 'http' }],
+    security: [
+        { name: 'X-Auth-Token', type: 'apiKey' },
+        {
+            key: 'BearerAuth',
+            scheme: 'bearer',
+            type: 'http'
+        },
+        {
+            key: 'OAuth2',
+            scheme: 'bearer',
+            type: 'http'
+        }
+    ],
     url: '/roles/{id}/subroles',
     ...options
 });
@@ -81,7 +117,19 @@ export const listSubroles = <ThrowOnError extends boolean = false>(options: Opti
  *
  */
 export const listSubrolesActors = <ThrowOnError extends boolean = false>(options: Options<ListSubrolesActorsData, ThrowOnError>): RequestResult<ListSubrolesActorsResponses, ListSubrolesActorsErrors, ThrowOnError> => (options.client ?? client).get<ListSubrolesActorsResponses, ListSubrolesActorsErrors, ThrowOnError>({
-    security: [{ name: 'X-Auth-Token', type: 'apiKey' }, { scheme: 'bearer', type: 'http' }],
+    security: [
+        { name: 'X-Auth-Token', type: 'apiKey' },
+        {
+            key: 'BearerAuth',
+            scheme: 'bearer',
+            type: 'http'
+        },
+        {
+            key: 'OAuth2',
+            scheme: 'bearer',
+            type: 'http'
+        }
+    ],
     url: '/roles/{id}/subroles/actors',
     ...options
 });
@@ -97,7 +145,19 @@ export const listSubrolesActors = <ThrowOnError extends boolean = false>(options
  *
  */
 export const listSubrolesPeople = <ThrowOnError extends boolean = false>(options: Options<ListSubrolesPeopleData, ThrowOnError>): RequestResult<ListSubrolesPeopleResponses, ListSubrolesPeopleErrors, ThrowOnError> => (options.client ?? client).get<ListSubrolesPeopleResponses, ListSubrolesPeopleErrors, ThrowOnError>({
-    security: [{ name: 'X-Auth-Token', type: 'apiKey' }, { scheme: 'bearer', type: 'http' }],
+    security: [
+        { name: 'X-Auth-Token', type: 'apiKey' },
+        {
+            key: 'BearerAuth',
+            scheme: 'bearer',
+            type: 'http'
+        },
+        {
+            key: 'OAuth2',
+            scheme: 'bearer',
+            type: 'http'
+        }
+    ],
     url: '/roles/{id}/subroles/people',
     ...options
 });
@@ -113,7 +173,19 @@ export const listSubrolesPeople = <ThrowOnError extends boolean = false>(options
  *
  */
 export const listSubrolesProjects = <ThrowOnError extends boolean = false>(options: Options<ListSubrolesProjectsData, ThrowOnError>): RequestResult<ListSubrolesProjectsResponses, ListSubrolesProjectsErrors, ThrowOnError> => (options.client ?? client).get<ListSubrolesProjectsResponses, ListSubrolesProjectsErrors, ThrowOnError>({
-    security: [{ name: 'X-Auth-Token', type: 'apiKey' }, { scheme: 'bearer', type: 'http' }],
+    security: [
+        { name: 'X-Auth-Token', type: 'apiKey' },
+        {
+            key: 'BearerAuth',
+            scheme: 'bearer',
+            type: 'http'
+        },
+        {
+            key: 'OAuth2',
+            scheme: 'bearer',
+            type: 'http'
+        }
+    ],
     url: '/roles/{id}/subroles/projects',
     ...options
 });
@@ -127,9 +199,24 @@ export const listSubrolesProjects = <ThrowOnError extends boolean = false>(optio
  * Only available on expanded roles (where `has_subroles` is `true`).
  * Leaf roles return 404.
  *
+ * Use `?individual_initiative=true` to list individual initiative actions
+ * across subrole circles instead of role-owned actions.
+ *
  */
 export const listSubrolesActions = <ThrowOnError extends boolean = false>(options: Options<ListSubrolesActionsData, ThrowOnError>): RequestResult<ListSubrolesActionsResponses, ListSubrolesActionsErrors, ThrowOnError> => (options.client ?? client).get<ListSubrolesActionsResponses, ListSubrolesActionsErrors, ThrowOnError>({
-    security: [{ name: 'X-Auth-Token', type: 'apiKey' }, { scheme: 'bearer', type: 'http' }],
+    security: [
+        { name: 'X-Auth-Token', type: 'apiKey' },
+        {
+            key: 'BearerAuth',
+            scheme: 'bearer',
+            type: 'http'
+        },
+        {
+            key: 'OAuth2',
+            scheme: 'bearer',
+            type: 'http'
+        }
+    ],
     url: '/roles/{id}/subroles/actions',
     ...options
 });
@@ -145,7 +232,19 @@ export const listSubrolesActions = <ThrowOnError extends boolean = false>(option
  *
  */
 export const listSubrolesPolicies = <ThrowOnError extends boolean = false>(options: Options<ListSubrolesPoliciesData, ThrowOnError>): RequestResult<ListSubrolesPoliciesResponses, ListSubrolesPoliciesErrors, ThrowOnError> => (options.client ?? client).get<ListSubrolesPoliciesResponses, ListSubrolesPoliciesErrors, ThrowOnError>({
-    security: [{ name: 'X-Auth-Token', type: 'apiKey' }, { scheme: 'bearer', type: 'http' }],
+    security: [
+        { name: 'X-Auth-Token', type: 'apiKey' },
+        {
+            key: 'BearerAuth',
+            scheme: 'bearer',
+            type: 'http'
+        },
+        {
+            key: 'OAuth2',
+            scheme: 'bearer',
+            type: 'http'
+        }
+    ],
     url: '/roles/{id}/subroles/policies',
     ...options
 });
@@ -184,7 +283,19 @@ export const listSubrolesPolicies = <ThrowOnError extends boolean = false>(optio
  */
 export const getRoleTree = <ThrowOnError extends boolean = false>(options: Options<GetRoleTreeData, ThrowOnError>): RequestResult<GetRoleTreeResponses, GetRoleTreeErrors, ThrowOnError> => (options.client ?? client).get<GetRoleTreeResponses, GetRoleTreeErrors, ThrowOnError>({
     querySerializer: { parameters: { include: { array: { explode: false } } } },
-    security: [{ name: 'X-Auth-Token', type: 'apiKey' }, { scheme: 'bearer', type: 'http' }],
+    security: [
+        { name: 'X-Auth-Token', type: 'apiKey' },
+        {
+            key: 'BearerAuth',
+            scheme: 'bearer',
+            type: 'http'
+        },
+        {
+            key: 'OAuth2',
+            scheme: 'bearer',
+            type: 'http'
+        }
+    ],
     url: '/roles/{id}/tree',
     ...options
 });
@@ -199,7 +310,19 @@ export const getRoleTree = <ThrowOnError extends boolean = false>(options: Optio
  */
 export const getOrgTree = <ThrowOnError extends boolean = false>(options?: Options<GetOrgTreeData, ThrowOnError>): RequestResult<GetOrgTreeResponses, GetOrgTreeErrors, ThrowOnError> => (options?.client ?? client).get<GetOrgTreeResponses, GetOrgTreeErrors, ThrowOnError>({
     querySerializer: { parameters: { include: { array: { explode: false } } } },
-    security: [{ name: 'X-Auth-Token', type: 'apiKey' }, { scheme: 'bearer', type: 'http' }],
+    security: [
+        { name: 'X-Auth-Token', type: 'apiKey' },
+        {
+            key: 'BearerAuth',
+            scheme: 'bearer',
+            type: 'http'
+        },
+        {
+            key: 'OAuth2',
+            scheme: 'bearer',
+            type: 'http'
+        }
+    ],
     url: '/tree',
     ...options
 });
@@ -220,7 +343,19 @@ export const getOrgTree = <ThrowOnError extends boolean = false>(options?: Optio
  *
  */
 export const getRoleContext = <ThrowOnError extends boolean = false>(options: Options<GetRoleContextData, ThrowOnError>): RequestResult<GetRoleContextResponses, GetRoleContextErrors, ThrowOnError> => (options.client ?? client).get<GetRoleContextResponses, GetRoleContextErrors, ThrowOnError>({
-    security: [{ name: 'X-Auth-Token', type: 'apiKey' }, { scheme: 'bearer', type: 'http' }],
+    security: [
+        { name: 'X-Auth-Token', type: 'apiKey' },
+        {
+            key: 'BearerAuth',
+            scheme: 'bearer',
+            type: 'http'
+        },
+        {
+            key: 'OAuth2',
+            scheme: 'bearer',
+            type: 'http'
+        }
+    ],
     url: '/roles/{id}/context',
     ...options
 });
@@ -234,7 +369,19 @@ export const getRoleContext = <ThrowOnError extends boolean = false>(options: Op
  *
  */
 export const listActors = <ThrowOnError extends boolean = false>(options?: Options<ListActorsData, ThrowOnError>): RequestResult<ListActorsResponses, ListActorsErrors, ThrowOnError> => (options?.client ?? client).get<ListActorsResponses, ListActorsErrors, ThrowOnError>({
-    security: [{ name: 'X-Auth-Token', type: 'apiKey' }, { scheme: 'bearer', type: 'http' }],
+    security: [
+        { name: 'X-Auth-Token', type: 'apiKey' },
+        {
+            key: 'BearerAuth',
+            scheme: 'bearer',
+            type: 'http'
+        },
+        {
+            key: 'OAuth2',
+            scheme: 'bearer',
+            type: 'http'
+        }
+    ],
     url: '/actors',
     ...options
 });
@@ -247,7 +394,19 @@ export const listActors = <ThrowOnError extends boolean = false>(options?: Optio
  *
  */
 export const createActor = <ThrowOnError extends boolean = false>(options: Options<CreateActorData, ThrowOnError>): RequestResult<CreateActorResponses, CreateActorErrors, ThrowOnError> => (options.client ?? client).post<CreateActorResponses, CreateActorErrors, ThrowOnError>({
-    security: [{ name: 'X-Auth-Token', type: 'apiKey' }, { scheme: 'bearer', type: 'http' }],
+    security: [
+        { name: 'X-Auth-Token', type: 'apiKey' },
+        {
+            key: 'BearerAuth',
+            scheme: 'bearer',
+            type: 'http'
+        },
+        {
+            key: 'OAuth2',
+            scheme: 'bearer',
+            type: 'http'
+        }
+    ],
     url: '/actors',
     ...options,
     headers: {
@@ -266,7 +425,19 @@ export const createActor = <ThrowOnError extends boolean = false>(options: Optio
  *
  */
 export const deleteActor = <ThrowOnError extends boolean = false>(options: Options<DeleteActorData, ThrowOnError>): RequestResult<DeleteActorResponses, DeleteActorErrors, ThrowOnError> => (options.client ?? client).delete<DeleteActorResponses, DeleteActorErrors, ThrowOnError>({
-    security: [{ name: 'X-Auth-Token', type: 'apiKey' }, { scheme: 'bearer', type: 'http' }],
+    security: [
+        { name: 'X-Auth-Token', type: 'apiKey' },
+        {
+            key: 'BearerAuth',
+            scheme: 'bearer',
+            type: 'http'
+        },
+        {
+            key: 'OAuth2',
+            scheme: 'bearer',
+            type: 'http'
+        }
+    ],
     url: '/actors/{id}',
     ...options
 });
@@ -280,7 +451,19 @@ export const deleteActor = <ThrowOnError extends boolean = false>(options: Optio
  */
 export const getActor = <ThrowOnError extends boolean = false>(options: Options<GetActorData, ThrowOnError>): RequestResult<GetActorResponses, GetActorErrors, ThrowOnError> => (options.client ?? client).get<GetActorResponses, GetActorErrors, ThrowOnError>({
     querySerializer: { parameters: { include: { array: { explode: false } } } },
-    security: [{ name: 'X-Auth-Token', type: 'apiKey' }, { scheme: 'bearer', type: 'http' }],
+    security: [
+        { name: 'X-Auth-Token', type: 'apiKey' },
+        {
+            key: 'BearerAuth',
+            scheme: 'bearer',
+            type: 'http'
+        },
+        {
+            key: 'OAuth2',
+            scheme: 'bearer',
+            type: 'http'
+        }
+    ],
     url: '/actors/{id}',
     ...options
 });
@@ -291,9 +474,25 @@ export const getActor = <ThrowOnError extends boolean = false>(options: Options<
  * Updates a person's name, email, or admin status. Org admins can update
  * any member; non-admins can only update themselves.
  *
+ * An email change on a person whose current address is confirmed does not
+ * take effect immediately: a confirmation link is sent to the new address,
+ * and `email` keeps its old value until that link is followed.
+ *
  */
 export const updateActor = <ThrowOnError extends boolean = false>(options: Options<UpdateActorData, ThrowOnError>): RequestResult<UpdateActorResponses, UpdateActorErrors, ThrowOnError> => (options.client ?? client).patch<UpdateActorResponses, UpdateActorErrors, ThrowOnError>({
-    security: [{ name: 'X-Auth-Token', type: 'apiKey' }, { scheme: 'bearer', type: 'http' }],
+    security: [
+        { name: 'X-Auth-Token', type: 'apiKey' },
+        {
+            key: 'BearerAuth',
+            scheme: 'bearer',
+            type: 'http'
+        },
+        {
+            key: 'OAuth2',
+            scheme: 'bearer',
+            type: 'http'
+        }
+    ],
     url: '/actors/{id}',
     ...options,
     headers: {
@@ -316,7 +515,19 @@ export const updateActor = <ThrowOnError extends boolean = false>(options: Optio
  */
 export const getMe = <ThrowOnError extends boolean = false>(options?: Options<GetMeData, ThrowOnError>): RequestResult<GetMeResponses, GetMeErrors, ThrowOnError> => (options?.client ?? client).get<GetMeResponses, GetMeErrors, ThrowOnError>({
     querySerializer: { parameters: { include: { array: { explode: false } } } },
-    security: [{ name: 'X-Auth-Token', type: 'apiKey' }, { scheme: 'bearer', type: 'http' }],
+    security: [
+        { name: 'X-Auth-Token', type: 'apiKey' },
+        {
+            key: 'BearerAuth',
+            scheme: 'bearer',
+            type: 'http'
+        },
+        {
+            key: 'OAuth2',
+            scheme: 'bearer',
+            type: 'http'
+        }
+    ],
     url: '/me',
     ...options
 });
@@ -329,7 +540,19 @@ export const getMe = <ThrowOnError extends boolean = false>(options?: Options<Ge
  *
  */
 export const listMyRoles = <ThrowOnError extends boolean = false>(options?: Options<ListMyRolesData, ThrowOnError>): RequestResult<ListMyRolesResponses, ListMyRolesErrors, ThrowOnError> => (options?.client ?? client).get<ListMyRolesResponses, ListMyRolesErrors, ThrowOnError>({
-    security: [{ name: 'X-Auth-Token', type: 'apiKey' }, { scheme: 'bearer', type: 'http' }],
+    security: [
+        { name: 'X-Auth-Token', type: 'apiKey' },
+        {
+            key: 'BearerAuth',
+            scheme: 'bearer',
+            type: 'http'
+        },
+        {
+            key: 'OAuth2',
+            scheme: 'bearer',
+            type: 'http'
+        }
+    ],
     url: '/me/roles',
     ...options
 });
@@ -339,10 +562,26 @@ export const listMyRoles = <ThrowOnError extends boolean = false>(options?: Opti
  *
  * Returns a paginated list of projects owned by roles the requester
  * fills (primary assignments). Use `?status=` to filter.
+ * Use `?individual_initiative=true` to list the requester's individual
+ * initiative projects instead of role-owned projects.
+ * Use `?actor_id=` to keep only one actor's projects, e.g. your own on
+ * a role you share with other fillers.
  *
  */
 export const listMyProjects = <ThrowOnError extends boolean = false>(options?: Options<ListMyProjectsData, ThrowOnError>): RequestResult<ListMyProjectsResponses, ListMyProjectsErrors, ThrowOnError> => (options?.client ?? client).get<ListMyProjectsResponses, ListMyProjectsErrors, ThrowOnError>({
-    security: [{ name: 'X-Auth-Token', type: 'apiKey' }, { scheme: 'bearer', type: 'http' }],
+    security: [
+        { name: 'X-Auth-Token', type: 'apiKey' },
+        {
+            key: 'BearerAuth',
+            scheme: 'bearer',
+            type: 'http'
+        },
+        {
+            key: 'OAuth2',
+            scheme: 'bearer',
+            type: 'http'
+        }
+    ],
     url: '/me/projects',
     ...options
 });
@@ -352,12 +591,126 @@ export const listMyProjects = <ThrowOnError extends boolean = false>(options?: O
  *
  * Returns a paginated list of actions owned by roles the requester
  * fills (primary assignments). Use `?status=` to filter.
+ * Use `?individual_initiative=true` to list the requester's individual
+ * initiative actions instead of role-owned actions.
+ * Use `?actor_id=` to keep only one actor's actions, e.g. your own on
+ * a role you share with other fillers.
  *
  */
 export const listMyActions = <ThrowOnError extends boolean = false>(options?: Options<ListMyActionsData, ThrowOnError>): RequestResult<ListMyActionsResponses, ListMyActionsErrors, ThrowOnError> => (options?.client ?? client).get<ListMyActionsResponses, ListMyActionsErrors, ThrowOnError>({
-    security: [{ name: 'X-Auth-Token', type: 'apiKey' }, { scheme: 'bearer', type: 'http' }],
+    security: [
+        { name: 'X-Auth-Token', type: 'apiKey' },
+        {
+            key: 'BearerAuth',
+            scheme: 'bearer',
+            type: 'http'
+        },
+        {
+            key: 'OAuth2',
+            scheme: 'bearer',
+            type: 'http'
+        }
+    ],
     url: '/me/actions',
     ...options
+});
+
+/**
+ * List messages across the authenticated actor's channels
+ *
+ * The machine feed for sync clients: every message in every channel
+ * the caller belongs to, oldest first, in one list. That's the channel
+ * of each circle the caller fills a role in, plus the channels of the
+ * caller's own leaf roles. Soft-deleted messages are omitted. Each
+ * message carries its `channel_id`. Thread replies are included,
+ * each with its `thread_id`, unlike on
+ * `GET /channels/{channel_id}/messages`, which leaves them out by
+ * default.
+ *
+ * - `unread=true` returns, per channel, only the messages created after
+ * the caller's watermark on that channel (the newest one, or with
+ * `role` that role's). No watermark means everything is unread.
+ * - `role` narrows the feed to that role's channels (and, with
+ * `unread`, its watermarks). The caller must currently fill the
+ * role (422 otherwise).
+ * - `since` returns messages created strictly after a time the client
+ * holds. It can't be combined with `unread` (422).
+ *
+ * Messages are ordered by `created_at`, then id. `next_cursor` is
+ * returned whenever there is a position to resume from: the last
+ * message on the page, or the cursor you passed if the page is empty.
+ * It is absent only on an empty page with no `cursor`. Store it and pass it back as `cursor`
+ * to get only messages after it, each exactly once, even when
+ * timestamps tie. An unknown `cursor` returns 422 rather than
+ * restarting from the beginning. Advance watermarks with
+ * `POST /me/messages/read` or `POST /channels/{id}/read`, each with
+ * `up_to`.
+ *
+ * The feed includes the caller's own messages. A circle channel's
+ * messages appear in the `role` feed of every role the caller fills
+ * in that circle, so a client polling per role should dedupe by id.
+ * `created_at` is assigned when the message is written, so a write
+ * that commits late can, rarely, land behind a cursor or watermark
+ * already handed out. Watermarks compare `created_at` alone, so
+ * marking read up to a message also marks read any message with the
+ * identical `created_at` (to the microsecond), delivered or not.
+ *
+ */
+export const listMyMessages = <ThrowOnError extends boolean = false>(options?: Options<ListMyMessagesData, ThrowOnError>): RequestResult<ListMyMessagesResponses, ListMyMessagesErrors, ThrowOnError> => (options?.client ?? client).get<ListMyMessagesResponses, ListMyMessagesErrors, ThrowOnError>({
+    security: [
+        { name: 'X-Auth-Token', type: 'apiKey' },
+        {
+            key: 'BearerAuth',
+            scheme: 'bearer',
+            type: 'http'
+        },
+        {
+            key: 'OAuth2',
+            scheme: 'bearer',
+            type: 'http'
+        }
+    ],
+    url: '/me/messages',
+    ...options
+});
+
+/**
+ * Mark the message feed read up to a message
+ *
+ * Advances the caller's watermark on every channel of
+ * `GET /me/messages` (narrowed by `role`) to `up_to`'s `created_at`.
+ * Watermarks never rewind. Pass the last message you processed, so
+ * anything posted after your read stays unread.
+ *
+ * Without `role` the person-level watermarks advance on every channel
+ * of the feed, including channels the client didn't process. A client
+ * that delivers per role or per channel should mark read with `role`,
+ * or with `POST /channels/{id}/read` and `up_to`. With `role`, that
+ * role's watermarks advance on its channels only. Channels the caller's credential can't write to are
+ * skipped. The response lists only the channels whose watermark
+ * moved.
+ *
+ */
+export const markMyMessagesRead = <ThrowOnError extends boolean = false>(options: Options<MarkMyMessagesReadData, ThrowOnError>): RequestResult<MarkMyMessagesReadResponses, MarkMyMessagesReadErrors, ThrowOnError> => (options.client ?? client).post<MarkMyMessagesReadResponses, MarkMyMessagesReadErrors, ThrowOnError>({
+    security: [
+        { name: 'X-Auth-Token', type: 'apiKey' },
+        {
+            key: 'BearerAuth',
+            scheme: 'bearer',
+            type: 'http'
+        },
+        {
+            key: 'OAuth2',
+            scheme: 'bearer',
+            type: 'http'
+        }
+    ],
+    url: '/me/messages/read',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
 });
 
 /**
@@ -365,7 +718,7 @@ export const listMyActions = <ThrowOnError extends boolean = false>(options?: Op
  *
  * Self-context for the authenticated caller, in one call: the full list of
  * roles the caller fills, and — with `?role=role_xxx` — that role's
- * definition, governance context, and org skills.
+ * definition and governance context.
  *
  * Serves any authenticated caller. The agent-identity section (name,
  * description, SOUL-style context blob, configuration) and agent-level
@@ -378,7 +731,19 @@ export const listMyActions = <ThrowOnError extends boolean = false>(options?: Op
  *
  */
 export const getMyContext = <ThrowOnError extends boolean = false>(options?: Options<GetMyContextData, ThrowOnError>): RequestResult<GetMyContextResponses, GetMyContextErrors, ThrowOnError> => (options?.client ?? client).get<GetMyContextResponses, GetMyContextErrors, ThrowOnError>({
-    security: [{ name: 'X-Auth-Token', type: 'apiKey' }, { scheme: 'bearer', type: 'http' }],
+    security: [
+        { name: 'X-Auth-Token', type: 'apiKey' },
+        {
+            key: 'BearerAuth',
+            scheme: 'bearer',
+            type: 'http'
+        },
+        {
+            key: 'OAuth2',
+            scheme: 'bearer',
+            type: 'http'
+        }
+    ],
     url: '/me/context',
     ...options
 });
@@ -390,12 +755,24 @@ export const getMyContext = <ThrowOnError extends boolean = false>(options?: Opt
  * SOUL-style context blob), configuration, agent-level skills (by ID),
  * and the full list of roles the agent fills.
  *
- * Optionally pass `?role=role_xxx` to also include that role's definition,
- * governance context, and org skills — one call for full context.
+ * Optionally pass `?role=role_xxx` to also include that role's definition
+ * and governance context — one call for full context.
  *
  */
 export const getAgentContext = <ThrowOnError extends boolean = false>(options: Options<GetAgentContextData, ThrowOnError>): RequestResult<GetAgentContextResponses, GetAgentContextErrors, ThrowOnError> => (options.client ?? client).get<GetAgentContextResponses, GetAgentContextErrors, ThrowOnError>({
-    security: [{ name: 'X-Auth-Token', type: 'apiKey' }, { scheme: 'bearer', type: 'http' }],
+    security: [
+        { name: 'X-Auth-Token', type: 'apiKey' },
+        {
+            key: 'BearerAuth',
+            scheme: 'bearer',
+            type: 'http'
+        },
+        {
+            key: 'OAuth2',
+            scheme: 'bearer',
+            type: 'http'
+        }
+    ],
     url: '/agents/{id}/context',
     ...options
 });
@@ -406,7 +783,19 @@ export const getAgentContext = <ThrowOnError extends boolean = false>(options: O
  * Convenience alias for `GET /actors?kind=human`.
  */
 export const listPeople = <ThrowOnError extends boolean = false>(options?: Options<ListPeopleData, ThrowOnError>): RequestResult<ListPeopleResponses, ListPeopleErrors, ThrowOnError> => (options?.client ?? client).get<ListPeopleResponses, ListPeopleErrors, ThrowOnError>({
-    security: [{ name: 'X-Auth-Token', type: 'apiKey' }, { scheme: 'bearer', type: 'http' }],
+    security: [
+        { name: 'X-Auth-Token', type: 'apiKey' },
+        {
+            key: 'BearerAuth',
+            scheme: 'bearer',
+            type: 'http'
+        },
+        {
+            key: 'OAuth2',
+            scheme: 'bearer',
+            type: 'http'
+        }
+    ],
     url: '/people',
     ...options
 });
@@ -417,7 +806,19 @@ export const listPeople = <ThrowOnError extends boolean = false>(options?: Optio
  * Convenience alias for `POST /actors`.
  */
 export const createPerson = <ThrowOnError extends boolean = false>(options: Options<CreatePersonData, ThrowOnError>): RequestResult<CreatePersonResponses, CreatePersonErrors, ThrowOnError> => (options.client ?? client).post<CreatePersonResponses, CreatePersonErrors, ThrowOnError>({
-    security: [{ name: 'X-Auth-Token', type: 'apiKey' }, { scheme: 'bearer', type: 'http' }],
+    security: [
+        { name: 'X-Auth-Token', type: 'apiKey' },
+        {
+            key: 'BearerAuth',
+            scheme: 'bearer',
+            type: 'http'
+        },
+        {
+            key: 'OAuth2',
+            scheme: 'bearer',
+            type: 'http'
+        }
+    ],
     url: '/people',
     ...options,
     headers: {
@@ -432,7 +833,19 @@ export const createPerson = <ThrowOnError extends boolean = false>(options: Opti
  * Convenience alias for `DELETE /actors/{id}`.
  */
 export const deletePerson = <ThrowOnError extends boolean = false>(options: Options<DeletePersonData, ThrowOnError>): RequestResult<DeletePersonResponses, DeletePersonErrors, ThrowOnError> => (options.client ?? client).delete<DeletePersonResponses, DeletePersonErrors, ThrowOnError>({
-    security: [{ name: 'X-Auth-Token', type: 'apiKey' }, { scheme: 'bearer', type: 'http' }],
+    security: [
+        { name: 'X-Auth-Token', type: 'apiKey' },
+        {
+            key: 'BearerAuth',
+            scheme: 'bearer',
+            type: 'http'
+        },
+        {
+            key: 'OAuth2',
+            scheme: 'bearer',
+            type: 'http'
+        }
+    ],
     url: '/people/{id}',
     ...options
 });
@@ -444,7 +857,19 @@ export const deletePerson = <ThrowOnError extends boolean = false>(options: Opti
  */
 export const getPerson = <ThrowOnError extends boolean = false>(options: Options<GetPersonData, ThrowOnError>): RequestResult<GetPersonResponses, GetPersonErrors, ThrowOnError> => (options.client ?? client).get<GetPersonResponses, GetPersonErrors, ThrowOnError>({
     querySerializer: { parameters: { include: { array: { explode: false } } } },
-    security: [{ name: 'X-Auth-Token', type: 'apiKey' }, { scheme: 'bearer', type: 'http' }],
+    security: [
+        { name: 'X-Auth-Token', type: 'apiKey' },
+        {
+            key: 'BearerAuth',
+            scheme: 'bearer',
+            type: 'http'
+        },
+        {
+            key: 'OAuth2',
+            scheme: 'bearer',
+            type: 'http'
+        }
+    ],
     url: '/people/{id}',
     ...options
 });
@@ -455,7 +880,19 @@ export const getPerson = <ThrowOnError extends boolean = false>(options: Options
  * Convenience alias for `PATCH /actors/{id}`.
  */
 export const updatePerson = <ThrowOnError extends boolean = false>(options: Options<UpdatePersonData, ThrowOnError>): RequestResult<UpdatePersonResponses, UpdatePersonErrors, ThrowOnError> => (options.client ?? client).patch<UpdatePersonResponses, UpdatePersonErrors, ThrowOnError>({
-    security: [{ name: 'X-Auth-Token', type: 'apiKey' }, { scheme: 'bearer', type: 'http' }],
+    security: [
+        { name: 'X-Auth-Token', type: 'apiKey' },
+        {
+            key: 'BearerAuth',
+            scheme: 'bearer',
+            type: 'http'
+        },
+        {
+            key: 'OAuth2',
+            scheme: 'bearer',
+            type: 'http'
+        }
+    ],
     url: '/people/{id}',
     ...options,
     headers: {
@@ -472,7 +909,19 @@ export const updatePerson = <ThrowOnError extends boolean = false>(options: Opti
  *
  */
 export const listAgents = <ThrowOnError extends boolean = false>(options?: Options<ListAgentsData, ThrowOnError>): RequestResult<ListAgentsResponses, ListAgentsErrors, ThrowOnError> => (options?.client ?? client).get<ListAgentsResponses, ListAgentsErrors, ThrowOnError>({
-    security: [{ name: 'X-Auth-Token', type: 'apiKey' }, { scheme: 'bearer', type: 'http' }],
+    security: [
+        { name: 'X-Auth-Token', type: 'apiKey' },
+        {
+            key: 'BearerAuth',
+            scheme: 'bearer',
+            type: 'http'
+        },
+        {
+            key: 'OAuth2',
+            scheme: 'bearer',
+            type: 'http'
+        }
+    ],
     url: '/agents',
     ...options
 });
@@ -486,7 +935,19 @@ export const listAgents = <ThrowOnError extends boolean = false>(options?: Optio
  */
 export const getAgent = <ThrowOnError extends boolean = false>(options: Options<GetAgentData, ThrowOnError>): RequestResult<GetAgentResponses, GetAgentErrors, ThrowOnError> => (options.client ?? client).get<GetAgentResponses, GetAgentErrors, ThrowOnError>({
     querySerializer: { parameters: { include: { array: { explode: false } } } },
-    security: [{ name: 'X-Auth-Token', type: 'apiKey' }, { scheme: 'bearer', type: 'http' }],
+    security: [
+        { name: 'X-Auth-Token', type: 'apiKey' },
+        {
+            key: 'BearerAuth',
+            scheme: 'bearer',
+            type: 'http'
+        },
+        {
+            key: 'OAuth2',
+            scheme: 'bearer',
+            type: 'http'
+        }
+    ],
     url: '/agents/{id}',
     ...options
 });
@@ -503,7 +964,19 @@ export const getAgent = <ThrowOnError extends boolean = false>(options: Options<
  *
  */
 export const listSkills = <ThrowOnError extends boolean = false>(options?: Options<ListSkillsData, ThrowOnError>): RequestResult<ListSkillsResponses, ListSkillsErrors, ThrowOnError> => (options?.client ?? client).get<ListSkillsResponses, ListSkillsErrors, ThrowOnError>({
-    security: [{ name: 'X-Auth-Token', type: 'apiKey' }, { scheme: 'bearer', type: 'http' }],
+    security: [
+        { name: 'X-Auth-Token', type: 'apiKey' },
+        {
+            key: 'BearerAuth',
+            scheme: 'bearer',
+            type: 'http'
+        },
+        {
+            key: 'OAuth2',
+            scheme: 'bearer',
+            type: 'http'
+        }
+    ],
     url: '/skills',
     ...options
 });
@@ -525,7 +998,19 @@ export const listSkills = <ThrowOnError extends boolean = false>(options?: Optio
  *
  */
 export const createSkill = <ThrowOnError extends boolean = false>(options: Options<CreateSkillData, ThrowOnError>): RequestResult<CreateSkillResponses, CreateSkillErrors, ThrowOnError> => (options.client ?? client).post<CreateSkillResponses, CreateSkillErrors, ThrowOnError>({
-    security: [{ name: 'X-Auth-Token', type: 'apiKey' }, { scheme: 'bearer', type: 'http' }],
+    security: [
+        { name: 'X-Auth-Token', type: 'apiKey' },
+        {
+            key: 'BearerAuth',
+            scheme: 'bearer',
+            type: 'http'
+        },
+        {
+            key: 'OAuth2',
+            scheme: 'bearer',
+            type: 'http'
+        }
+    ],
     url: '/skills',
     ...options,
     headers: {
@@ -538,12 +1023,33 @@ export const createSkill = <ThrowOnError extends boolean = false>(options: Optio
  * Delete a skill
  *
  * **Requires AI Integration.** Soft-deletes a skill. The skill is no
- * longer visible but retained in the database. Returns 403 when the
- * `ai_integration` flag is not enabled for the organization.
+ * longer visible but retained in the database.
+ *
+ * **Ownership.** Delete requires SOLE ownership: the caller (or the
+ * agent it operates) must be the skill's only linked actor
+ * (`ownership: sole`). A co-owned skill (2+ kept links) cannot be
+ * deleted by any linked actor — unlink your own side instead, which
+ * promotes the remaining actor to sole owner. An orphan skill may be
+ * deleted by any org member. Org admins may always delete, including
+ * co-owned skills. A denial carries a `reason` member:
+ * `sole_ownership_required` (co-owned), `ownership_required` (not a
+ * linked owner), or `ai_integration_disabled`.
  *
  */
 export const deleteSkill = <ThrowOnError extends boolean = false>(options: Options<DeleteSkillData, ThrowOnError>): RequestResult<DeleteSkillResponses, DeleteSkillErrors, ThrowOnError> => (options.client ?? client).delete<DeleteSkillResponses, DeleteSkillErrors, ThrowOnError>({
-    security: [{ name: 'X-Auth-Token', type: 'apiKey' }, { scheme: 'bearer', type: 'http' }],
+    security: [
+        { name: 'X-Auth-Token', type: 'apiKey' },
+        {
+            key: 'BearerAuth',
+            scheme: 'bearer',
+            type: 'http'
+        },
+        {
+            key: 'OAuth2',
+            scheme: 'bearer',
+            type: 'http'
+        }
+    ],
     url: '/skills/{id}',
     ...options
 });
@@ -559,7 +1065,19 @@ export const deleteSkill = <ThrowOnError extends boolean = false>(options: Optio
  */
 export const getSkill = <ThrowOnError extends boolean = false>(options: Options<GetSkillData, ThrowOnError>): RequestResult<GetSkillResponses, GetSkillErrors, ThrowOnError> => (options.client ?? client).get<GetSkillResponses, GetSkillErrors, ThrowOnError>({
     querySerializer: { parameters: { include: { array: { explode: false } } } },
-    security: [{ name: 'X-Auth-Token', type: 'apiKey' }, { scheme: 'bearer', type: 'http' }],
+    security: [
+        { name: 'X-Auth-Token', type: 'apiKey' },
+        {
+            key: 'BearerAuth',
+            scheme: 'bearer',
+            type: 'http'
+        },
+        {
+            key: 'OAuth2',
+            scheme: 'bearer',
+            type: 'http'
+        }
+    ],
     url: '/skills/{id}',
     ...options
 });
@@ -568,8 +1086,14 @@ export const getSkill = <ThrowOnError extends boolean = false>(options: Options<
  * Update a skill
  *
  * **Requires AI Integration.** Updates the name and/or content of an
- * existing skill. Returns 403 when the `ai_integration` flag is not
- * enabled for the organization.
+ * existing skill.
+ *
+ * **Ownership.** Update requires the caller to be a linked owner of the
+ * skill: an agent it is linked to, a filler of a role it is linked to,
+ * or the operator of a linked agent. An orphan skill (`ownership:
+ * orphan`, zero kept links) may be updated by any org member. Org admins
+ * may always update. A denial carries a `reason` member: `ownership_required`,
+ * or `ai_integration_disabled` when the org flag is off.
  *
  * Supports optimistic concurrency via `If-Match`. When present, the
  * update only proceeds if the ETag matches the current resource state.
@@ -584,13 +1108,108 @@ export const getSkill = <ThrowOnError extends boolean = false>(options: Options<
  *
  */
 export const updateSkill = <ThrowOnError extends boolean = false>(options: Options<UpdateSkillData, ThrowOnError>): RequestResult<UpdateSkillResponses, UpdateSkillErrors, ThrowOnError> => (options.client ?? client).patch<UpdateSkillResponses, UpdateSkillErrors, ThrowOnError>({
-    security: [{ name: 'X-Auth-Token', type: 'apiKey' }, { scheme: 'bearer', type: 'http' }],
+    security: [
+        { name: 'X-Auth-Token', type: 'apiKey' },
+        {
+            key: 'BearerAuth',
+            scheme: 'bearer',
+            type: 'http'
+        },
+        {
+            key: 'OAuth2',
+            scheme: 'bearer',
+            type: 'http'
+        }
+    ],
     url: '/skills/{id}',
     ...options,
     headers: {
         'Content-Type': 'application/json',
         ...options.headers
     }
+});
+
+/**
+ * List tags on a skill
+ *
+ * **Requires AI Integration.** Returns tags applied to a specific skill.
+ * Returns 403 when the `ai_integration` flag is not enabled for the
+ * organization.
+ *
+ */
+export const listSkillTags = <ThrowOnError extends boolean = false>(options: Options<ListSkillTagsData, ThrowOnError>): RequestResult<ListSkillTagsResponses, ListSkillTagsErrors, ThrowOnError> => (options.client ?? client).get<ListSkillTagsResponses, ListSkillTagsErrors, ThrowOnError>({
+    security: [
+        { name: 'X-Auth-Token', type: 'apiKey' },
+        {
+            key: 'BearerAuth',
+            scheme: 'bearer',
+            type: 'http'
+        },
+        {
+            key: 'OAuth2',
+            scheme: 'bearer',
+            type: 'http'
+        }
+    ],
+    url: '/skills/{skill_id}/tags',
+    ...options
+});
+
+/**
+ * Add a tag to a skill
+ *
+ * **Requires AI Integration.** Links an existing tag to a skill. Requires
+ * admin access. Idempotent — adding a tag already on the skill returns 201.
+ * Returns 403 when the `ai_integration` flag is not enabled for the
+ * organization.
+ *
+ */
+export const addTagToSkill = <ThrowOnError extends boolean = false>(options: Options<AddTagToSkillData, ThrowOnError>): RequestResult<AddTagToSkillResponses, AddTagToSkillErrors, ThrowOnError> => (options.client ?? client).post<AddTagToSkillResponses, AddTagToSkillErrors, ThrowOnError>({
+    security: [
+        { name: 'X-Auth-Token', type: 'apiKey' },
+        {
+            key: 'BearerAuth',
+            scheme: 'bearer',
+            type: 'http'
+        },
+        {
+            key: 'OAuth2',
+            scheme: 'bearer',
+            type: 'http'
+        }
+    ],
+    url: '/skills/{skill_id}/tags',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * Remove a tag from a skill
+ *
+ * **Requires AI Integration.** Unlinks a tag from a skill. Requires admin
+ * access. Returns 403 when the `ai_integration` flag is not enabled for
+ * the organization.
+ *
+ */
+export const removeTagFromSkill = <ThrowOnError extends boolean = false>(options: Options<RemoveTagFromSkillData, ThrowOnError>): RequestResult<RemoveTagFromSkillResponses, RemoveTagFromSkillErrors, ThrowOnError> => (options.client ?? client).delete<RemoveTagFromSkillResponses, RemoveTagFromSkillErrors, ThrowOnError>({
+    security: [
+        { name: 'X-Auth-Token', type: 'apiKey' },
+        {
+            key: 'BearerAuth',
+            scheme: 'bearer',
+            type: 'http'
+        },
+        {
+            key: 'OAuth2',
+            scheme: 'bearer',
+            type: 'http'
+        }
+    ],
+    url: '/skills/{skill_id}/tags/{id}',
+    ...options
 });
 
 /**
@@ -602,7 +1221,19 @@ export const updateSkill = <ThrowOnError extends boolean = false>(options: Optio
  *
  */
 export const listRoleSkills = <ThrowOnError extends boolean = false>(options: Options<ListRoleSkillsData, ThrowOnError>): RequestResult<ListRoleSkillsResponses, ListRoleSkillsErrors, ThrowOnError> => (options.client ?? client).get<ListRoleSkillsResponses, ListRoleSkillsErrors, ThrowOnError>({
-    security: [{ name: 'X-Auth-Token', type: 'apiKey' }, { scheme: 'bearer', type: 'http' }],
+    security: [
+        { name: 'X-Auth-Token', type: 'apiKey' },
+        {
+            key: 'BearerAuth',
+            scheme: 'bearer',
+            type: 'http'
+        },
+        {
+            key: 'OAuth2',
+            scheme: 'bearer',
+            type: 'http'
+        }
+    ],
     url: '/roles/{role_id}/skills',
     ...options
 });
@@ -612,12 +1243,30 @@ export const listRoleSkills = <ThrowOnError extends boolean = false>(options: Op
  *
  * **Requires AI Integration.** Links an existing skill to a role.
  * Idempotent — linking an already-linked skill is a no-op and still
- * returns 201. Returns 403 when the `ai_integration` flag is not enabled
- * for the organization.
+ * returns 201. Re-linking a previously unlinked pair resurrects the
+ * link.
+ *
+ * **Self-only.** You may link a skill only to a role you fill (or that
+ * an agent you operate fills). Org admins may link any role. Linking
+ * makes the role a co-owner of the skill if it already has other links.
+ * A denial carries a `reason` member: `self_link_only`, or
+ * `ai_integration_disabled` when the org flag is off.
  *
  */
 export const linkSkillToRole = <ThrowOnError extends boolean = false>(options: Options<LinkSkillToRoleData, ThrowOnError>): RequestResult<LinkSkillToRoleResponses, LinkSkillToRoleErrors, ThrowOnError> => (options.client ?? client).post<LinkSkillToRoleResponses, LinkSkillToRoleErrors, ThrowOnError>({
-    security: [{ name: 'X-Auth-Token', type: 'apiKey' }, { scheme: 'bearer', type: 'http' }],
+    security: [
+        { name: 'X-Auth-Token', type: 'apiKey' },
+        {
+            key: 'BearerAuth',
+            scheme: 'bearer',
+            type: 'http'
+        },
+        {
+            key: 'OAuth2',
+            scheme: 'bearer',
+            type: 'http'
+        }
+    ],
     url: '/roles/{role_id}/skills',
     ...options,
     headers: {
@@ -629,13 +1278,89 @@ export const linkSkillToRole = <ThrowOnError extends boolean = false>(options: O
 /**
  * Unlink a skill from a role
  *
- * **Requires AI Integration.** Unlinks a skill from a role. Returns 403
- * when the `ai_integration` flag is not enabled for the organization.
+ * **Requires AI Integration.** Unlinks a skill from a role.
+ *
+ * **Self-only.** You may unlink a skill only from a role you fill (or
+ * that an agent you operate fills); org admins may unlink any role.
+ * Unlinking your own side of a co-owned skill promotes the remaining
+ * linked actor to sole owner — escalating yourself to sole owner by
+ * unlinking the OTHER actor is structurally impossible. A denial
+ * carries a `reason` member: `self_link_only`, or
+ * `ai_integration_disabled` when the org flag is off.
  *
  */
 export const unlinkSkillFromRole = <ThrowOnError extends boolean = false>(options: Options<UnlinkSkillFromRoleData, ThrowOnError>): RequestResult<UnlinkSkillFromRoleResponses, UnlinkSkillFromRoleErrors, ThrowOnError> => (options.client ?? client).delete<UnlinkSkillFromRoleResponses, UnlinkSkillFromRoleErrors, ThrowOnError>({
-    security: [{ name: 'X-Auth-Token', type: 'apiKey' }, { scheme: 'bearer', type: 'http' }],
+    security: [
+        { name: 'X-Auth-Token', type: 'apiKey' },
+        {
+            key: 'BearerAuth',
+            scheme: 'bearer',
+            type: 'http'
+        },
+        {
+            key: 'OAuth2',
+            scheme: 'bearer',
+            type: 'http'
+        }
+    ],
     url: '/roles/{role_id}/skills/{id}',
+    ...options
+});
+
+/**
+ * Update a role↔skill link
+ *
+ * **Requires AI Integration.** Updates properties of an existing
+ * role↔skill link (currently `load_at_boot`). Avoids the need to
+ * unlink/relink to toggle boot behavior. Returns 403 when the
+ * `ai_integration` flag is not enabled for the organization.
+ *
+ */
+export const updateRoleSkillLink = <ThrowOnError extends boolean = false>(options: Options<UpdateRoleSkillLinkData, ThrowOnError>): RequestResult<UpdateRoleSkillLinkResponses, UpdateRoleSkillLinkErrors, ThrowOnError> => (options.client ?? client).patch<UpdateRoleSkillLinkResponses, UpdateRoleSkillLinkErrors, ThrowOnError>({
+    security: [
+        { name: 'X-Auth-Token', type: 'apiKey' },
+        {
+            key: 'BearerAuth',
+            scheme: 'bearer',
+            type: 'http'
+        },
+        {
+            key: 'OAuth2',
+            scheme: 'bearer',
+            type: 'http'
+        }
+    ],
+    url: '/roles/{role_id}/skills/{id}',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * List skills linked to an agent
+ *
+ * **Requires AI Integration.** Returns the skills currently linked to the
+ * given agent, including each skill's full markdown body. Returns 403 when
+ * the `ai_integration` flag is not enabled for the organization.
+ *
+ */
+export const listAgentSkills = <ThrowOnError extends boolean = false>(options: Options<ListAgentSkillsData, ThrowOnError>): RequestResult<ListAgentSkillsResponses, ListAgentSkillsErrors, ThrowOnError> => (options.client ?? client).get<ListAgentSkillsResponses, ListAgentSkillsErrors, ThrowOnError>({
+    security: [
+        { name: 'X-Auth-Token', type: 'apiKey' },
+        {
+            key: 'BearerAuth',
+            scheme: 'bearer',
+            type: 'http'
+        },
+        {
+            key: 'OAuth2',
+            scheme: 'bearer',
+            type: 'http'
+        }
+    ],
+    url: '/agents/{agent_id}/skills',
     ...options
 });
 
@@ -644,12 +1369,29 @@ export const unlinkSkillFromRole = <ThrowOnError extends boolean = false>(option
  *
  * **Requires AI Integration.** Links an existing skill to an agent so the
  * skill loads into that agent's session context. Idempotent — linking an
- * already-linked skill is a no-op and still returns 201. Returns 403 when
- * the `ai_integration` flag is not enabled for the organization.
+ * already-linked skill is a no-op and still returns 201. Re-linking a
+ * previously unlinked pair resurrects the link.
+ *
+ * **Self-only.** You may link a skill only to your own agent — the
+ * calling agent itself, or an agent you operate. Org admins may link
+ * any agent. A denial carries a `reason` member: `self_link_only`, or
+ * `ai_integration_disabled` when the org flag is off.
  *
  */
 export const linkSkillToAgent = <ThrowOnError extends boolean = false>(options: Options<LinkSkillToAgentData, ThrowOnError>): RequestResult<LinkSkillToAgentResponses, LinkSkillToAgentErrors, ThrowOnError> => (options.client ?? client).post<LinkSkillToAgentResponses, LinkSkillToAgentErrors, ThrowOnError>({
-    security: [{ name: 'X-Auth-Token', type: 'apiKey' }, { scheme: 'bearer', type: 'http' }],
+    security: [
+        { name: 'X-Auth-Token', type: 'apiKey' },
+        {
+            key: 'BearerAuth',
+            scheme: 'bearer',
+            type: 'http'
+        },
+        {
+            key: 'OAuth2',
+            scheme: 'bearer',
+            type: 'http'
+        }
+    ],
     url: '/agents/{agent_id}/skills',
     ...options,
     headers: {
@@ -661,12 +1403,30 @@ export const linkSkillToAgent = <ThrowOnError extends boolean = false>(options: 
 /**
  * Unlink a skill from an agent
  *
- * **Requires AI Integration.** Unlinks a skill from an agent. Returns 403
- * when the `ai_integration` flag is not enabled for the organization.
+ * **Requires AI Integration.** Unlinks a skill from an agent.
+ *
+ * **Self-only.** You may unlink a skill only from your own agent — the
+ * calling agent itself, or an agent you operate. Org admins may unlink
+ * any agent. Unlinking your own side of a co-owned skill promotes the
+ * remaining linked actor to sole owner. A denial carries a `reason`
+ * member: `self_link_only`, or `ai_integration_disabled` when the org
+ * flag is off.
  *
  */
 export const unlinkSkillFromAgent = <ThrowOnError extends boolean = false>(options: Options<UnlinkSkillFromAgentData, ThrowOnError>): RequestResult<UnlinkSkillFromAgentResponses, UnlinkSkillFromAgentErrors, ThrowOnError> => (options.client ?? client).delete<UnlinkSkillFromAgentResponses, UnlinkSkillFromAgentErrors, ThrowOnError>({
-    security: [{ name: 'X-Auth-Token', type: 'apiKey' }, { scheme: 'bearer', type: 'http' }],
+    security: [
+        { name: 'X-Auth-Token', type: 'apiKey' },
+        {
+            key: 'BearerAuth',
+            scheme: 'bearer',
+            type: 'http'
+        },
+        {
+            key: 'OAuth2',
+            scheme: 'bearer',
+            type: 'http'
+        }
+    ],
     url: '/agents/{agent_id}/skills/{id}',
     ...options
 });
@@ -681,7 +1441,19 @@ export const unlinkSkillFromAgent = <ThrowOnError extends boolean = false>(optio
  *
  */
 export const listRoleAssignments = <ThrowOnError extends boolean = false>(options: Options<ListRoleAssignmentsData, ThrowOnError>): RequestResult<ListRoleAssignmentsResponses, ListRoleAssignmentsErrors, ThrowOnError> => (options.client ?? client).get<ListRoleAssignmentsResponses, ListRoleAssignmentsErrors, ThrowOnError>({
-    security: [{ name: 'X-Auth-Token', type: 'apiKey' }, { scheme: 'bearer', type: 'http' }],
+    security: [
+        { name: 'X-Auth-Token', type: 'apiKey' },
+        {
+            key: 'BearerAuth',
+            scheme: 'bearer',
+            type: 'http'
+        },
+        {
+            key: 'OAuth2',
+            scheme: 'bearer',
+            type: 'http'
+        }
+    ],
     url: '/roles/{role_id}/assignments',
     ...options
 });
@@ -695,7 +1467,19 @@ export const listRoleAssignments = <ThrowOnError extends boolean = false>(option
  *
  */
 export const createRoleAssignment = <ThrowOnError extends boolean = false>(options: Options<CreateRoleAssignmentData, ThrowOnError>): RequestResult<CreateRoleAssignmentResponses, CreateRoleAssignmentErrors, ThrowOnError> => (options.client ?? client).post<CreateRoleAssignmentResponses, CreateRoleAssignmentErrors, ThrowOnError>({
-    security: [{ name: 'X-Auth-Token', type: 'apiKey' }, { scheme: 'bearer', type: 'http' }],
+    security: [
+        { name: 'X-Auth-Token', type: 'apiKey' },
+        {
+            key: 'BearerAuth',
+            scheme: 'bearer',
+            type: 'http'
+        },
+        {
+            key: 'OAuth2',
+            scheme: 'bearer',
+            type: 'http'
+        }
+    ],
     url: '/roles/{role_id}/assignments',
     ...options,
     headers: {
@@ -714,7 +1498,19 @@ export const createRoleAssignment = <ThrowOnError extends boolean = false>(optio
  *
  */
 export const listActorAssignments = <ThrowOnError extends boolean = false>(options: Options<ListActorAssignmentsData, ThrowOnError>): RequestResult<ListActorAssignmentsResponses, ListActorAssignmentsErrors, ThrowOnError> => (options.client ?? client).get<ListActorAssignmentsResponses, ListActorAssignmentsErrors, ThrowOnError>({
-    security: [{ name: 'X-Auth-Token', type: 'apiKey' }, { scheme: 'bearer', type: 'http' }],
+    security: [
+        { name: 'X-Auth-Token', type: 'apiKey' },
+        {
+            key: 'BearerAuth',
+            scheme: 'bearer',
+            type: 'http'
+        },
+        {
+            key: 'OAuth2',
+            scheme: 'bearer',
+            type: 'http'
+        }
+    ],
     url: '/actors/{actor_id}/assignments',
     ...options
 });
@@ -727,7 +1523,19 @@ export const listActorAssignments = <ThrowOnError extends boolean = false>(optio
  *
  */
 export const deleteAssignment = <ThrowOnError extends boolean = false>(options: Options<DeleteAssignmentData, ThrowOnError>): RequestResult<DeleteAssignmentResponses, DeleteAssignmentErrors, ThrowOnError> => (options.client ?? client).delete<DeleteAssignmentResponses, DeleteAssignmentErrors, ThrowOnError>({
-    security: [{ name: 'X-Auth-Token', type: 'apiKey' }, { scheme: 'bearer', type: 'http' }],
+    security: [
+        { name: 'X-Auth-Token', type: 'apiKey' },
+        {
+            key: 'BearerAuth',
+            scheme: 'bearer',
+            type: 'http'
+        },
+        {
+            key: 'OAuth2',
+            scheme: 'bearer',
+            type: 'http'
+        }
+    ],
     url: '/assignments/{id}',
     ...options
 });
@@ -741,7 +1549,19 @@ export const deleteAssignment = <ThrowOnError extends boolean = false>(options: 
  *
  */
 export const updateAssignment = <ThrowOnError extends boolean = false>(options: Options<UpdateAssignmentData, ThrowOnError>): RequestResult<UpdateAssignmentResponses, UpdateAssignmentErrors, ThrowOnError> => (options.client ?? client).patch<UpdateAssignmentResponses, UpdateAssignmentErrors, ThrowOnError>({
-    security: [{ name: 'X-Auth-Token', type: 'apiKey' }, { scheme: 'bearer', type: 'http' }],
+    security: [
+        { name: 'X-Auth-Token', type: 'apiKey' },
+        {
+            key: 'BearerAuth',
+            scheme: 'bearer',
+            type: 'http'
+        },
+        {
+            key: 'OAuth2',
+            scheme: 'bearer',
+            type: 'http'
+        }
+    ],
     url: '/assignments/{id}',
     ...options,
     headers: {
@@ -754,11 +1574,25 @@ export const updateAssignment = <ThrowOnError extends boolean = false>(options: 
  * List actions for a role
  *
  * Returns a paginated list of actions owned by this role.
- * Use `?status=` to filter by action status (incomplete, waiting, archived, etc.).
+ * Use `?status=` to filter by action status.
+ * Use `?individual_initiative=true` to list individual initiative actions
+ * for the role's circle instead of role-owned actions.
  *
  */
 export const listRoleActions = <ThrowOnError extends boolean = false>(options: Options<ListRoleActionsData, ThrowOnError>): RequestResult<ListRoleActionsResponses, ListRoleActionsErrors, ThrowOnError> => (options.client ?? client).get<ListRoleActionsResponses, ListRoleActionsErrors, ThrowOnError>({
-    security: [{ name: 'X-Auth-Token', type: 'apiKey' }, { scheme: 'bearer', type: 'http' }],
+    security: [
+        { name: 'X-Auth-Token', type: 'apiKey' },
+        {
+            key: 'BearerAuth',
+            scheme: 'bearer',
+            type: 'http'
+        },
+        {
+            key: 'OAuth2',
+            scheme: 'bearer',
+            type: 'http'
+        }
+    ],
     url: '/roles/{role_id}/actions',
     ...options
 });
@@ -770,7 +1604,19 @@ export const listRoleActions = <ThrowOnError extends boolean = false>(options: O
  *
  */
 export const createAction = <ThrowOnError extends boolean = false>(options: Options<CreateActionData, ThrowOnError>): RequestResult<CreateActionResponses, CreateActionErrors, ThrowOnError> => (options.client ?? client).post<CreateActionResponses, CreateActionErrors, ThrowOnError>({
-    security: [{ name: 'X-Auth-Token', type: 'apiKey' }, { scheme: 'bearer', type: 'http' }],
+    security: [
+        { name: 'X-Auth-Token', type: 'apiKey' },
+        {
+            key: 'BearerAuth',
+            scheme: 'bearer',
+            type: 'http'
+        },
+        {
+            key: 'OAuth2',
+            scheme: 'bearer',
+            type: 'http'
+        }
+    ],
     url: '/roles/{role_id}/actions',
     ...options,
     headers: {
@@ -785,7 +1631,19 @@ export const createAction = <ThrowOnError extends boolean = false>(options: Opti
  * Soft-deletes an action. The action is no longer visible but retained in the database.
  */
 export const deleteAction = <ThrowOnError extends boolean = false>(options: Options<DeleteActionData, ThrowOnError>): RequestResult<DeleteActionResponses, DeleteActionErrors, ThrowOnError> => (options.client ?? client).delete<DeleteActionResponses, DeleteActionErrors, ThrowOnError>({
-    security: [{ name: 'X-Auth-Token', type: 'apiKey' }, { scheme: 'bearer', type: 'http' }],
+    security: [
+        { name: 'X-Auth-Token', type: 'apiKey' },
+        {
+            key: 'BearerAuth',
+            scheme: 'bearer',
+            type: 'http'
+        },
+        {
+            key: 'OAuth2',
+            scheme: 'bearer',
+            type: 'http'
+        }
+    ],
     url: '/actions/{id}',
     ...options
 });
@@ -797,7 +1655,19 @@ export const deleteAction = <ThrowOnError extends boolean = false>(options: Opti
  *
  */
 export const getAction = <ThrowOnError extends boolean = false>(options: Options<GetActionData, ThrowOnError>): RequestResult<GetActionResponses, GetActionErrors, ThrowOnError> => (options.client ?? client).get<GetActionResponses, GetActionErrors, ThrowOnError>({
-    security: [{ name: 'X-Auth-Token', type: 'apiKey' }, { scheme: 'bearer', type: 'http' }],
+    security: [
+        { name: 'X-Auth-Token', type: 'apiKey' },
+        {
+            key: 'BearerAuth',
+            scheme: 'bearer',
+            type: 'http'
+        },
+        {
+            key: 'OAuth2',
+            scheme: 'bearer',
+            type: 'http'
+        }
+    ],
     url: '/actions/{id}',
     ...options
 });
@@ -808,7 +1678,19 @@ export const getAction = <ThrowOnError extends boolean = false>(options: Options
  * Updates the description, status, or other fields of an existing action.
  */
 export const updateAction = <ThrowOnError extends boolean = false>(options: Options<UpdateActionData, ThrowOnError>): RequestResult<UpdateActionResponses, UpdateActionErrors, ThrowOnError> => (options.client ?? client).patch<UpdateActionResponses, UpdateActionErrors, ThrowOnError>({
-    security: [{ name: 'X-Auth-Token', type: 'apiKey' }, { scheme: 'bearer', type: 'http' }],
+    security: [
+        { name: 'X-Auth-Token', type: 'apiKey' },
+        {
+            key: 'BearerAuth',
+            scheme: 'bearer',
+            type: 'http'
+        },
+        {
+            key: 'OAuth2',
+            scheme: 'bearer',
+            type: 'http'
+        }
+    ],
     url: '/actions/{id}',
     ...options,
     headers: {
@@ -825,7 +1707,19 @@ export const updateAction = <ThrowOnError extends boolean = false>(options: Opti
  *
  */
 export const uncompleteAction = <ThrowOnError extends boolean = false>(options: Options<UncompleteActionData, ThrowOnError>): RequestResult<UncompleteActionResponses, UncompleteActionErrors, ThrowOnError> => (options.client ?? client).delete<UncompleteActionResponses, UncompleteActionErrors, ThrowOnError>({
-    security: [{ name: 'X-Auth-Token', type: 'apiKey' }, { scheme: 'bearer', type: 'http' }],
+    security: [
+        { name: 'X-Auth-Token', type: 'apiKey' },
+        {
+            key: 'BearerAuth',
+            scheme: 'bearer',
+            type: 'http'
+        },
+        {
+            key: 'OAuth2',
+            scheme: 'bearer',
+            type: 'http'
+        }
+    ],
     url: '/actions/{action_id}/completion',
     ...options
 });
@@ -838,8 +1732,97 @@ export const uncompleteAction = <ThrowOnError extends boolean = false>(options: 
  *
  */
 export const completeAction = <ThrowOnError extends boolean = false>(options: Options<CompleteActionData, ThrowOnError>): RequestResult<CompleteActionResponses, CompleteActionErrors, ThrowOnError> => (options.client ?? client).post<CompleteActionResponses, CompleteActionErrors, ThrowOnError>({
-    security: [{ name: 'X-Auth-Token', type: 'apiKey' }, { scheme: 'bearer', type: 'http' }],
+    security: [
+        { name: 'X-Auth-Token', type: 'apiKey' },
+        {
+            key: 'BearerAuth',
+            scheme: 'bearer',
+            type: 'http'
+        },
+        {
+            key: 'OAuth2',
+            scheme: 'bearer',
+            type: 'http'
+        }
+    ],
     url: '/actions/{action_id}/completion',
+    ...options
+});
+
+/**
+ * List tags on an action
+ *
+ * Returns tags applied to a specific action.
+ *
+ */
+export const listActionTags = <ThrowOnError extends boolean = false>(options: Options<ListActionTagsData, ThrowOnError>): RequestResult<ListActionTagsResponses, ListActionTagsErrors, ThrowOnError> => (options.client ?? client).get<ListActionTagsResponses, ListActionTagsErrors, ThrowOnError>({
+    security: [
+        { name: 'X-Auth-Token', type: 'apiKey' },
+        {
+            key: 'BearerAuth',
+            scheme: 'bearer',
+            type: 'http'
+        },
+        {
+            key: 'OAuth2',
+            scheme: 'bearer',
+            type: 'http'
+        }
+    ],
+    url: '/actions/{action_id}/tags',
+    ...options
+});
+
+/**
+ * Add a tag to an action
+ *
+ * Links an existing tag to an action. Requires admin access.
+ * Idempotent — adding a tag already on the action returns 201.
+ *
+ */
+export const addTagToAction = <ThrowOnError extends boolean = false>(options: Options<AddTagToActionData, ThrowOnError>): RequestResult<AddTagToActionResponses, AddTagToActionErrors, ThrowOnError> => (options.client ?? client).post<AddTagToActionResponses, AddTagToActionErrors, ThrowOnError>({
+    security: [
+        { name: 'X-Auth-Token', type: 'apiKey' },
+        {
+            key: 'BearerAuth',
+            scheme: 'bearer',
+            type: 'http'
+        },
+        {
+            key: 'OAuth2',
+            scheme: 'bearer',
+            type: 'http'
+        }
+    ],
+    url: '/actions/{action_id}/tags',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * Remove a tag from an action
+ *
+ * Unlinks a tag from an action. Requires admin access.
+ *
+ */
+export const removeTagFromAction = <ThrowOnError extends boolean = false>(options: Options<RemoveTagFromActionData, ThrowOnError>): RequestResult<RemoveTagFromActionResponses, RemoveTagFromActionErrors, ThrowOnError> => (options.client ?? client).delete<RemoveTagFromActionResponses, RemoveTagFromActionErrors, ThrowOnError>({
+    security: [
+        { name: 'X-Auth-Token', type: 'apiKey' },
+        {
+            key: 'BearerAuth',
+            scheme: 'bearer',
+            type: 'http'
+        },
+        {
+            key: 'OAuth2',
+            scheme: 'bearer',
+            type: 'http'
+        }
+    ],
+    url: '/actions/{action_id}/tags/{id}',
     ...options
 });
 
@@ -851,7 +1834,19 @@ export const completeAction = <ThrowOnError extends boolean = false>(options: Op
  *
  */
 export const listRoleChecklistItems = <ThrowOnError extends boolean = false>(options: Options<ListRoleChecklistItemsData, ThrowOnError>): RequestResult<ListRoleChecklistItemsResponses, ListRoleChecklistItemsErrors, ThrowOnError> => (options.client ?? client).get<ListRoleChecklistItemsResponses, ListRoleChecklistItemsErrors, ThrowOnError>({
-    security: [{ name: 'X-Auth-Token', type: 'apiKey' }, { scheme: 'bearer', type: 'http' }],
+    security: [
+        { name: 'X-Auth-Token', type: 'apiKey' },
+        {
+            key: 'BearerAuth',
+            scheme: 'bearer',
+            type: 'http'
+        },
+        {
+            key: 'OAuth2',
+            scheme: 'bearer',
+            type: 'http'
+        }
+    ],
     url: '/roles/{role_id}/checklist_items',
     ...options
 });
@@ -862,7 +1857,19 @@ export const listRoleChecklistItems = <ThrowOnError extends boolean = false>(opt
  * Creates a new checklist item assigned to the specified role.
  */
 export const createChecklistItem = <ThrowOnError extends boolean = false>(options: Options<CreateChecklistItemData, ThrowOnError>): RequestResult<CreateChecklistItemResponses, CreateChecklistItemErrors, ThrowOnError> => (options.client ?? client).post<CreateChecklistItemResponses, CreateChecklistItemErrors, ThrowOnError>({
-    security: [{ name: 'X-Auth-Token', type: 'apiKey' }, { scheme: 'bearer', type: 'http' }],
+    security: [
+        { name: 'X-Auth-Token', type: 'apiKey' },
+        {
+            key: 'BearerAuth',
+            scheme: 'bearer',
+            type: 'http'
+        },
+        {
+            key: 'OAuth2',
+            scheme: 'bearer',
+            type: 'http'
+        }
+    ],
     url: '/roles/{role_id}/checklist_items',
     ...options,
     headers: {
@@ -877,7 +1884,19 @@ export const createChecklistItem = <ThrowOnError extends boolean = false>(option
  * Soft-deletes a checklist item. The item is no longer visible but retained in the database.
  */
 export const deleteChecklistItem = <ThrowOnError extends boolean = false>(options: Options<DeleteChecklistItemData, ThrowOnError>): RequestResult<DeleteChecklistItemResponses, DeleteChecklistItemErrors, ThrowOnError> => (options.client ?? client).delete<DeleteChecklistItemResponses, DeleteChecklistItemErrors, ThrowOnError>({
-    security: [{ name: 'X-Auth-Token', type: 'apiKey' }, { scheme: 'bearer', type: 'http' }],
+    security: [
+        { name: 'X-Auth-Token', type: 'apiKey' },
+        {
+            key: 'BearerAuth',
+            scheme: 'bearer',
+            type: 'http'
+        },
+        {
+            key: 'OAuth2',
+            scheme: 'bearer',
+            type: 'http'
+        }
+    ],
     url: '/checklist_items/{id}',
     ...options
 });
@@ -888,7 +1907,19 @@ export const deleteChecklistItem = <ThrowOnError extends boolean = false>(option
  * Returns a single checklist item by its ID, including full detail fields.
  */
 export const getChecklistItem = <ThrowOnError extends boolean = false>(options: Options<GetChecklistItemData, ThrowOnError>): RequestResult<GetChecklistItemResponses, GetChecklistItemErrors, ThrowOnError> => (options.client ?? client).get<GetChecklistItemResponses, GetChecklistItemErrors, ThrowOnError>({
-    security: [{ name: 'X-Auth-Token', type: 'apiKey' }, { scheme: 'bearer', type: 'http' }],
+    security: [
+        { name: 'X-Auth-Token', type: 'apiKey' },
+        {
+            key: 'BearerAuth',
+            scheme: 'bearer',
+            type: 'http'
+        },
+        {
+            key: 'OAuth2',
+            scheme: 'bearer',
+            type: 'http'
+        }
+    ],
     url: '/checklist_items/{id}',
     ...options
 });
@@ -899,7 +1930,19 @@ export const getChecklistItem = <ThrowOnError extends boolean = false>(options: 
  * Updates the description, frequency, or other fields of an existing checklist item.
  */
 export const updateChecklistItem = <ThrowOnError extends boolean = false>(options: Options<UpdateChecklistItemData, ThrowOnError>): RequestResult<UpdateChecklistItemResponses, UpdateChecklistItemErrors, ThrowOnError> => (options.client ?? client).patch<UpdateChecklistItemResponses, UpdateChecklistItemErrors, ThrowOnError>({
-    security: [{ name: 'X-Auth-Token', type: 'apiKey' }, { scheme: 'bearer', type: 'http' }],
+    security: [
+        { name: 'X-Auth-Token', type: 'apiKey' },
+        {
+            key: 'BearerAuth',
+            scheme: 'bearer',
+            type: 'http'
+        },
+        {
+            key: 'OAuth2',
+            scheme: 'bearer',
+            type: 'http'
+        }
+    ],
     url: '/checklist_items/{id}',
     ...options,
     headers: {
@@ -916,7 +1959,19 @@ export const updateChecklistItem = <ThrowOnError extends boolean = false>(option
  *
  */
 export const listRoleMetrics = <ThrowOnError extends boolean = false>(options: Options<ListRoleMetricsData, ThrowOnError>): RequestResult<ListRoleMetricsResponses, ListRoleMetricsErrors, ThrowOnError> => (options.client ?? client).get<ListRoleMetricsResponses, ListRoleMetricsErrors, ThrowOnError>({
-    security: [{ name: 'X-Auth-Token', type: 'apiKey' }, { scheme: 'bearer', type: 'http' }],
+    security: [
+        { name: 'X-Auth-Token', type: 'apiKey' },
+        {
+            key: 'BearerAuth',
+            scheme: 'bearer',
+            type: 'http'
+        },
+        {
+            key: 'OAuth2',
+            scheme: 'bearer',
+            type: 'http'
+        }
+    ],
     url: '/roles/{role_id}/metrics',
     ...options
 });
@@ -927,7 +1982,19 @@ export const listRoleMetrics = <ThrowOnError extends boolean = false>(options: O
  * Creates a new metric assigned to the specified role.
  */
 export const createMetric = <ThrowOnError extends boolean = false>(options: Options<CreateMetricData, ThrowOnError>): RequestResult<CreateMetricResponses, CreateMetricErrors, ThrowOnError> => (options.client ?? client).post<CreateMetricResponses, CreateMetricErrors, ThrowOnError>({
-    security: [{ name: 'X-Auth-Token', type: 'apiKey' }, { scheme: 'bearer', type: 'http' }],
+    security: [
+        { name: 'X-Auth-Token', type: 'apiKey' },
+        {
+            key: 'BearerAuth',
+            scheme: 'bearer',
+            type: 'http'
+        },
+        {
+            key: 'OAuth2',
+            scheme: 'bearer',
+            type: 'http'
+        }
+    ],
     url: '/roles/{role_id}/metrics',
     ...options,
     headers: {
@@ -942,7 +2009,19 @@ export const createMetric = <ThrowOnError extends boolean = false>(options: Opti
  * Soft-deletes a metric. The metric is no longer visible but retained in the database.
  */
 export const deleteMetric = <ThrowOnError extends boolean = false>(options: Options<DeleteMetricData, ThrowOnError>): RequestResult<DeleteMetricResponses, DeleteMetricErrors, ThrowOnError> => (options.client ?? client).delete<DeleteMetricResponses, DeleteMetricErrors, ThrowOnError>({
-    security: [{ name: 'X-Auth-Token', type: 'apiKey' }, { scheme: 'bearer', type: 'http' }],
+    security: [
+        { name: 'X-Auth-Token', type: 'apiKey' },
+        {
+            key: 'BearerAuth',
+            scheme: 'bearer',
+            type: 'http'
+        },
+        {
+            key: 'OAuth2',
+            scheme: 'bearer',
+            type: 'http'
+        }
+    ],
     url: '/metrics/{id}',
     ...options
 });
@@ -953,7 +2032,19 @@ export const deleteMetric = <ThrowOnError extends boolean = false>(options: Opti
  * Returns a single metric by its ID, including full detail fields.
  */
 export const getMetric = <ThrowOnError extends boolean = false>(options: Options<GetMetricData, ThrowOnError>): RequestResult<GetMetricResponses, GetMetricErrors, ThrowOnError> => (options.client ?? client).get<GetMetricResponses, GetMetricErrors, ThrowOnError>({
-    security: [{ name: 'X-Auth-Token', type: 'apiKey' }, { scheme: 'bearer', type: 'http' }],
+    security: [
+        { name: 'X-Auth-Token', type: 'apiKey' },
+        {
+            key: 'BearerAuth',
+            scheme: 'bearer',
+            type: 'http'
+        },
+        {
+            key: 'OAuth2',
+            scheme: 'bearer',
+            type: 'http'
+        }
+    ],
     url: '/metrics/{id}',
     ...options
 });
@@ -964,7 +2055,19 @@ export const getMetric = <ThrowOnError extends boolean = false>(options: Options
  * Updates the description, frequency, or other fields of an existing metric.
  */
 export const updateMetric = <ThrowOnError extends boolean = false>(options: Options<UpdateMetricData, ThrowOnError>): RequestResult<UpdateMetricResponses, UpdateMetricErrors, ThrowOnError> => (options.client ?? client).patch<UpdateMetricResponses, UpdateMetricErrors, ThrowOnError>({
-    security: [{ name: 'X-Auth-Token', type: 'apiKey' }, { scheme: 'bearer', type: 'http' }],
+    security: [
+        { name: 'X-Auth-Token', type: 'apiKey' },
+        {
+            key: 'BearerAuth',
+            scheme: 'bearer',
+            type: 'http'
+        },
+        {
+            key: 'OAuth2',
+            scheme: 'bearer',
+            type: 'http'
+        }
+    ],
     url: '/metrics/{id}',
     ...options,
     headers: {
@@ -984,7 +2087,19 @@ export const updateMetric = <ThrowOnError extends boolean = false>(options: Opti
  *
  */
 export const listRoleTensions = <ThrowOnError extends boolean = false>(options: Options<ListRoleTensionsData, ThrowOnError>): RequestResult<ListRoleTensionsResponses, ListRoleTensionsErrors, ThrowOnError> => (options.client ?? client).get<ListRoleTensionsResponses, ListRoleTensionsErrors, ThrowOnError>({
-    security: [{ name: 'X-Auth-Token', type: 'apiKey' }, { scheme: 'bearer', type: 'http' }],
+    security: [
+        { name: 'X-Auth-Token', type: 'apiKey' },
+        {
+            key: 'BearerAuth',
+            scheme: 'bearer',
+            type: 'http'
+        },
+        {
+            key: 'OAuth2',
+            scheme: 'bearer',
+            type: 'http'
+        }
+    ],
     url: '/roles/{role_id}/tensions',
     ...options
 });
@@ -992,14 +2107,28 @@ export const listRoleTensions = <ThrowOnError extends boolean = false>(options: 
 /**
  * Capture a tension about a role
  *
- * Captures a new tension. The requester is the sensing person
- * (`sensed_by`); the path `role_id` is the sensing role (stored as
- * `impacted_role_id` for historical reasons). Tensions captured this
- * way are not bound to a meeting.
+ * Captures a new tension. The requester is the sensing actor
+ * (`sensed_by_id`: `agt_` for an agent, `per_` for a human); the path
+ * `role_id` is the sensing role (stored as `impacted_role_id` for
+ * historical reasons). The tension starts `unprocessed` unless
+ * `meeting_type` is set, which puts it on that meeting's agenda and
+ * marks it `processed`.
  *
  */
 export const createTension = <ThrowOnError extends boolean = false>(options: Options<CreateTensionData, ThrowOnError>): RequestResult<CreateTensionResponses, CreateTensionErrors, ThrowOnError> => (options.client ?? client).post<CreateTensionResponses, CreateTensionErrors, ThrowOnError>({
-    security: [{ name: 'X-Auth-Token', type: 'apiKey' }, { scheme: 'bearer', type: 'http' }],
+    security: [
+        { name: 'X-Auth-Token', type: 'apiKey' },
+        {
+            key: 'BearerAuth',
+            scheme: 'bearer',
+            type: 'http'
+        },
+        {
+            key: 'OAuth2',
+            scheme: 'bearer',
+            type: 'http'
+        }
+    ],
     url: '/roles/{role_id}/tensions',
     ...options,
     headers: {
@@ -1018,7 +2147,19 @@ export const createTension = <ThrowOnError extends boolean = false>(options: Opt
  *
  */
 export const listSubrolesTensions = <ThrowOnError extends boolean = false>(options: Options<ListSubrolesTensionsData, ThrowOnError>): RequestResult<ListSubrolesTensionsResponses, ListSubrolesTensionsErrors, ThrowOnError> => (options.client ?? client).get<ListSubrolesTensionsResponses, ListSubrolesTensionsErrors, ThrowOnError>({
-    security: [{ name: 'X-Auth-Token', type: 'apiKey' }, { scheme: 'bearer', type: 'http' }],
+    security: [
+        { name: 'X-Auth-Token', type: 'apiKey' },
+        {
+            key: 'BearerAuth',
+            scheme: 'bearer',
+            type: 'http'
+        },
+        {
+            key: 'OAuth2',
+            scheme: 'bearer',
+            type: 'http'
+        }
+    ],
     url: '/roles/{role_id}/subroles/tensions',
     ...options
 });
@@ -1036,7 +2177,19 @@ export const listSubrolesTensions = <ThrowOnError extends boolean = false>(optio
  *
  */
 export const deleteTension = <ThrowOnError extends boolean = false>(options: Options<DeleteTensionData, ThrowOnError>): RequestResult<DeleteTensionResponses, DeleteTensionErrors, ThrowOnError> => (options.client ?? client).delete<DeleteTensionResponses, DeleteTensionErrors, ThrowOnError>({
-    security: [{ name: 'X-Auth-Token', type: 'apiKey' }, { scheme: 'bearer', type: 'http' }],
+    security: [
+        { name: 'X-Auth-Token', type: 'apiKey' },
+        {
+            key: 'BearerAuth',
+            scheme: 'bearer',
+            type: 'http'
+        },
+        {
+            key: 'OAuth2',
+            scheme: 'bearer',
+            type: 'http'
+        }
+    ],
     url: '/tensions/{id}',
     ...options
 });
@@ -1048,7 +2201,19 @@ export const deleteTension = <ThrowOnError extends boolean = false>(options: Opt
  *
  */
 export const getTension = <ThrowOnError extends boolean = false>(options: Options<GetTensionData, ThrowOnError>): RequestResult<GetTensionResponses, GetTensionErrors, ThrowOnError> => (options.client ?? client).get<GetTensionResponses, GetTensionErrors, ThrowOnError>({
-    security: [{ name: 'X-Auth-Token', type: 'apiKey' }, { scheme: 'bearer', type: 'http' }],
+    security: [
+        { name: 'X-Auth-Token', type: 'apiKey' },
+        {
+            key: 'BearerAuth',
+            scheme: 'bearer',
+            type: 'http'
+        },
+        {
+            key: 'OAuth2',
+            scheme: 'bearer',
+            type: 'http'
+        }
+    ],
     url: '/tensions/{id}',
     ...options
 });
@@ -1062,7 +2227,19 @@ export const getTension = <ThrowOnError extends boolean = false>(options: Option
  *
  */
 export const updateTension = <ThrowOnError extends boolean = false>(options: Options<UpdateTensionData, ThrowOnError>): RequestResult<UpdateTensionResponses, UpdateTensionErrors, ThrowOnError> => (options.client ?? client).patch<UpdateTensionResponses, UpdateTensionErrors, ThrowOnError>({
-    security: [{ name: 'X-Auth-Token', type: 'apiKey' }, { scheme: 'bearer', type: 'http' }],
+    security: [
+        { name: 'X-Auth-Token', type: 'apiKey' },
+        {
+            key: 'BearerAuth',
+            scheme: 'bearer',
+            type: 'http'
+        },
+        {
+            key: 'OAuth2',
+            scheme: 'bearer',
+            type: 'http'
+        }
+    ],
     url: '/tensions/{id}',
     ...options,
     headers: {
@@ -1078,7 +2255,19 @@ export const updateTension = <ThrowOnError extends boolean = false>(options: Opt
  *
  */
 export const listRolePolicies = <ThrowOnError extends boolean = false>(options: Options<ListRolePoliciesData, ThrowOnError>): RequestResult<ListRolePoliciesResponses, ListRolePoliciesErrors, ThrowOnError> => (options.client ?? client).get<ListRolePoliciesResponses, ListRolePoliciesErrors, ThrowOnError>({
-    security: [{ name: 'X-Auth-Token', type: 'apiKey' }, { scheme: 'bearer', type: 'http' }],
+    security: [
+        { name: 'X-Auth-Token', type: 'apiKey' },
+        {
+            key: 'BearerAuth',
+            scheme: 'bearer',
+            type: 'http'
+        },
+        {
+            key: 'OAuth2',
+            scheme: 'bearer',
+            type: 'http'
+        }
+    ],
     url: '/roles/{id}/policies',
     ...options
 });
@@ -1090,7 +2279,19 @@ export const listRolePolicies = <ThrowOnError extends boolean = false>(options: 
  *
  */
 export const getPolicy = <ThrowOnError extends boolean = false>(options: Options<GetPolicyData, ThrowOnError>): RequestResult<GetPolicyResponses, GetPolicyErrors, ThrowOnError> => (options.client ?? client).get<GetPolicyResponses, GetPolicyErrors, ThrowOnError>({
-    security: [{ name: 'X-Auth-Token', type: 'apiKey' }, { scheme: 'bearer', type: 'http' }],
+    security: [
+        { name: 'X-Auth-Token', type: 'apiKey' },
+        {
+            key: 'BearerAuth',
+            scheme: 'bearer',
+            type: 'http'
+        },
+        {
+            key: 'OAuth2',
+            scheme: 'bearer',
+            type: 'http'
+        }
+    ],
     url: '/policies/{id}',
     ...options
 });
@@ -1102,7 +2303,19 @@ export const getPolicy = <ThrowOnError extends boolean = false>(options: Options
  *
  */
 export const listRoleDomains = <ThrowOnError extends boolean = false>(options: Options<ListRoleDomainsData, ThrowOnError>): RequestResult<ListRoleDomainsResponses, ListRoleDomainsErrors, ThrowOnError> => (options.client ?? client).get<ListRoleDomainsResponses, ListRoleDomainsErrors, ThrowOnError>({
-    security: [{ name: 'X-Auth-Token', type: 'apiKey' }, { scheme: 'bearer', type: 'http' }],
+    security: [
+        { name: 'X-Auth-Token', type: 'apiKey' },
+        {
+            key: 'BearerAuth',
+            scheme: 'bearer',
+            type: 'http'
+        },
+        {
+            key: 'OAuth2',
+            scheme: 'bearer',
+            type: 'http'
+        }
+    ],
     url: '/roles/{id}/domains',
     ...options
 });
@@ -1116,7 +2329,19 @@ export const listRoleDomains = <ThrowOnError extends boolean = false>(options: O
  */
 export const getDomain = <ThrowOnError extends boolean = false>(options: Options<GetDomainData, ThrowOnError>): RequestResult<GetDomainResponses, GetDomainErrors, ThrowOnError> => (options.client ?? client).get<GetDomainResponses, GetDomainErrors, ThrowOnError>({
     querySerializer: { parameters: { include: { array: { explode: false } } } },
-    security: [{ name: 'X-Auth-Token', type: 'apiKey' }, { scheme: 'bearer', type: 'http' }],
+    security: [
+        { name: 'X-Auth-Token', type: 'apiKey' },
+        {
+            key: 'BearerAuth',
+            scheme: 'bearer',
+            type: 'http'
+        },
+        {
+            key: 'OAuth2',
+            scheme: 'bearer',
+            type: 'http'
+        }
+    ],
     url: '/domains/{id}',
     ...options
 });
@@ -1130,7 +2355,19 @@ export const getDomain = <ThrowOnError extends boolean = false>(options: Options
  *
  */
 export const deleteRoleStrategy = <ThrowOnError extends boolean = false>(options: Options<DeleteRoleStrategyData, ThrowOnError>): RequestResult<DeleteRoleStrategyResponses, DeleteRoleStrategyErrors, ThrowOnError> => (options.client ?? client).delete<DeleteRoleStrategyResponses, DeleteRoleStrategyErrors, ThrowOnError>({
-    security: [{ name: 'X-Auth-Token', type: 'apiKey' }, { scheme: 'bearer', type: 'http' }],
+    security: [
+        { name: 'X-Auth-Token', type: 'apiKey' },
+        {
+            key: 'BearerAuth',
+            scheme: 'bearer',
+            type: 'http'
+        },
+        {
+            key: 'OAuth2',
+            scheme: 'bearer',
+            type: 'http'
+        }
+    ],
     url: '/roles/{role_id}/strategy',
     ...options
 });
@@ -1148,7 +2385,19 @@ export const deleteRoleStrategy = <ThrowOnError extends boolean = false>(options
  *
  */
 export const getRoleStrategy = <ThrowOnError extends boolean = false>(options: Options<GetRoleStrategyData, ThrowOnError>): RequestResult<GetRoleStrategyResponses, GetRoleStrategyErrors, ThrowOnError> => (options.client ?? client).get<GetRoleStrategyResponses, GetRoleStrategyErrors, ThrowOnError>({
-    security: [{ name: 'X-Auth-Token', type: 'apiKey' }, { scheme: 'bearer', type: 'http' }],
+    security: [
+        { name: 'X-Auth-Token', type: 'apiKey' },
+        {
+            key: 'BearerAuth',
+            scheme: 'bearer',
+            type: 'http'
+        },
+        {
+            key: 'OAuth2',
+            scheme: 'bearer',
+            type: 'http'
+        }
+    ],
     url: '/roles/{role_id}/strategy',
     ...options
 });
@@ -1161,7 +2410,19 @@ export const getRoleStrategy = <ThrowOnError extends boolean = false>(options: O
  *
  */
 export const updateRoleStrategy = <ThrowOnError extends boolean = false>(options: Options<UpdateRoleStrategyData, ThrowOnError>): RequestResult<UpdateRoleStrategyResponses, UpdateRoleStrategyErrors, ThrowOnError> => (options.client ?? client).patch<UpdateRoleStrategyResponses, UpdateRoleStrategyErrors, ThrowOnError>({
-    security: [{ name: 'X-Auth-Token', type: 'apiKey' }, { scheme: 'bearer', type: 'http' }],
+    security: [
+        { name: 'X-Auth-Token', type: 'apiKey' },
+        {
+            key: 'BearerAuth',
+            scheme: 'bearer',
+            type: 'http'
+        },
+        {
+            key: 'OAuth2',
+            scheme: 'bearer',
+            type: 'http'
+        }
+    ],
     url: '/roles/{role_id}/strategy',
     ...options,
     headers: {
@@ -1178,7 +2439,19 @@ export const updateRoleStrategy = <ThrowOnError extends boolean = false>(options
  *
  */
 export const listRoleNotes = <ThrowOnError extends boolean = false>(options: Options<ListRoleNotesData, ThrowOnError>): RequestResult<ListRoleNotesResponses, ListRoleNotesErrors, ThrowOnError> => (options.client ?? client).get<ListRoleNotesResponses, ListRoleNotesErrors, ThrowOnError>({
-    security: [{ name: 'X-Auth-Token', type: 'apiKey' }, { scheme: 'bearer', type: 'http' }],
+    security: [
+        { name: 'X-Auth-Token', type: 'apiKey' },
+        {
+            key: 'BearerAuth',
+            scheme: 'bearer',
+            type: 'http'
+        },
+        {
+            key: 'OAuth2',
+            scheme: 'bearer',
+            type: 'http'
+        }
+    ],
     url: '/roles/{role_id}/notes',
     ...options
 });
@@ -1209,7 +2482,19 @@ export const listRoleNotes = <ThrowOnError extends boolean = false>(options: Opt
  *
  */
 export const createRoleNote = <ThrowOnError extends boolean = false>(options: Options<CreateRoleNoteData, ThrowOnError>): RequestResult<CreateRoleNoteResponses, CreateRoleNoteErrors, ThrowOnError> => (options.client ?? client).post<CreateRoleNoteResponses, CreateRoleNoteErrors, ThrowOnError>({
-    security: [{ name: 'X-Auth-Token', type: 'apiKey' }, { scheme: 'bearer', type: 'http' }],
+    security: [
+        { name: 'X-Auth-Token', type: 'apiKey' },
+        {
+            key: 'BearerAuth',
+            scheme: 'bearer',
+            type: 'http'
+        },
+        {
+            key: 'OAuth2',
+            scheme: 'bearer',
+            type: 'http'
+        }
+    ],
     url: '/roles/{role_id}/notes',
     ...options,
     headers: {
@@ -1227,7 +2512,19 @@ export const createRoleNote = <ThrowOnError extends boolean = false>(options: Op
  *
  */
 export const listNotes = <ThrowOnError extends boolean = false>(options?: Options<ListNotesData, ThrowOnError>): RequestResult<ListNotesResponses, ListNotesErrors, ThrowOnError> => (options?.client ?? client).get<ListNotesResponses, ListNotesErrors, ThrowOnError>({
-    security: [{ name: 'X-Auth-Token', type: 'apiKey' }, { scheme: 'bearer', type: 'http' }],
+    security: [
+        { name: 'X-Auth-Token', type: 'apiKey' },
+        {
+            key: 'BearerAuth',
+            scheme: 'bearer',
+            type: 'http'
+        },
+        {
+            key: 'OAuth2',
+            scheme: 'bearer',
+            type: 'http'
+        }
+    ],
     url: '/notes',
     ...options
 });
@@ -1238,7 +2535,19 @@ export const listNotes = <ThrowOnError extends boolean = false>(options?: Option
  * Soft-deletes a note. The note is no longer visible but retained in the database.
  */
 export const deleteNote = <ThrowOnError extends boolean = false>(options: Options<DeleteNoteData, ThrowOnError>): RequestResult<DeleteNoteResponses, DeleteNoteErrors, ThrowOnError> => (options.client ?? client).delete<DeleteNoteResponses, DeleteNoteErrors, ThrowOnError>({
-    security: [{ name: 'X-Auth-Token', type: 'apiKey' }, { scheme: 'bearer', type: 'http' }],
+    security: [
+        { name: 'X-Auth-Token', type: 'apiKey' },
+        {
+            key: 'BearerAuth',
+            scheme: 'bearer',
+            type: 'http'
+        },
+        {
+            key: 'OAuth2',
+            scheme: 'bearer',
+            type: 'http'
+        }
+    ],
     url: '/notes/{id}',
     ...options
 });
@@ -1249,7 +2558,19 @@ export const deleteNote = <ThrowOnError extends boolean = false>(options: Option
  * Returns a single note by ID, including the full markdown body.
  */
 export const getNote = <ThrowOnError extends boolean = false>(options: Options<GetNoteData, ThrowOnError>): RequestResult<GetNoteResponses, GetNoteErrors, ThrowOnError> => (options.client ?? client).get<GetNoteResponses, GetNoteErrors, ThrowOnError>({
-    security: [{ name: 'X-Auth-Token', type: 'apiKey' }, { scheme: 'bearer', type: 'http' }],
+    security: [
+        { name: 'X-Auth-Token', type: 'apiKey' },
+        {
+            key: 'BearerAuth',
+            scheme: 'bearer',
+            type: 'http'
+        },
+        {
+            key: 'OAuth2',
+            scheme: 'bearer',
+            type: 'http'
+        }
+    ],
     url: '/notes/{id}',
     ...options
 });
@@ -1257,7 +2578,12 @@ export const getNote = <ThrowOnError extends boolean = false>(options: Options<G
 /**
  * Update a note
  *
- * Updates the title and/or body of an existing note.
+ * Updates the title, body, and/or owning role of an existing note.
+ *
+ * **Moving a note.** Pass `role_id` to reassign the note to a different
+ * role. The caller must have manage permission on both the current role
+ * and the target role. The note keeps its `id`; only the owning role
+ * changes.
  *
  * Supports optimistic concurrency via `If-Match`. When present, the
  * update only proceeds if the ETag matches the current resource state.
@@ -1282,13 +2608,108 @@ export const getNote = <ThrowOnError extends boolean = false>(options: Options<G
  *
  */
 export const updateNote = <ThrowOnError extends boolean = false>(options: Options<UpdateNoteData, ThrowOnError>): RequestResult<UpdateNoteResponses, UpdateNoteErrors, ThrowOnError> => (options.client ?? client).patch<UpdateNoteResponses, UpdateNoteErrors, ThrowOnError>({
-    security: [{ name: 'X-Auth-Token', type: 'apiKey' }, { scheme: 'bearer', type: 'http' }],
+    security: [
+        { name: 'X-Auth-Token', type: 'apiKey' },
+        {
+            key: 'BearerAuth',
+            scheme: 'bearer',
+            type: 'http'
+        },
+        {
+            key: 'OAuth2',
+            scheme: 'bearer',
+            type: 'http'
+        }
+    ],
     url: '/notes/{id}',
     ...options,
     headers: {
         'Content-Type': 'application/json',
         ...options.headers
     }
+});
+
+/**
+ * List tags on a note
+ *
+ * **Requires AI Integration.** Returns tags applied to a specific note.
+ * Returns 403 when the `ai_integration` flag is not enabled for the
+ * organization.
+ *
+ */
+export const listNoteTags = <ThrowOnError extends boolean = false>(options: Options<ListNoteTagsData, ThrowOnError>): RequestResult<ListNoteTagsResponses, ListNoteTagsErrors, ThrowOnError> => (options.client ?? client).get<ListNoteTagsResponses, ListNoteTagsErrors, ThrowOnError>({
+    security: [
+        { name: 'X-Auth-Token', type: 'apiKey' },
+        {
+            key: 'BearerAuth',
+            scheme: 'bearer',
+            type: 'http'
+        },
+        {
+            key: 'OAuth2',
+            scheme: 'bearer',
+            type: 'http'
+        }
+    ],
+    url: '/notes/{note_id}/tags',
+    ...options
+});
+
+/**
+ * Add a tag to a note
+ *
+ * **Requires AI Integration.** Links an existing tag to a note.
+ * Idempotent — adding a tag already on the note returns 201.
+ * Returns 403 when the `ai_integration` flag is not enabled for the
+ * organization.
+ *
+ */
+export const addTagToNote = <ThrowOnError extends boolean = false>(options: Options<AddTagToNoteData, ThrowOnError>): RequestResult<AddTagToNoteResponses, AddTagToNoteErrors, ThrowOnError> => (options.client ?? client).post<AddTagToNoteResponses, AddTagToNoteErrors, ThrowOnError>({
+    security: [
+        { name: 'X-Auth-Token', type: 'apiKey' },
+        {
+            key: 'BearerAuth',
+            scheme: 'bearer',
+            type: 'http'
+        },
+        {
+            key: 'OAuth2',
+            scheme: 'bearer',
+            type: 'http'
+        }
+    ],
+    url: '/notes/{note_id}/tags',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * Remove a tag from a note
+ *
+ * **Requires AI Integration.** Unlinks a tag from a note.
+ * Returns 403 when the `ai_integration` flag is not enabled for the
+ * organization.
+ *
+ */
+export const removeTagFromNote = <ThrowOnError extends boolean = false>(options: Options<RemoveTagFromNoteData, ThrowOnError>): RequestResult<RemoveTagFromNoteResponses, RemoveTagFromNoteErrors, ThrowOnError> => (options.client ?? client).delete<RemoveTagFromNoteResponses, RemoveTagFromNoteErrors, ThrowOnError>({
+    security: [
+        { name: 'X-Auth-Token', type: 'apiKey' },
+        {
+            key: 'BearerAuth',
+            scheme: 'bearer',
+            type: 'http'
+        },
+        {
+            key: 'OAuth2',
+            scheme: 'bearer',
+            type: 'http'
+        }
+    ],
+    url: '/notes/{note_id}/tags/{id}',
+    ...options
 });
 
 /**
@@ -1305,7 +2726,19 @@ export const updateNote = <ThrowOnError extends boolean = false>(options: Option
  */
 export const listRoleProjects = <ThrowOnError extends boolean = false>(options: Options<ListRoleProjectsData, ThrowOnError>): RequestResult<ListRoleProjectsResponses, ListRoleProjectsErrors, ThrowOnError> => (options.client ?? client).get<ListRoleProjectsResponses, ListRoleProjectsErrors, ThrowOnError>({
     querySerializer: { parameters: { include: { array: { explode: false } } } },
-    security: [{ name: 'X-Auth-Token', type: 'apiKey' }, { scheme: 'bearer', type: 'http' }],
+    security: [
+        { name: 'X-Auth-Token', type: 'apiKey' },
+        {
+            key: 'BearerAuth',
+            scheme: 'bearer',
+            type: 'http'
+        },
+        {
+            key: 'OAuth2',
+            scheme: 'bearer',
+            type: 'http'
+        }
+    ],
     url: '/roles/{role_id}/projects',
     ...options
 });
@@ -1318,7 +2751,19 @@ export const listRoleProjects = <ThrowOnError extends boolean = false>(options: 
  *
  */
 export const createRoleProject = <ThrowOnError extends boolean = false>(options: Options<CreateRoleProjectData, ThrowOnError>): RequestResult<CreateRoleProjectResponses, CreateRoleProjectErrors, ThrowOnError> => (options.client ?? client).post<CreateRoleProjectResponses, CreateRoleProjectErrors, ThrowOnError>({
-    security: [{ name: 'X-Auth-Token', type: 'apiKey' }, { scheme: 'bearer', type: 'http' }],
+    security: [
+        { name: 'X-Auth-Token', type: 'apiKey' },
+        {
+            key: 'BearerAuth',
+            scheme: 'bearer',
+            type: 'http'
+        },
+        {
+            key: 'OAuth2',
+            scheme: 'bearer',
+            type: 'http'
+        }
+    ],
     url: '/roles/{role_id}/projects',
     ...options,
     headers: {
@@ -1335,7 +2780,19 @@ export const createRoleProject = <ThrowOnError extends boolean = false>(options:
  *
  */
 export const listProjectActions = <ThrowOnError extends boolean = false>(options: Options<ListProjectActionsData, ThrowOnError>): RequestResult<ListProjectActionsResponses, ListProjectActionsErrors, ThrowOnError> => (options.client ?? client).get<ListProjectActionsResponses, ListProjectActionsErrors, ThrowOnError>({
-    security: [{ name: 'X-Auth-Token', type: 'apiKey' }, { scheme: 'bearer', type: 'http' }],
+    security: [
+        { name: 'X-Auth-Token', type: 'apiKey' },
+        {
+            key: 'BearerAuth',
+            scheme: 'bearer',
+            type: 'http'
+        },
+        {
+            key: 'OAuth2',
+            scheme: 'bearer',
+            type: 'http'
+        }
+    ],
     url: '/projects/{project_id}/actions',
     ...options
 });
@@ -1349,7 +2806,19 @@ export const listProjectActions = <ThrowOnError extends boolean = false>(options
  *
  */
 export const listSubProjects = <ThrowOnError extends boolean = false>(options: Options<ListSubProjectsData, ThrowOnError>): RequestResult<ListSubProjectsResponses, ListSubProjectsErrors, ThrowOnError> => (options.client ?? client).get<ListSubProjectsResponses, ListSubProjectsErrors, ThrowOnError>({
-    security: [{ name: 'X-Auth-Token', type: 'apiKey' }, { scheme: 'bearer', type: 'http' }],
+    security: [
+        { name: 'X-Auth-Token', type: 'apiKey' },
+        {
+            key: 'BearerAuth',
+            scheme: 'bearer',
+            type: 'http'
+        },
+        {
+            key: 'OAuth2',
+            scheme: 'bearer',
+            type: 'http'
+        }
+    ],
     url: '/projects/{id}/sub_projects',
     ...options
 });
@@ -1360,7 +2829,19 @@ export const listSubProjects = <ThrowOnError extends boolean = false>(options: O
  * Soft-deletes a project. The project is no longer visible but retained in the database.
  */
 export const deleteProject = <ThrowOnError extends boolean = false>(options: Options<DeleteProjectData, ThrowOnError>): RequestResult<DeleteProjectResponses, DeleteProjectErrors, ThrowOnError> => (options.client ?? client).delete<DeleteProjectResponses, DeleteProjectErrors, ThrowOnError>({
-    security: [{ name: 'X-Auth-Token', type: 'apiKey' }, { scheme: 'bearer', type: 'http' }],
+    security: [
+        { name: 'X-Auth-Token', type: 'apiKey' },
+        {
+            key: 'BearerAuth',
+            scheme: 'bearer',
+            type: 'http'
+        },
+        {
+            key: 'OAuth2',
+            scheme: 'bearer',
+            type: 'http'
+        }
+    ],
     url: '/projects/{id}',
     ...options
 });
@@ -1383,7 +2864,19 @@ export const deleteProject = <ThrowOnError extends boolean = false>(options: Opt
  */
 export const getProject = <ThrowOnError extends boolean = false>(options: Options<GetProjectData, ThrowOnError>): RequestResult<GetProjectResponses, GetProjectErrors, ThrowOnError> => (options.client ?? client).get<GetProjectResponses, GetProjectErrors, ThrowOnError>({
     querySerializer: { parameters: { include: { array: { explode: false } } } },
-    security: [{ name: 'X-Auth-Token', type: 'apiKey' }, { scheme: 'bearer', type: 'http' }],
+    security: [
+        { name: 'X-Auth-Token', type: 'apiKey' },
+        {
+            key: 'BearerAuth',
+            scheme: 'bearer',
+            type: 'http'
+        },
+        {
+            key: 'OAuth2',
+            scheme: 'bearer',
+            type: 'http'
+        }
+    ],
     url: '/projects/{id}',
     ...options
 });
@@ -1394,13 +2887,102 @@ export const getProject = <ThrowOnError extends boolean = false>(options: Option
  * Updates the description, status, or other fields of an existing project.
  */
 export const updateProject = <ThrowOnError extends boolean = false>(options: Options<UpdateProjectData, ThrowOnError>): RequestResult<UpdateProjectResponses, UpdateProjectErrors, ThrowOnError> => (options.client ?? client).patch<UpdateProjectResponses, UpdateProjectErrors, ThrowOnError>({
-    security: [{ name: 'X-Auth-Token', type: 'apiKey' }, { scheme: 'bearer', type: 'http' }],
+    security: [
+        { name: 'X-Auth-Token', type: 'apiKey' },
+        {
+            key: 'BearerAuth',
+            scheme: 'bearer',
+            type: 'http'
+        },
+        {
+            key: 'OAuth2',
+            scheme: 'bearer',
+            type: 'http'
+        }
+    ],
     url: '/projects/{id}',
     ...options,
     headers: {
         'Content-Type': 'application/json',
         ...options.headers
     }
+});
+
+/**
+ * List tags on a project
+ *
+ * Returns tags applied to a specific project.
+ *
+ */
+export const listProjectTags = <ThrowOnError extends boolean = false>(options: Options<ListProjectTagsData, ThrowOnError>): RequestResult<ListProjectTagsResponses, ListProjectTagsErrors, ThrowOnError> => (options.client ?? client).get<ListProjectTagsResponses, ListProjectTagsErrors, ThrowOnError>({
+    security: [
+        { name: 'X-Auth-Token', type: 'apiKey' },
+        {
+            key: 'BearerAuth',
+            scheme: 'bearer',
+            type: 'http'
+        },
+        {
+            key: 'OAuth2',
+            scheme: 'bearer',
+            type: 'http'
+        }
+    ],
+    url: '/projects/{project_id}/tags',
+    ...options
+});
+
+/**
+ * Add a tag to a project
+ *
+ * Links an existing tag to a project. Requires admin access.
+ * Idempotent — adding a tag already on the project returns 201.
+ *
+ */
+export const addTagToProject = <ThrowOnError extends boolean = false>(options: Options<AddTagToProjectData, ThrowOnError>): RequestResult<AddTagToProjectResponses, AddTagToProjectErrors, ThrowOnError> => (options.client ?? client).post<AddTagToProjectResponses, AddTagToProjectErrors, ThrowOnError>({
+    security: [
+        { name: 'X-Auth-Token', type: 'apiKey' },
+        {
+            key: 'BearerAuth',
+            scheme: 'bearer',
+            type: 'http'
+        },
+        {
+            key: 'OAuth2',
+            scheme: 'bearer',
+            type: 'http'
+        }
+    ],
+    url: '/projects/{project_id}/tags',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * Remove a tag from a project
+ *
+ * Unlinks a tag from a project. Requires admin access.
+ *
+ */
+export const removeTagFromProject = <ThrowOnError extends boolean = false>(options: Options<RemoveTagFromProjectData, ThrowOnError>): RequestResult<RemoveTagFromProjectResponses, RemoveTagFromProjectErrors, ThrowOnError> => (options.client ?? client).delete<RemoveTagFromProjectResponses, RemoveTagFromProjectErrors, ThrowOnError>({
+    security: [
+        { name: 'X-Auth-Token', type: 'apiKey' },
+        {
+            key: 'BearerAuth',
+            scheme: 'bearer',
+            type: 'http'
+        },
+        {
+            key: 'OAuth2',
+            scheme: 'bearer',
+            type: 'http'
+        }
+    ],
+    url: '/projects/{project_id}/tags/{id}',
+    ...options
 });
 
 /**
@@ -1412,7 +2994,19 @@ export const updateProject = <ThrowOnError extends boolean = false>(options: Opt
  *
  */
 export const listProposals = <ThrowOnError extends boolean = false>(options?: Options<ListProposalsData, ThrowOnError>): RequestResult<ListProposalsResponses, ListProposalsErrors, ThrowOnError> => (options?.client ?? client).get<ListProposalsResponses, ListProposalsErrors, ThrowOnError>({
-    security: [{ name: 'X-Auth-Token', type: 'apiKey' }, { scheme: 'bearer', type: 'http' }],
+    security: [
+        { name: 'X-Auth-Token', type: 'apiKey' },
+        {
+            key: 'BearerAuth',
+            scheme: 'bearer',
+            type: 'http'
+        },
+        {
+            key: 'OAuth2',
+            scheme: 'bearer',
+            type: 'http'
+        }
+    ],
     url: '/proposals',
     ...options
 });
@@ -1431,7 +3025,19 @@ export const listProposals = <ThrowOnError extends boolean = false>(options?: Op
  *
  */
 export const createProposal = <ThrowOnError extends boolean = false>(options: Options<CreateProposalData, ThrowOnError>): RequestResult<CreateProposalResponses, CreateProposalErrors, ThrowOnError> => (options.client ?? client).post<CreateProposalResponses, CreateProposalErrors, ThrowOnError>({
-    security: [{ name: 'X-Auth-Token', type: 'apiKey' }, { scheme: 'bearer', type: 'http' }],
+    security: [
+        { name: 'X-Auth-Token', type: 'apiKey' },
+        {
+            key: 'BearerAuth',
+            scheme: 'bearer',
+            type: 'http'
+        },
+        {
+            key: 'OAuth2',
+            scheme: 'bearer',
+            type: 'http'
+        }
+    ],
     url: '/proposals',
     ...options,
     headers: {
@@ -1450,7 +3056,19 @@ export const createProposal = <ThrowOnError extends boolean = false>(options: Op
  *
  */
 export const getProposal = <ThrowOnError extends boolean = false>(options: Options<GetProposalData, ThrowOnError>): RequestResult<GetProposalResponses, GetProposalErrors, ThrowOnError> => (options.client ?? client).get<GetProposalResponses, GetProposalErrors, ThrowOnError>({
-    security: [{ name: 'X-Auth-Token', type: 'apiKey' }, { scheme: 'bearer', type: 'http' }],
+    security: [
+        { name: 'X-Auth-Token', type: 'apiKey' },
+        {
+            key: 'BearerAuth',
+            scheme: 'bearer',
+            type: 'http'
+        },
+        {
+            key: 'OAuth2',
+            scheme: 'bearer',
+            type: 'http'
+        }
+    ],
     url: '/proposals/{id}',
     ...options
 });
@@ -1485,7 +3103,19 @@ export const getProposal = <ThrowOnError extends boolean = false>(options: Optio
  *
  */
 export const proposeProposal = <ThrowOnError extends boolean = false>(options: Options<ProposeProposalData, ThrowOnError>): RequestResult<ProposeProposalResponses, ProposeProposalErrors, ThrowOnError> => (options.client ?? client).post<ProposeProposalResponses, ProposeProposalErrors, ThrowOnError>({
-    security: [{ name: 'X-Auth-Token', type: 'apiKey' }, { scheme: 'bearer', type: 'http' }],
+    security: [
+        { name: 'X-Auth-Token', type: 'apiKey' },
+        {
+            key: 'BearerAuth',
+            scheme: 'bearer',
+            type: 'http'
+        },
+        {
+            key: 'OAuth2',
+            scheme: 'bearer',
+            type: 'http'
+        }
+    ],
     url: '/proposals/{proposal_id}/propose',
     ...options
 });
@@ -1507,9 +3137,110 @@ export const proposeProposal = <ThrowOnError extends boolean = false>(options: O
  *
  */
 export const withdrawProposal = <ThrowOnError extends boolean = false>(options: Options<WithdrawProposalData, ThrowOnError>): RequestResult<WithdrawProposalResponses, WithdrawProposalErrors, ThrowOnError> => (options.client ?? client).post<WithdrawProposalResponses, WithdrawProposalErrors, ThrowOnError>({
-    security: [{ name: 'X-Auth-Token', type: 'apiKey' }, { scheme: 'bearer', type: 'http' }],
+    security: [
+        { name: 'X-Auth-Token', type: 'apiKey' },
+        {
+            key: 'BearerAuth',
+            scheme: 'bearer',
+            type: 'http'
+        },
+        {
+            key: 'OAuth2',
+            scheme: 'bearer',
+            type: 'http'
+        }
+    ],
     url: '/proposals/{proposal_id}/withdraw',
     ...options
+});
+
+/**
+ * Add a change to a proposal
+ *
+ * **Premium — requires async proposals.** Appends one governance change
+ * to the proposal and returns the whole proposal, including `valid` and
+ * `validation_alerts`, so the caller sees the effect at once. Returns
+ * 403 when async proposals are not enabled. A change referencing a
+ * record that doesn't exist returns 422.
+ *
+ */
+export const createProposalChange = <ThrowOnError extends boolean = false>(options: Options<CreateProposalChangeData, ThrowOnError>): RequestResult<CreateProposalChangeResponses, CreateProposalChangeErrors, ThrowOnError> => (options.client ?? client).post<CreateProposalChangeResponses, CreateProposalChangeErrors, ThrowOnError>({
+    security: [
+        { name: 'X-Auth-Token', type: 'apiKey' },
+        {
+            key: 'BearerAuth',
+            scheme: 'bearer',
+            type: 'http'
+        },
+        {
+            key: 'OAuth2',
+            scheme: 'bearer',
+            type: 'http'
+        }
+    ],
+    url: '/proposals/{proposal_id}/changes',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * Remove a change from a proposal
+ *
+ * **Premium — requires async proposals.** Removes the change and
+ * returns the whole proposal with validation state. A numeric or
+ * otherwise malformed `id` returns 422; an unknown one returns 404.
+ *
+ */
+export const deleteProposalChange = <ThrowOnError extends boolean = false>(options: Options<DeleteProposalChangeData, ThrowOnError>): RequestResult<DeleteProposalChangeResponses, DeleteProposalChangeErrors, ThrowOnError> => (options.client ?? client).delete<DeleteProposalChangeResponses, DeleteProposalChangeErrors, ThrowOnError>({
+    security: [
+        { name: 'X-Auth-Token', type: 'apiKey' },
+        {
+            key: 'BearerAuth',
+            scheme: 'bearer',
+            type: 'http'
+        },
+        {
+            key: 'OAuth2',
+            scheme: 'bearer',
+            type: 'http'
+        }
+    ],
+    url: '/proposals/{proposal_id}/changes/{id}',
+    ...options
+});
+
+/**
+ * Replace a change on a proposal
+ *
+ * **Premium — requires async proposals.** Replaces the change's
+ * command with the one given and returns the whole proposal with
+ * validation state. The change keeps its `id`. A numeric or otherwise
+ * malformed `id` returns 422; an unknown one returns 404.
+ *
+ */
+export const updateProposalChange = <ThrowOnError extends boolean = false>(options: Options<UpdateProposalChangeData, ThrowOnError>): RequestResult<UpdateProposalChangeResponses, UpdateProposalChangeErrors, ThrowOnError> => (options.client ?? client).patch<UpdateProposalChangeResponses, UpdateProposalChangeErrors, ThrowOnError>({
+    security: [
+        { name: 'X-Auth-Token', type: 'apiKey' },
+        {
+            key: 'BearerAuth',
+            scheme: 'bearer',
+            type: 'http'
+        },
+        {
+            key: 'OAuth2',
+            scheme: 'bearer',
+            type: 'http'
+        }
+    ],
+    url: '/proposals/{proposal_id}/changes/{id}',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
 });
 
 /**
@@ -1534,7 +3265,19 @@ export const withdrawProposal = <ThrowOnError extends boolean = false>(options: 
  *
  */
 export const createProposalResponse = <ThrowOnError extends boolean = false>(options: Options<CreateProposalResponseData, ThrowOnError>): RequestResult<CreateProposalResponseResponses, CreateProposalResponseErrors, ThrowOnError> => (options.client ?? client).post<CreateProposalResponseResponses, CreateProposalResponseErrors, ThrowOnError>({
-    security: [{ name: 'X-Auth-Token', type: 'apiKey' }, { scheme: 'bearer', type: 'http' }],
+    security: [
+        { name: 'X-Auth-Token', type: 'apiKey' },
+        {
+            key: 'BearerAuth',
+            scheme: 'bearer',
+            type: 'http'
+        },
+        {
+            key: 'OAuth2',
+            scheme: 'bearer',
+            type: 'http'
+        }
+    ],
     url: '/proposals/{proposal_id}/responses',
     ...options,
     headers: {
@@ -1551,8 +3294,20 @@ export const createProposalResponse = <ThrowOnError extends boolean = false>(opt
  * in the role context endpoint's `org_rules.sections[]`.
  *
  */
-export const getOrgRule = <ThrowOnError extends boolean = false>(options: Options<GetOrgRuleData, ThrowOnError>): RequestResult<GetOrgRuleResponses, unknown, ThrowOnError> => (options.client ?? client).get<GetOrgRuleResponses, unknown, ThrowOnError>({
-    security: [{ name: 'X-Auth-Token', type: 'apiKey' }, { scheme: 'bearer', type: 'http' }],
+export const getOrgRule = <ThrowOnError extends boolean = false>(options: Options<GetOrgRuleData, ThrowOnError>): RequestResult<GetOrgRuleResponses, GetOrgRuleErrors, ThrowOnError> => (options.client ?? client).get<GetOrgRuleResponses, GetOrgRuleErrors, ThrowOnError>({
+    security: [
+        { name: 'X-Auth-Token', type: 'apiKey' },
+        {
+            key: 'BearerAuth',
+            scheme: 'bearer',
+            type: 'http'
+        },
+        {
+            key: 'OAuth2',
+            scheme: 'bearer',
+            type: 'http'
+        }
+    ],
     url: '/orgs/{org_id}/rules/{section_key}',
     ...options
 });
@@ -1565,7 +3320,19 @@ export const getOrgRule = <ThrowOnError extends boolean = false>(options: Option
  *
  */
 export const listRoleCustomFields = <ThrowOnError extends boolean = false>(options: Options<ListRoleCustomFieldsData, ThrowOnError>): RequestResult<ListRoleCustomFieldsResponses, ListRoleCustomFieldsErrors, ThrowOnError> => (options.client ?? client).get<ListRoleCustomFieldsResponses, ListRoleCustomFieldsErrors, ThrowOnError>({
-    security: [{ name: 'X-Auth-Token', type: 'apiKey' }, { scheme: 'bearer', type: 'http' }],
+    security: [
+        { name: 'X-Auth-Token', type: 'apiKey' },
+        {
+            key: 'BearerAuth',
+            scheme: 'bearer',
+            type: 'http'
+        },
+        {
+            key: 'OAuth2',
+            scheme: 'bearer',
+            type: 'http'
+        }
+    ],
     url: '/roles/{role_id}/custom_fields',
     ...options
 });
@@ -1578,7 +3345,19 @@ export const listRoleCustomFields = <ThrowOnError extends boolean = false>(optio
  *
  */
 export const createRoleCustomField = <ThrowOnError extends boolean = false>(options: Options<CreateRoleCustomFieldData, ThrowOnError>): RequestResult<CreateRoleCustomFieldResponses, CreateRoleCustomFieldErrors, ThrowOnError> => (options.client ?? client).post<CreateRoleCustomFieldResponses, CreateRoleCustomFieldErrors, ThrowOnError>({
-    security: [{ name: 'X-Auth-Token', type: 'apiKey' }, { scheme: 'bearer', type: 'http' }],
+    security: [
+        { name: 'X-Auth-Token', type: 'apiKey' },
+        {
+            key: 'BearerAuth',
+            scheme: 'bearer',
+            type: 'http'
+        },
+        {
+            key: 'OAuth2',
+            scheme: 'bearer',
+            type: 'http'
+        }
+    ],
     url: '/roles/{role_id}/custom_fields',
     ...options,
     headers: {
@@ -1595,7 +3374,19 @@ export const createRoleCustomField = <ThrowOnError extends boolean = false>(opti
  *
  */
 export const deleteCustomField = <ThrowOnError extends boolean = false>(options: Options<DeleteCustomFieldData, ThrowOnError>): RequestResult<DeleteCustomFieldResponses, DeleteCustomFieldErrors, ThrowOnError> => (options.client ?? client).delete<DeleteCustomFieldResponses, DeleteCustomFieldErrors, ThrowOnError>({
-    security: [{ name: 'X-Auth-Token', type: 'apiKey' }, { scheme: 'bearer', type: 'http' }],
+    security: [
+        { name: 'X-Auth-Token', type: 'apiKey' },
+        {
+            key: 'BearerAuth',
+            scheme: 'bearer',
+            type: 'http'
+        },
+        {
+            key: 'OAuth2',
+            scheme: 'bearer',
+            type: 'http'
+        }
+    ],
     url: '/custom_fields/{id}',
     ...options
 });
@@ -1608,7 +3399,19 @@ export const deleteCustomField = <ThrowOnError extends boolean = false>(options:
  *
  */
 export const getCustomField = <ThrowOnError extends boolean = false>(options: Options<GetCustomFieldData, ThrowOnError>): RequestResult<GetCustomFieldResponses, GetCustomFieldErrors, ThrowOnError> => (options.client ?? client).get<GetCustomFieldResponses, GetCustomFieldErrors, ThrowOnError>({
-    security: [{ name: 'X-Auth-Token', type: 'apiKey' }, { scheme: 'bearer', type: 'http' }],
+    security: [
+        { name: 'X-Auth-Token', type: 'apiKey' },
+        {
+            key: 'BearerAuth',
+            scheme: 'bearer',
+            type: 'http'
+        },
+        {
+            key: 'OAuth2',
+            scheme: 'bearer',
+            type: 'http'
+        }
+    ],
     url: '/custom_fields/{id}',
     ...options
 });
@@ -1621,7 +3424,19 @@ export const getCustomField = <ThrowOnError extends boolean = false>(options: Op
  *
  */
 export const updateCustomField = <ThrowOnError extends boolean = false>(options: Options<UpdateCustomFieldData, ThrowOnError>): RequestResult<UpdateCustomFieldResponses, UpdateCustomFieldErrors, ThrowOnError> => (options.client ?? client).patch<UpdateCustomFieldResponses, UpdateCustomFieldErrors, ThrowOnError>({
-    security: [{ name: 'X-Auth-Token', type: 'apiKey' }, { scheme: 'bearer', type: 'http' }],
+    security: [
+        { name: 'X-Auth-Token', type: 'apiKey' },
+        {
+            key: 'BearerAuth',
+            scheme: 'bearer',
+            type: 'http'
+        },
+        {
+            key: 'OAuth2',
+            scheme: 'bearer',
+            type: 'http'
+        }
+    ],
     url: '/custom_fields/{id}',
     ...options,
     headers: {
@@ -1631,15 +3446,58 @@ export const updateCustomField = <ThrowOnError extends boolean = false>(options:
 });
 
 /**
+ * Translate a legacy integer databaseId to a TypeID
+ *
+ * Migration bridge for integrators who have cached integer IDs from v3.
+ * Given a resource type and integer databaseId, returns the corresponding
+ * TypeID. Org-scoped via standard v5 auth — cross-org probing blocked.
+ *
+ * Accepts one ID per request (no batch). Returns 404 if the record does
+ * not exist within the caller's organization.
+ *
+ * An agent is a person: for `type=agent`, `database_id` is the agent's
+ * person id (as v3 exposes it) and `id` is its `agt_` actor id.
+ *
+ */
+export const translateId = <ThrowOnError extends boolean = false>(options: Options<TranslateIdData, ThrowOnError>): RequestResult<TranslateIdResponses, TranslateIdErrors, ThrowOnError> => (options.client ?? client).get<TranslateIdResponses, TranslateIdErrors, ThrowOnError>({
+    security: [
+        { name: 'X-Auth-Token', type: 'apiKey' },
+        {
+            key: 'BearerAuth',
+            scheme: 'bearer',
+            type: 'http'
+        },
+        {
+            key: 'OAuth2',
+            scheme: 'bearer',
+            type: 'http'
+        }
+    ],
+    url: '/id_translations',
+    ...options
+});
+
+/**
  * Cross-model full-text search
  *
- * Search across multiple resource types (roles, projects, actions,
- * notes, skills, actors, policies, domains) using Postgres full-text
+ * Search across multiple resource types using Postgres full-text
  * search. Results are ranked by relevance.
  *
  */
 export const search = <ThrowOnError extends boolean = false>(options: Options<SearchData, ThrowOnError>): RequestResult<SearchResponses, SearchErrors, ThrowOnError> => (options.client ?? client).get<SearchResponses, SearchErrors, ThrowOnError>({
-    security: [{ name: 'X-Auth-Token', type: 'apiKey' }, { scheme: 'bearer', type: 'http' }],
+    security: [
+        { name: 'X-Auth-Token', type: 'apiKey' },
+        {
+            key: 'BearerAuth',
+            scheme: 'bearer',
+            type: 'http'
+        },
+        {
+            key: 'OAuth2',
+            scheme: 'bearer',
+            type: 'http'
+        }
+    ],
     url: '/search',
     ...options
 });
@@ -1652,7 +3510,19 @@ export const search = <ThrowOnError extends boolean = false>(options: Options<Se
  *
  */
 export const listRoleTags = <ThrowOnError extends boolean = false>(options: Options<ListRoleTagsData, ThrowOnError>): RequestResult<ListRoleTagsResponses, ListRoleTagsErrors, ThrowOnError> => (options.client ?? client).get<ListRoleTagsResponses, ListRoleTagsErrors, ThrowOnError>({
-    security: [{ name: 'X-Auth-Token', type: 'apiKey' }, { scheme: 'bearer', type: 'http' }],
+    security: [
+        { name: 'X-Auth-Token', type: 'apiKey' },
+        {
+            key: 'BearerAuth',
+            scheme: 'bearer',
+            type: 'http'
+        },
+        {
+            key: 'OAuth2',
+            scheme: 'bearer',
+            type: 'http'
+        }
+    ],
     url: '/roles/{role_id}/tags',
     ...options
 });
@@ -1665,7 +3535,19 @@ export const listRoleTags = <ThrowOnError extends boolean = false>(options: Opti
  *
  */
 export const addTagToRole = <ThrowOnError extends boolean = false>(options: Options<AddTagToRoleData, ThrowOnError>): RequestResult<AddTagToRoleResponses, AddTagToRoleErrors, ThrowOnError> => (options.client ?? client).post<AddTagToRoleResponses, AddTagToRoleErrors, ThrowOnError>({
-    security: [{ name: 'X-Auth-Token', type: 'apiKey' }, { scheme: 'bearer', type: 'http' }],
+    security: [
+        { name: 'X-Auth-Token', type: 'apiKey' },
+        {
+            key: 'BearerAuth',
+            scheme: 'bearer',
+            type: 'http'
+        },
+        {
+            key: 'OAuth2',
+            scheme: 'bearer',
+            type: 'http'
+        }
+    ],
     url: '/roles/{role_id}/tags',
     ...options,
     headers: {
@@ -1682,7 +3564,19 @@ export const addTagToRole = <ThrowOnError extends boolean = false>(options: Opti
  *
  */
 export const removeTagFromRole = <ThrowOnError extends boolean = false>(options: Options<RemoveTagFromRoleData, ThrowOnError>): RequestResult<RemoveTagFromRoleResponses, RemoveTagFromRoleErrors, ThrowOnError> => (options.client ?? client).delete<RemoveTagFromRoleResponses, RemoveTagFromRoleErrors, ThrowOnError>({
-    security: [{ name: 'X-Auth-Token', type: 'apiKey' }, { scheme: 'bearer', type: 'http' }],
+    security: [
+        { name: 'X-Auth-Token', type: 'apiKey' },
+        {
+            key: 'BearerAuth',
+            scheme: 'bearer',
+            type: 'http'
+        },
+        {
+            key: 'OAuth2',
+            scheme: 'bearer',
+            type: 'http'
+        }
+    ],
     url: '/roles/{role_id}/tags/{id}',
     ...options
 });
@@ -1695,7 +3589,19 @@ export const removeTagFromRole = <ThrowOnError extends boolean = false>(options:
  *
  */
 export const listTags = <ThrowOnError extends boolean = false>(options?: Options<ListTagsData, ThrowOnError>): RequestResult<ListTagsResponses, ListTagsErrors, ThrowOnError> => (options?.client ?? client).get<ListTagsResponses, ListTagsErrors, ThrowOnError>({
-    security: [{ name: 'X-Auth-Token', type: 'apiKey' }, { scheme: 'bearer', type: 'http' }],
+    security: [
+        { name: 'X-Auth-Token', type: 'apiKey' },
+        {
+            key: 'BearerAuth',
+            scheme: 'bearer',
+            type: 'http'
+        },
+        {
+            key: 'OAuth2',
+            scheme: 'bearer',
+            type: 'http'
+        }
+    ],
     url: '/tags',
     ...options
 });
@@ -1708,7 +3614,19 @@ export const listTags = <ThrowOnError extends boolean = false>(options?: Options
  *
  */
 export const createTag = <ThrowOnError extends boolean = false>(options: Options<CreateTagData, ThrowOnError>): RequestResult<CreateTagResponses, CreateTagErrors, ThrowOnError> => (options.client ?? client).post<CreateTagResponses, CreateTagErrors, ThrowOnError>({
-    security: [{ name: 'X-Auth-Token', type: 'apiKey' }, { scheme: 'bearer', type: 'http' }],
+    security: [
+        { name: 'X-Auth-Token', type: 'apiKey' },
+        {
+            key: 'BearerAuth',
+            scheme: 'bearer',
+            type: 'http'
+        },
+        {
+            key: 'OAuth2',
+            scheme: 'bearer',
+            type: 'http'
+        }
+    ],
     url: '/tags',
     ...options,
     headers: {
@@ -1725,7 +3643,19 @@ export const createTag = <ThrowOnError extends boolean = false>(options: Options
  *
  */
 export const deleteTag = <ThrowOnError extends boolean = false>(options: Options<DeleteTagData, ThrowOnError>): RequestResult<DeleteTagResponses, DeleteTagErrors, ThrowOnError> => (options.client ?? client).delete<DeleteTagResponses, DeleteTagErrors, ThrowOnError>({
-    security: [{ name: 'X-Auth-Token', type: 'apiKey' }, { scheme: 'bearer', type: 'http' }],
+    security: [
+        { name: 'X-Auth-Token', type: 'apiKey' },
+        {
+            key: 'BearerAuth',
+            scheme: 'bearer',
+            type: 'http'
+        },
+        {
+            key: 'OAuth2',
+            scheme: 'bearer',
+            type: 'http'
+        }
+    ],
     url: '/tags/{id}',
     ...options
 });
@@ -1738,7 +3668,19 @@ export const deleteTag = <ThrowOnError extends boolean = false>(options: Options
  *
  */
 export const getTag = <ThrowOnError extends boolean = false>(options: Options<GetTagData, ThrowOnError>): RequestResult<GetTagResponses, GetTagErrors, ThrowOnError> => (options.client ?? client).get<GetTagResponses, GetTagErrors, ThrowOnError>({
-    security: [{ name: 'X-Auth-Token', type: 'apiKey' }, { scheme: 'bearer', type: 'http' }],
+    security: [
+        { name: 'X-Auth-Token', type: 'apiKey' },
+        {
+            key: 'BearerAuth',
+            scheme: 'bearer',
+            type: 'http'
+        },
+        {
+            key: 'OAuth2',
+            scheme: 'bearer',
+            type: 'http'
+        }
+    ],
     url: '/tags/{id}',
     ...options
 });
@@ -1751,7 +3693,19 @@ export const getTag = <ThrowOnError extends boolean = false>(options: Options<Ge
  *
  */
 export const updateTag = <ThrowOnError extends boolean = false>(options: Options<UpdateTagData, ThrowOnError>): RequestResult<UpdateTagResponses, UpdateTagErrors, ThrowOnError> => (options.client ?? client).patch<UpdateTagResponses, UpdateTagErrors, ThrowOnError>({
-    security: [{ name: 'X-Auth-Token', type: 'apiKey' }, { scheme: 'bearer', type: 'http' }],
+    security: [
+        { name: 'X-Auth-Token', type: 'apiKey' },
+        {
+            key: 'BearerAuth',
+            scheme: 'bearer',
+            type: 'http'
+        },
+        {
+            key: 'OAuth2',
+            scheme: 'bearer',
+            type: 'http'
+        }
+    ],
     url: '/tags/{id}',
     ...options,
     headers: {
@@ -1773,7 +3727,19 @@ export const updateTag = <ThrowOnError extends boolean = false>(options: Options
  */
 export const listRoleGoals = <ThrowOnError extends boolean = false>(options: Options<ListRoleGoalsData, ThrowOnError>): RequestResult<ListRoleGoalsResponses, ListRoleGoalsErrors, ThrowOnError> => (options.client ?? client).get<ListRoleGoalsResponses, ListRoleGoalsErrors, ThrowOnError>({
     querySerializer: { parameters: { include: { array: { explode: false } } } },
-    security: [{ name: 'X-Auth-Token', type: 'apiKey' }, { scheme: 'bearer', type: 'http' }],
+    security: [
+        { name: 'X-Auth-Token', type: 'apiKey' },
+        {
+            key: 'BearerAuth',
+            scheme: 'bearer',
+            type: 'http'
+        },
+        {
+            key: 'OAuth2',
+            scheme: 'bearer',
+            type: 'http'
+        }
+    ],
     url: '/roles/{role_id}/goals',
     ...options
 });
@@ -1787,7 +3753,19 @@ export const listRoleGoals = <ThrowOnError extends boolean = false>(options: Opt
  *
  */
 export const createRoleGoal = <ThrowOnError extends boolean = false>(options: Options<CreateRoleGoalData, ThrowOnError>): RequestResult<CreateRoleGoalResponses, CreateRoleGoalErrors, ThrowOnError> => (options.client ?? client).post<CreateRoleGoalResponses, CreateRoleGoalErrors, ThrowOnError>({
-    security: [{ name: 'X-Auth-Token', type: 'apiKey' }, { scheme: 'bearer', type: 'http' }],
+    security: [
+        { name: 'X-Auth-Token', type: 'apiKey' },
+        {
+            key: 'BearerAuth',
+            scheme: 'bearer',
+            type: 'http'
+        },
+        {
+            key: 'OAuth2',
+            scheme: 'bearer',
+            type: 'http'
+        }
+    ],
     url: '/roles/{role_id}/goals',
     ...options,
     headers: {
@@ -1807,7 +3785,19 @@ export const createRoleGoal = <ThrowOnError extends boolean = false>(options: Op
  *
  */
 export const listRoleSubrolesGoals = <ThrowOnError extends boolean = false>(options: Options<ListRoleSubrolesGoalsData, ThrowOnError>): RequestResult<ListRoleSubrolesGoalsResponses, ListRoleSubrolesGoalsErrors, ThrowOnError> => (options.client ?? client).get<ListRoleSubrolesGoalsResponses, ListRoleSubrolesGoalsErrors, ThrowOnError>({
-    security: [{ name: 'X-Auth-Token', type: 'apiKey' }, { scheme: 'bearer', type: 'http' }],
+    security: [
+        { name: 'X-Auth-Token', type: 'apiKey' },
+        {
+            key: 'BearerAuth',
+            scheme: 'bearer',
+            type: 'http'
+        },
+        {
+            key: 'OAuth2',
+            scheme: 'bearer',
+            type: 'http'
+        }
+    ],
     url: '/roles/{role_id}/subroles/goals',
     ...options
 });
@@ -1822,7 +3812,19 @@ export const listRoleSubrolesGoals = <ThrowOnError extends boolean = false>(opti
  *
  */
 export const deleteGoal = <ThrowOnError extends boolean = false>(options: Options<DeleteGoalData, ThrowOnError>): RequestResult<DeleteGoalResponses, DeleteGoalErrors, ThrowOnError> => (options.client ?? client).delete<DeleteGoalResponses, DeleteGoalErrors, ThrowOnError>({
-    security: [{ name: 'X-Auth-Token', type: 'apiKey' }, { scheme: 'bearer', type: 'http' }],
+    security: [
+        { name: 'X-Auth-Token', type: 'apiKey' },
+        {
+            key: 'BearerAuth',
+            scheme: 'bearer',
+            type: 'http'
+        },
+        {
+            key: 'OAuth2',
+            scheme: 'bearer',
+            type: 'http'
+        }
+    ],
     url: '/goals/{id}',
     ...options
 });
@@ -1840,7 +3842,19 @@ export const deleteGoal = <ThrowOnError extends boolean = false>(options: Option
  */
 export const getGoal = <ThrowOnError extends boolean = false>(options: Options<GetGoalData, ThrowOnError>): RequestResult<GetGoalResponses, GetGoalErrors, ThrowOnError> => (options.client ?? client).get<GetGoalResponses, GetGoalErrors, ThrowOnError>({
     querySerializer: { parameters: { include: { array: { explode: false } } } },
-    security: [{ name: 'X-Auth-Token', type: 'apiKey' }, { scheme: 'bearer', type: 'http' }],
+    security: [
+        { name: 'X-Auth-Token', type: 'apiKey' },
+        {
+            key: 'BearerAuth',
+            scheme: 'bearer',
+            type: 'http'
+        },
+        {
+            key: 'OAuth2',
+            scheme: 'bearer',
+            type: 'http'
+        }
+    ],
     url: '/goals/{id}',
     ...options
 });
@@ -1852,7 +3866,19 @@ export const getGoal = <ThrowOnError extends boolean = false>(options: Options<G
  *
  */
 export const updateGoal = <ThrowOnError extends boolean = false>(options: Options<UpdateGoalData, ThrowOnError>): RequestResult<UpdateGoalResponses, UpdateGoalErrors, ThrowOnError> => (options.client ?? client).patch<UpdateGoalResponses, UpdateGoalErrors, ThrowOnError>({
-    security: [{ name: 'X-Auth-Token', type: 'apiKey' }, { scheme: 'bearer', type: 'http' }],
+    security: [
+        { name: 'X-Auth-Token', type: 'apiKey' },
+        {
+            key: 'BearerAuth',
+            scheme: 'bearer',
+            type: 'http'
+        },
+        {
+            key: 'OAuth2',
+            scheme: 'bearer',
+            type: 'http'
+        }
+    ],
     url: '/goals/{id}',
     ...options,
     headers: {
@@ -1871,7 +3897,19 @@ export const updateGoal = <ThrowOnError extends boolean = false>(options: Option
  *
  */
 export const listGoalSupportingProjects = <ThrowOnError extends boolean = false>(options: Options<ListGoalSupportingProjectsData, ThrowOnError>): RequestResult<ListGoalSupportingProjectsResponses, ListGoalSupportingProjectsErrors, ThrowOnError> => (options.client ?? client).get<ListGoalSupportingProjectsResponses, ListGoalSupportingProjectsErrors, ThrowOnError>({
-    security: [{ name: 'X-Auth-Token', type: 'apiKey' }, { scheme: 'bearer', type: 'http' }],
+    security: [
+        { name: 'X-Auth-Token', type: 'apiKey' },
+        {
+            key: 'BearerAuth',
+            scheme: 'bearer',
+            type: 'http'
+        },
+        {
+            key: 'OAuth2',
+            scheme: 'bearer',
+            type: 'http'
+        }
+    ],
     url: '/goals/{goal_id}/supporting_projects',
     ...options
 });
@@ -1893,7 +3931,19 @@ export const listGoalSupportingProjects = <ThrowOnError extends boolean = false>
  *
  */
 export const linkGoalSupportingProject = <ThrowOnError extends boolean = false>(options: Options<LinkGoalSupportingProjectData, ThrowOnError>): RequestResult<LinkGoalSupportingProjectResponses, LinkGoalSupportingProjectErrors, ThrowOnError> => (options.client ?? client).post<LinkGoalSupportingProjectResponses, LinkGoalSupportingProjectErrors, ThrowOnError>({
-    security: [{ name: 'X-Auth-Token', type: 'apiKey' }, { scheme: 'bearer', type: 'http' }],
+    security: [
+        { name: 'X-Auth-Token', type: 'apiKey' },
+        {
+            key: 'BearerAuth',
+            scheme: 'bearer',
+            type: 'http'
+        },
+        {
+            key: 'OAuth2',
+            scheme: 'bearer',
+            type: 'http'
+        }
+    ],
     url: '/goals/{goal_id}/supporting_projects',
     ...options,
     headers: {
@@ -1914,7 +3964,19 @@ export const linkGoalSupportingProject = <ThrowOnError extends boolean = false>(
  *
  */
 export const unlinkGoalSupportingProject = <ThrowOnError extends boolean = false>(options: Options<UnlinkGoalSupportingProjectData, ThrowOnError>): RequestResult<UnlinkGoalSupportingProjectResponses, UnlinkGoalSupportingProjectErrors, ThrowOnError> => (options.client ?? client).delete<UnlinkGoalSupportingProjectResponses, UnlinkGoalSupportingProjectErrors, ThrowOnError>({
-    security: [{ name: 'X-Auth-Token', type: 'apiKey' }, { scheme: 'bearer', type: 'http' }],
+    security: [
+        { name: 'X-Auth-Token', type: 'apiKey' },
+        {
+            key: 'BearerAuth',
+            scheme: 'bearer',
+            type: 'http'
+        },
+        {
+            key: 'OAuth2',
+            scheme: 'bearer',
+            type: 'http'
+        }
+    ],
     url: '/goals/{goal_id}/supporting_projects/{id}',
     ...options
 });
@@ -1928,7 +3990,19 @@ export const unlinkGoalSupportingProject = <ThrowOnError extends boolean = false
  *
  */
 export const listGoalTargets = <ThrowOnError extends boolean = false>(options: Options<ListGoalTargetsData, ThrowOnError>): RequestResult<ListGoalTargetsResponses, ListGoalTargetsErrors, ThrowOnError> => (options.client ?? client).get<ListGoalTargetsResponses, ListGoalTargetsErrors, ThrowOnError>({
-    security: [{ name: 'X-Auth-Token', type: 'apiKey' }, { scheme: 'bearer', type: 'http' }],
+    security: [
+        { name: 'X-Auth-Token', type: 'apiKey' },
+        {
+            key: 'BearerAuth',
+            scheme: 'bearer',
+            type: 'http'
+        },
+        {
+            key: 'OAuth2',
+            scheme: 'bearer',
+            type: 'http'
+        }
+    ],
     url: '/goals/{goal_id}/targets',
     ...options
 });
@@ -1944,7 +4018,19 @@ export const listGoalTargets = <ThrowOnError extends boolean = false>(options: O
  *
  */
 export const createGoalTarget = <ThrowOnError extends boolean = false>(options: Options<CreateGoalTargetData, ThrowOnError>): RequestResult<CreateGoalTargetResponses, CreateGoalTargetErrors, ThrowOnError> => (options.client ?? client).post<CreateGoalTargetResponses, CreateGoalTargetErrors, ThrowOnError>({
-    security: [{ name: 'X-Auth-Token', type: 'apiKey' }, { scheme: 'bearer', type: 'http' }],
+    security: [
+        { name: 'X-Auth-Token', type: 'apiKey' },
+        {
+            key: 'BearerAuth',
+            scheme: 'bearer',
+            type: 'http'
+        },
+        {
+            key: 'OAuth2',
+            scheme: 'bearer',
+            type: 'http'
+        }
+    ],
     url: '/goals/{goal_id}/targets',
     ...options,
     headers: {
@@ -1962,7 +4048,19 @@ export const createGoalTarget = <ThrowOnError extends boolean = false>(options: 
  *
  */
 export const listGoalProgressUpdates = <ThrowOnError extends boolean = false>(options: Options<ListGoalProgressUpdatesData, ThrowOnError>): RequestResult<ListGoalProgressUpdatesResponses, ListGoalProgressUpdatesErrors, ThrowOnError> => (options.client ?? client).get<ListGoalProgressUpdatesResponses, ListGoalProgressUpdatesErrors, ThrowOnError>({
-    security: [{ name: 'X-Auth-Token', type: 'apiKey' }, { scheme: 'bearer', type: 'http' }],
+    security: [
+        { name: 'X-Auth-Token', type: 'apiKey' },
+        {
+            key: 'BearerAuth',
+            scheme: 'bearer',
+            type: 'http'
+        },
+        {
+            key: 'OAuth2',
+            scheme: 'bearer',
+            type: 'http'
+        }
+    ],
     url: '/goals/{goal_id}/progress',
     ...options
 });
@@ -1976,7 +4074,19 @@ export const listGoalProgressUpdates = <ThrowOnError extends boolean = false>(op
  *
  */
 export const createGoalProgressUpdate = <ThrowOnError extends boolean = false>(options: Options<CreateGoalProgressUpdateData, ThrowOnError>): RequestResult<CreateGoalProgressUpdateResponses, CreateGoalProgressUpdateErrors, ThrowOnError> => (options.client ?? client).post<CreateGoalProgressUpdateResponses, CreateGoalProgressUpdateErrors, ThrowOnError>({
-    security: [{ name: 'X-Auth-Token', type: 'apiKey' }, { scheme: 'bearer', type: 'http' }],
+    security: [
+        { name: 'X-Auth-Token', type: 'apiKey' },
+        {
+            key: 'BearerAuth',
+            scheme: 'bearer',
+            type: 'http'
+        },
+        {
+            key: 'OAuth2',
+            scheme: 'bearer',
+            type: 'http'
+        }
+    ],
     url: '/goals/{goal_id}/progress',
     ...options,
     headers: {
@@ -1992,7 +4102,19 @@ export const createGoalProgressUpdate = <ThrowOnError extends boolean = false>(o
  *
  */
 export const deleteTarget = <ThrowOnError extends boolean = false>(options: Options<DeleteTargetData, ThrowOnError>): RequestResult<DeleteTargetResponses, DeleteTargetErrors, ThrowOnError> => (options.client ?? client).delete<DeleteTargetResponses, DeleteTargetErrors, ThrowOnError>({
-    security: [{ name: 'X-Auth-Token', type: 'apiKey' }, { scheme: 'bearer', type: 'http' }],
+    security: [
+        { name: 'X-Auth-Token', type: 'apiKey' },
+        {
+            key: 'BearerAuth',
+            scheme: 'bearer',
+            type: 'http'
+        },
+        {
+            key: 'OAuth2',
+            scheme: 'bearer',
+            type: 'http'
+        }
+    ],
     url: '/targets/{id}',
     ...options
 });
@@ -2006,7 +4128,19 @@ export const deleteTarget = <ThrowOnError extends boolean = false>(options: Opti
  *
  */
 export const getTarget = <ThrowOnError extends boolean = false>(options: Options<GetTargetData, ThrowOnError>): RequestResult<GetTargetResponses, GetTargetErrors, ThrowOnError> => (options.client ?? client).get<GetTargetResponses, GetTargetErrors, ThrowOnError>({
-    security: [{ name: 'X-Auth-Token', type: 'apiKey' }, { scheme: 'bearer', type: 'http' }],
+    security: [
+        { name: 'X-Auth-Token', type: 'apiKey' },
+        {
+            key: 'BearerAuth',
+            scheme: 'bearer',
+            type: 'http'
+        },
+        {
+            key: 'OAuth2',
+            scheme: 'bearer',
+            type: 'http'
+        }
+    ],
     url: '/targets/{id}',
     ...options
 });
@@ -2018,7 +4152,19 @@ export const getTarget = <ThrowOnError extends boolean = false>(options: Options
  *
  */
 export const updateTarget = <ThrowOnError extends boolean = false>(options: Options<UpdateTargetData, ThrowOnError>): RequestResult<UpdateTargetResponses, UpdateTargetErrors, ThrowOnError> => (options.client ?? client).patch<UpdateTargetResponses, UpdateTargetErrors, ThrowOnError>({
-    security: [{ name: 'X-Auth-Token', type: 'apiKey' }, { scheme: 'bearer', type: 'http' }],
+    security: [
+        { name: 'X-Auth-Token', type: 'apiKey' },
+        {
+            key: 'BearerAuth',
+            scheme: 'bearer',
+            type: 'http'
+        },
+        {
+            key: 'OAuth2',
+            scheme: 'bearer',
+            type: 'http'
+        }
+    ],
     url: '/targets/{id}',
     ...options,
     headers: {
@@ -2036,7 +4182,19 @@ export const updateTarget = <ThrowOnError extends boolean = false>(options: Opti
  *
  */
 export const listTargetProgressUpdates = <ThrowOnError extends boolean = false>(options: Options<ListTargetProgressUpdatesData, ThrowOnError>): RequestResult<ListTargetProgressUpdatesResponses, ListTargetProgressUpdatesErrors, ThrowOnError> => (options.client ?? client).get<ListTargetProgressUpdatesResponses, ListTargetProgressUpdatesErrors, ThrowOnError>({
-    security: [{ name: 'X-Auth-Token', type: 'apiKey' }, { scheme: 'bearer', type: 'http' }],
+    security: [
+        { name: 'X-Auth-Token', type: 'apiKey' },
+        {
+            key: 'BearerAuth',
+            scheme: 'bearer',
+            type: 'http'
+        },
+        {
+            key: 'OAuth2',
+            scheme: 'bearer',
+            type: 'http'
+        }
+    ],
     url: '/targets/{target_id}/progress',
     ...options
 });
@@ -2050,13 +4208,51 @@ export const listTargetProgressUpdates = <ThrowOnError extends boolean = false>(
  *
  */
 export const createTargetProgressUpdate = <ThrowOnError extends boolean = false>(options: Options<CreateTargetProgressUpdateData, ThrowOnError>): RequestResult<CreateTargetProgressUpdateResponses, CreateTargetProgressUpdateErrors, ThrowOnError> => (options.client ?? client).post<CreateTargetProgressUpdateResponses, CreateTargetProgressUpdateErrors, ThrowOnError>({
-    security: [{ name: 'X-Auth-Token', type: 'apiKey' }, { scheme: 'bearer', type: 'http' }],
+    security: [
+        { name: 'X-Auth-Token', type: 'apiKey' },
+        {
+            key: 'BearerAuth',
+            scheme: 'bearer',
+            type: 'http'
+        },
+        {
+            key: 'OAuth2',
+            scheme: 'bearer',
+            type: 'http'
+        }
+    ],
     url: '/targets/{target_id}/progress',
     ...options,
     headers: {
         'Content-Type': 'application/json',
         ...options.headers
     }
+});
+
+/**
+ * Get a role's channel
+ *
+ * Returns the role's default channel, provisioning it on first fetch.
+ * Every role has exactly one channel; post to it via
+ * `POST /channels/{channel_id}/messages` with the returned `id`.
+ *
+ */
+export const getRoleChannel = <ThrowOnError extends boolean = false>(options: Options<GetRoleChannelData, ThrowOnError>): RequestResult<GetRoleChannelResponses, GetRoleChannelErrors, ThrowOnError> => (options.client ?? client).get<GetRoleChannelResponses, GetRoleChannelErrors, ThrowOnError>({
+    security: [
+        { name: 'X-Auth-Token', type: 'apiKey' },
+        {
+            key: 'BearerAuth',
+            scheme: 'bearer',
+            type: 'http'
+        },
+        {
+            key: 'OAuth2',
+            scheme: 'bearer',
+            type: 'http'
+        }
+    ],
+    url: '/roles/{id}/channel',
+    ...options
 });
 
 /**
@@ -2078,7 +4274,19 @@ export const createTargetProgressUpdate = <ThrowOnError extends boolean = false>
  *
  */
 export const listChannels = <ThrowOnError extends boolean = false>(options?: Options<ListChannelsData, ThrowOnError>): RequestResult<ListChannelsResponses, ListChannelsErrors, ThrowOnError> => (options?.client ?? client).get<ListChannelsResponses, ListChannelsErrors, ThrowOnError>({
-    security: [{ name: 'X-Auth-Token', type: 'apiKey' }, { scheme: 'bearer', type: 'http' }],
+    security: [
+        { name: 'X-Auth-Token', type: 'apiKey' },
+        {
+            key: 'BearerAuth',
+            scheme: 'bearer',
+            type: 'http'
+        },
+        {
+            key: 'OAuth2',
+            scheme: 'bearer',
+            type: 'http'
+        }
+    ],
     url: '/channels',
     ...options
 });
@@ -2086,13 +4294,24 @@ export const listChannels = <ThrowOnError extends boolean = false>(options?: Opt
 /**
  * Get a channel
  *
- * Returns a single channel by its api_id. For convenience, the bound
- * role's api_id is also accepted (1:1 mapping), lazy-provisioning
- * the channel row if it didn't exist yet.
+ * Returns a single channel by its `chn_…` id. To reach a role's
+ * channel from the role's id, use `GET /roles/{id}/channel`.
  *
  */
 export const getChannel = <ThrowOnError extends boolean = false>(options: Options<GetChannelData, ThrowOnError>): RequestResult<GetChannelResponses, GetChannelErrors, ThrowOnError> => (options.client ?? client).get<GetChannelResponses, GetChannelErrors, ThrowOnError>({
-    security: [{ name: 'X-Auth-Token', type: 'apiKey' }, { scheme: 'bearer', type: 'http' }],
+    security: [
+        { name: 'X-Auth-Token', type: 'apiKey' },
+        {
+            key: 'BearerAuth',
+            scheme: 'bearer',
+            type: 'http'
+        },
+        {
+            key: 'OAuth2',
+            scheme: 'bearer',
+            type: 'http'
+        }
+    ],
     url: '/channels/{id}',
     ...options
 });
@@ -2101,7 +4320,9 @@ export const getChannel = <ThrowOnError extends boolean = false>(options: Option
  * Mark a channel read
  *
  * Advances the caller's read watermark on the channel to now (never
- * rewinds). Unread state is computed from the caller's newest
+ * rewinds), or, with `up_to`, to that message's `created_at`. Pass the
+ * last message you read: a message posted between your read and this
+ * call then stays unread. Unread state is computed from the caller's newest
  * watermark — see the `viewer_last_read_at` / `viewer_unread_count`
  * fields on Channel.
  *
@@ -2112,7 +4333,19 @@ export const getChannel = <ThrowOnError extends boolean = false>(options: Option
  *
  */
 export const markChannelRead = <ThrowOnError extends boolean = false>(options: Options<MarkChannelReadData, ThrowOnError>): RequestResult<MarkChannelReadResponses, MarkChannelReadErrors, ThrowOnError> => (options.client ?? client).post<MarkChannelReadResponses, MarkChannelReadErrors, ThrowOnError>({
-    security: [{ name: 'X-Auth-Token', type: 'apiKey' }, { scheme: 'bearer', type: 'http' }],
+    security: [
+        { name: 'X-Auth-Token', type: 'apiKey' },
+        {
+            key: 'BearerAuth',
+            scheme: 'bearer',
+            type: 'http'
+        },
+        {
+            key: 'OAuth2',
+            scheme: 'bearer',
+            type: 'http'
+        }
+    ],
     url: '/channels/{id}/read',
     ...options,
     headers: {
@@ -2125,12 +4358,46 @@ export const markChannelRead = <ThrowOnError extends boolean = false>(options: O
  * List messages in a channel
  *
  * Returns a paginated list of messages in a channel, oldest stored
- * first. Use `cursor` + `per_page` for pagination. Soft-deleted
- * messages are omitted.
+ * first by default. Use `cursor` + `per_page` for pagination.
+ * Soft-deleted messages are omitted.
+ *
+ * To read only what changed, filter by time:
+ *
+ * - `unread=true` returns the messages created after the caller's read
+ * watermark — the one `POST /channels/{id}/read` advances. Without
+ * `role` that is the caller's newest watermark on the channel, the
+ * same one `viewer_unread_count` counts against; with `role` it is
+ * that role's watermark. No watermark means everything is unread.
+ * - `since` returns the messages created strictly after a time the
+ * client holds itself. Message timestamps are returned to the
+ * second, so for gapless continuation prefer `unread` or `cursor`.
+ *
+ * `unread` and `since` can't be combined (422).
+ *
+ * `order=desc` returns newest first, so the last N messages is one call
+ * with `per_page=N`. `cursor` pages onward in whichever order was
+ * requested.
+ *
+ * Replies inside threads are left out by default: the list holds loose
+ * messages and each thread's root. `include_thread_messages=true`
+ * returns every message in the channel. Read a thread through
+ * `GET /threads/{thread_id}/messages`.
  *
  */
 export const listChannelMessages = <ThrowOnError extends boolean = false>(options: Options<ListChannelMessagesData, ThrowOnError>): RequestResult<ListChannelMessagesResponses, ListChannelMessagesErrors, ThrowOnError> => (options.client ?? client).get<ListChannelMessagesResponses, ListChannelMessagesErrors, ThrowOnError>({
-    security: [{ name: 'X-Auth-Token', type: 'apiKey' }, { scheme: 'bearer', type: 'http' }],
+    security: [
+        { name: 'X-Auth-Token', type: 'apiKey' },
+        {
+            key: 'BearerAuth',
+            scheme: 'bearer',
+            type: 'http'
+        },
+        {
+            key: 'OAuth2',
+            scheme: 'bearer',
+            type: 'http'
+        }
+    ],
     url: '/channels/{channel_id}/messages',
     ...options
 });
@@ -2144,14 +4411,298 @@ export const listChannelMessages = <ThrowOnError extends boolean = false>(option
  * omit `from_role` when they fill exactly one role in the channel's
  * circle; otherwise it must be specified.
  *
- * (Notification fan-out for channel messages arrives in a follow-up
- * release on the event substrate; unread state is watermark-based —
- * see `POST /channels/{id}/read`.)
+ * `delivery` selects the wake class. `notify` means the message should
+ * be announced to its recipients; `queued` means it is delivered into
+ * the durable inbox without waking anyone, to be read at the
+ * recipient's next natural wake. Omit it and the default is derived
+ * from the caller — agent senders default to `queued`, human senders
+ * to `notify`; an explicit value always wins.
+ *
+ * `queued` is about announcement, not delivery: queued messages are
+ * persisted, returned by the list endpoint, and counted in
+ * `viewer_unread_count` exactly like `notify` messages.
+ *
+ * (Server-side notification fan-out for channel messages arrives in a
+ * follow-up release on the event substrate, and will gate recipient
+ * delivery on `delivery`. Unread state is watermark-based — see
+ * `POST /channels/{id}/read`.)
+ *
+ * Replying makes a thread: give `parent` or `reply_to` pointing at a
+ * loose message and the reply starts a thread rooted on it (or joins
+ * that thread if it already exists). Pointing at a message already in
+ * a thread posts into that thread. Replies stay flat under the root:
+ * `parent_id` is always the root and `reply_to_id` keeps the direct
+ * reply target.
  *
  */
 export const createChannelMessage = <ThrowOnError extends boolean = false>(options: Options<CreateChannelMessageData, ThrowOnError>): RequestResult<CreateChannelMessageResponses, CreateChannelMessageErrors, ThrowOnError> => (options.client ?? client).post<CreateChannelMessageResponses, CreateChannelMessageErrors, ThrowOnError>({
-    security: [{ name: 'X-Auth-Token', type: 'apiKey' }, { scheme: 'bearer', type: 'http' }],
+    security: [
+        { name: 'X-Auth-Token', type: 'apiKey' },
+        {
+            key: 'BearerAuth',
+            scheme: 'bearer',
+            type: 'http'
+        },
+        {
+            key: 'OAuth2',
+            scheme: 'bearer',
+            type: 'http'
+        }
+    ],
     url: '/channels/{channel_id}/messages',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * List threads in a channel
+ *
+ * Returns the threads homed in a channel, oldest first. A thread is
+ * one of three kinds, told apart by its fields (kind is not stored):
+ *
+ * * **Emergent** — `anchored_to_id` and `topic` both null. Created when
+ * someone replies to a loose channel message; rooted on that message.
+ * * **Work-anchored** — `anchored_to_id` set. One thread per work entity,
+ * globally, homed in the owning role's channel. v1 anchors: projects.
+ * * **Topic** — `topic` set: an opaque stable name, unique per channel.
+ *
+ * Filter by `anchored_to_id` or `topic` to find a specific thread.
+ *
+ */
+export const listChannelThreads = <ThrowOnError extends boolean = false>(options: Options<ListChannelThreadsData, ThrowOnError>): RequestResult<ListChannelThreadsResponses, ListChannelThreadsErrors, ThrowOnError> => (options.client ?? client).get<ListChannelThreadsResponses, ListChannelThreadsErrors, ThrowOnError>({
+    security: [
+        { name: 'X-Auth-Token', type: 'apiKey' },
+        {
+            key: 'BearerAuth',
+            scheme: 'bearer',
+            type: 'http'
+        },
+        {
+            key: 'OAuth2',
+            scheme: 'bearer',
+            type: 'http'
+        }
+    ],
+    url: '/channels/{channel_id}/threads',
+    ...options
+});
+
+/**
+ * Create a thread in a channel
+ *
+ * Creates a work-anchored or topic thread, addressable before anyone
+ * posts in it. Give exactly one of `anchored_to_id` or `topic`.
+ * Emergent threads are never created here — reply to a loose message
+ * instead.
+ *
+ * Idempotent on the anchor or topic: when the thread already exists it
+ * is returned with 200 (the request's `title` is ignored); a new thread
+ * returns 201. A new thread gets a system-authored root message
+ * (`from_person_id` null, `client` `glassfrog`) that appears in the
+ * channel's message list.
+ *
+ * An anchored thread must be created in its home channel, the channel
+ * of the role that owns the anchored entity (422 otherwise). Creating it
+ * requires being able to view the entity (404 otherwise). Person- or
+ * circle-private projects cannot anchor a thread (403).
+ *
+ * The author rule is the one for posting a message: an agent must pass
+ * a `from_role` it fills, a human may omit it when unambiguous (422
+ * otherwise, with nothing written).
+ *
+ */
+export const createChannelThread = <ThrowOnError extends boolean = false>(options: Options<CreateChannelThreadData, ThrowOnError>): RequestResult<CreateChannelThreadResponses, CreateChannelThreadErrors, ThrowOnError> => (options.client ?? client).post<CreateChannelThreadResponses, CreateChannelThreadErrors, ThrowOnError>({
+    security: [
+        { name: 'X-Auth-Token', type: 'apiKey' },
+        {
+            key: 'BearerAuth',
+            scheme: 'bearer',
+            type: 'http'
+        },
+        {
+            key: 'OAuth2',
+            scheme: 'bearer',
+            type: 'http'
+        }
+    ],
+    url: '/channels/{channel_id}/threads',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * Get a thread
+ *
+ * Returns a single thread.
+ */
+export const getThread = <ThrowOnError extends boolean = false>(options: Options<GetThreadData, ThrowOnError>): RequestResult<GetThreadResponses, GetThreadErrors, ThrowOnError> => (options.client ?? client).get<GetThreadResponses, GetThreadErrors, ThrowOnError>({
+    security: [
+        { name: 'X-Auth-Token', type: 'apiKey' },
+        {
+            key: 'BearerAuth',
+            scheme: 'bearer',
+            type: 'http'
+        },
+        {
+            key: 'OAuth2',
+            scheme: 'bearer',
+            type: 'http'
+        }
+    ],
+    url: '/threads/{id}',
+    ...options
+});
+
+/**
+ * Promote a thread
+ *
+ * Gives an emergent thread an anchor or a topic. Accepted only while
+ * both `anchored_to_id` and `topic` are null; a thread is never
+ * re-anchored or renamed (422). Give exactly one of the two.
+ * Uniqueness applies as on create: 422 when another thread already
+ * holds the anchor, or the topic in this channel. An anchor must also
+ * be homed in this thread's channel.
+ *
+ * The author rule is the one for posting a message: an agent must pass
+ * a `from_role` it fills, a human may omit it when unambiguous (422
+ * otherwise, with nothing written).
+ *
+ */
+export const updateThread = <ThrowOnError extends boolean = false>(options: Options<UpdateThreadData, ThrowOnError>): RequestResult<UpdateThreadResponses, UpdateThreadErrors, ThrowOnError> => (options.client ?? client).patch<UpdateThreadResponses, UpdateThreadErrors, ThrowOnError>({
+    security: [
+        { name: 'X-Auth-Token', type: 'apiKey' },
+        {
+            key: 'BearerAuth',
+            scheme: 'bearer',
+            type: 'http'
+        },
+        {
+            key: 'OAuth2',
+            scheme: 'bearer',
+            type: 'http'
+        }
+    ],
+    url: '/threads/{id}',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * List messages in a thread
+ *
+ * Returns the thread's messages, root first, oldest first by default.
+ * Replies are flat under the root; `reply_to_id` carries any in-reply-to
+ * structure. Supports the same `order` as the channel message list.
+ *
+ */
+export const listThreadMessages = <ThrowOnError extends boolean = false>(options: Options<ListThreadMessagesData, ThrowOnError>): RequestResult<ListThreadMessagesResponses, ListThreadMessagesErrors, ThrowOnError> => (options.client ?? client).get<ListThreadMessagesResponses, ListThreadMessagesErrors, ThrowOnError>({
+    security: [
+        { name: 'X-Auth-Token', type: 'apiKey' },
+        {
+            key: 'BearerAuth',
+            scheme: 'bearer',
+            type: 'http'
+        },
+        {
+            key: 'OAuth2',
+            scheme: 'bearer',
+            type: 'http'
+        }
+    ],
+    url: '/threads/{thread_id}/messages',
+    ...options
+});
+
+/**
+ * Post a message to a thread
+ *
+ * Posts a reply in the thread. The message's `parent_id` is the
+ * thread's root; `parent`, when given, must be the root. `reply_to`,
+ * when given, must be a message in this thread. Otherwise as
+ * `POST /channels/{channel_id}/messages`.
+ *
+ */
+export const createThreadMessage = <ThrowOnError extends boolean = false>(options: Options<CreateThreadMessageData, ThrowOnError>): RequestResult<CreateThreadMessageResponses, CreateThreadMessageErrors, ThrowOnError> => (options.client ?? client).post<CreateThreadMessageResponses, CreateThreadMessageErrors, ThrowOnError>({
+    security: [
+        { name: 'X-Auth-Token', type: 'apiKey' },
+        {
+            key: 'BearerAuth',
+            scheme: 'bearer',
+            type: 'http'
+        },
+        {
+            key: 'OAuth2',
+            scheme: 'bearer',
+            type: 'http'
+        }
+    ],
+    url: '/threads/{thread_id}/messages',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * Get a project's thread
+ *
+ * Returns the project's thread: there is at most one per project,
+ * homed in the owning role's channel. 404 until the thread exists;
+ * `POST /projects/{project_id}/thread/messages` creates it on first
+ * post.
+ *
+ */
+export const getProjectThread = <ThrowOnError extends boolean = false>(options: Options<GetProjectThreadData, ThrowOnError>): RequestResult<GetProjectThreadResponses, GetProjectThreadErrors, ThrowOnError> => (options.client ?? client).get<GetProjectThreadResponses, GetProjectThreadErrors, ThrowOnError>({
+    security: [
+        { name: 'X-Auth-Token', type: 'apiKey' },
+        {
+            key: 'BearerAuth',
+            scheme: 'bearer',
+            type: 'http'
+        },
+        {
+            key: 'OAuth2',
+            scheme: 'bearer',
+            type: 'http'
+        }
+    ],
+    url: '/projects/{project_id}/thread',
+    ...options
+});
+
+/**
+ * Post a message to a project's thread
+ *
+ * Posts to the project's thread, creating the thread first (with its
+ * system-authored root) when it doesn't exist yet. No pre-create is
+ * needed. Otherwise as `POST /threads/{thread_id}/messages`.
+ *
+ */
+export const createProjectThreadMessage = <ThrowOnError extends boolean = false>(options: Options<CreateProjectThreadMessageData, ThrowOnError>): RequestResult<CreateProjectThreadMessageResponses, CreateProjectThreadMessageErrors, ThrowOnError> => (options.client ?? client).post<CreateProjectThreadMessageResponses, CreateProjectThreadMessageErrors, ThrowOnError>({
+    security: [
+        { name: 'X-Auth-Token', type: 'apiKey' },
+        {
+            key: 'BearerAuth',
+            scheme: 'bearer',
+            type: 'http'
+        },
+        {
+            key: 'OAuth2',
+            scheme: 'bearer',
+            type: 'http'
+        }
+    ],
+    url: '/projects/{project_id}/thread/messages',
     ...options,
     headers: {
         'Content-Type': 'application/json',
@@ -2167,7 +4718,19 @@ export const createChannelMessage = <ThrowOnError extends boolean = false>(optio
  *
  */
 export const deleteMessage = <ThrowOnError extends boolean = false>(options: Options<DeleteMessageData, ThrowOnError>): RequestResult<DeleteMessageResponses, DeleteMessageErrors, ThrowOnError> => (options.client ?? client).delete<DeleteMessageResponses, DeleteMessageErrors, ThrowOnError>({
-    security: [{ name: 'X-Auth-Token', type: 'apiKey' }, { scheme: 'bearer', type: 'http' }],
+    security: [
+        { name: 'X-Auth-Token', type: 'apiKey' },
+        {
+            key: 'BearerAuth',
+            scheme: 'bearer',
+            type: 'http'
+        },
+        {
+            key: 'OAuth2',
+            scheme: 'bearer',
+            type: 'http'
+        }
+    ],
     url: '/messages/{id}',
     ...options
 });
@@ -2179,13 +4742,363 @@ export const deleteMessage = <ThrowOnError extends boolean = false>(options: Opt
  * render an edited marker — messages carry no further revision
  * history by design.
  *
+ * Only `body` is applied. `delivery` is fixed at post time (the wake
+ * decision belongs to the moment of sending) and is ignored here.
+ *
  */
 export const updateMessage = <ThrowOnError extends boolean = false>(options: Options<UpdateMessageData, ThrowOnError>): RequestResult<UpdateMessageResponses, UpdateMessageErrors, ThrowOnError> => (options.client ?? client).patch<UpdateMessageResponses, UpdateMessageErrors, ThrowOnError>({
-    security: [{ name: 'X-Auth-Token', type: 'apiKey' }, { scheme: 'bearer', type: 'http' }],
+    security: [
+        { name: 'X-Auth-Token', type: 'apiKey' },
+        {
+            key: 'BearerAuth',
+            scheme: 'bearer',
+            type: 'http'
+        },
+        {
+            key: 'OAuth2',
+            scheme: 'bearer',
+            type: 'http'
+        }
+    ],
     url: '/messages/{id}',
     ...options,
     headers: {
         'Content-Type': 'application/json',
         ...options.headers
     }
+});
+
+/**
+ * Start an agent session
+ *
+ * Creates an agent session. Three modes depending on parameters:
+ *
+ * 1. `role_id` given — role session, returns role context.
+ * 2. `role_id` + `topic` — per-topic session alongside the primary.
+ * 3. Neither — agent-level session, returns agent context.
+ *
+ * Calling it again is safe. If an active session already exists for the
+ * same scope (agent, role, topic), it is returned unchanged with its full
+ * context and status 200 (a new session returns 201). `identifier` is
+ * optional; omit it if you have no stable conversation id.
+ *
+ * Returns 403 if the agent is not assigned to the given role.
+ * Returns 409 only when both this call and the open session carry an
+ * `identifier` and they differ, or the open session belongs to another
+ * organization.
+ *
+ */
+export const createSession = <ThrowOnError extends boolean = false>(options: Options<CreateSessionData, ThrowOnError>): RequestResult<CreateSessionResponses, CreateSessionErrors, ThrowOnError> => (options.client ?? client).post<CreateSessionResponses, CreateSessionErrors, ThrowOnError>({
+    security: [
+        { name: 'X-Auth-Token', type: 'apiKey' },
+        {
+            key: 'BearerAuth',
+            scheme: 'bearer',
+            type: 'http'
+        },
+        {
+            key: 'OAuth2',
+            scheme: 'bearer',
+            type: 'http'
+        }
+    ],
+    url: '/agents/{agent_id}/sessions',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * List agent sessions
+ *
+ * Returns a paginated list of agent session records across the
+ * organization, filtered by visibility: an agent sees only its own
+ * sessions, a human operator sees sessions of the agents they operate,
+ * and an org admin sees every session in the org.
+ *
+ * Records are returned **as stored**. `status` reflects what was
+ * recorded by the start/end lifecycle calls — nothing here checks
+ * whether a session is really still running on its host. A record
+ * reading `active` may correspond to a process that died without
+ * ending its session; surfacing that disagreement is the point of the
+ * endpoint, so the read path deliberately does not "correct" it.
+ *
+ * `last_seen_at` is stamped by the heartbeat endpoint; sessions
+ * that predate the feature carry a backfilled value from `updated_at`.
+ * `liveness_state` is derived on read from `last_seen_at` and
+ * `heartbeat_interval` — fresh, stale, ended, or unknown.
+ * Sessions past the grace period (default 30 min) are auto-expired
+ * by a server-side job.
+ *
+ */
+export const listSessions = <ThrowOnError extends boolean = false>(options?: Options<ListSessionsData, ThrowOnError>): RequestResult<ListSessionsResponses, ListSessionsErrors, ThrowOnError> => (options?.client ?? client).get<ListSessionsResponses, ListSessionsErrors, ThrowOnError>({
+    security: [
+        { name: 'X-Auth-Token', type: 'apiKey' },
+        {
+            key: 'BearerAuth',
+            scheme: 'bearer',
+            type: 'http'
+        },
+        {
+            key: 'OAuth2',
+            scheme: 'bearer',
+            type: 'http'
+        }
+    ],
+    url: '/sessions',
+    ...options
+});
+
+/**
+ * Get an agent session
+ *
+ * Returns a single agent session record by ID, including its summary.
+ *
+ * The record is returned **as stored** — no liveness is computed.
+ * Visibility follows the same rules as `listSessions`: an agent sees
+ * its own sessions, a human operator sees sessions of the agents they
+ * operate, and an org admin sees every session in the org.
+ *
+ */
+export const getSession = <ThrowOnError extends boolean = false>(options: Options<GetSessionData, ThrowOnError>): RequestResult<GetSessionResponses, GetSessionErrors, ThrowOnError> => (options.client ?? client).get<GetSessionResponses, GetSessionErrors, ThrowOnError>({
+    security: [
+        { name: 'X-Auth-Token', type: 'apiKey' },
+        {
+            key: 'BearerAuth',
+            scheme: 'bearer',
+            type: 'http'
+        },
+        {
+            key: 'OAuth2',
+            scheme: 'bearer',
+            type: 'http'
+        }
+    ],
+    url: '/sessions/{id}',
+    ...options
+});
+
+/**
+ * Send a session heartbeat
+ *
+ * Stamps the session's `last_seen_at` to the current time.
+ * Used by daemons to signal process liveness — not activity-based.
+ * Sessions past the grace period (default 30 min) are auto-expired
+ * by a server-side job.
+ *
+ * Accepts optional telemetry in the request body:
+ * `context_used_pct` (context window usage percentage).
+ *
+ * Agent-token only. The agent must own the session.
+ *
+ */
+export const heartbeatSession = <ThrowOnError extends boolean = false>(options: Options<HeartbeatSessionData, ThrowOnError>): RequestResult<HeartbeatSessionResponses, HeartbeatSessionErrors, ThrowOnError> => (options.client ?? client).post<HeartbeatSessionResponses, HeartbeatSessionErrors, ThrowOnError>({
+    security: [
+        { name: 'X-Auth-Token', type: 'apiKey' },
+        {
+            key: 'BearerAuth',
+            scheme: 'bearer',
+            type: 'http'
+        },
+        {
+            key: 'OAuth2',
+            scheme: 'bearer',
+            type: 'http'
+        }
+    ],
+    url: '/agents/{agent_id}/sessions/{id}/heartbeat',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * Batch heartbeat for multiple sessions
+ *
+ * Heartbeats multiple sessions in a single call. Designed for
+ * supervisors that manage a fleet of sessions. Each session id
+ * gets an individual result — ok, forbidden, or not_found.
+ *
+ * Accepts optional per-session telemetry keyed by session id.
+ *
+ * Agent-token only.
+ *
+ */
+export const batchHeartbeatSessions = <ThrowOnError extends boolean = false>(options: Options<BatchHeartbeatSessionsData, ThrowOnError>): RequestResult<BatchHeartbeatSessionsResponses, BatchHeartbeatSessionsErrors, ThrowOnError> => (options.client ?? client).post<BatchHeartbeatSessionsResponses, BatchHeartbeatSessionsErrors, ThrowOnError>({
+    security: [
+        { name: 'X-Auth-Token', type: 'apiKey' },
+        {
+            key: 'BearerAuth',
+            scheme: 'bearer',
+            type: 'http'
+        },
+        {
+            key: 'OAuth2',
+            scheme: 'bearer',
+            type: 'http'
+        }
+    ],
+    url: '/sessions/heartbeat',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * List work requests
+ *
+ * Returns work requests visible to the caller, optionally filtered by
+ * `from_role_id`, `to_role_id`, and/or `status`.
+ *
+ */
+export const listWorkRequests = <ThrowOnError extends boolean = false>(options?: Options<ListWorkRequestsData, ThrowOnError>): RequestResult<ListWorkRequestsResponses, ListWorkRequestsErrors, ThrowOnError> => (options?.client ?? client).get<ListWorkRequestsResponses, ListWorkRequestsErrors, ThrowOnError>({
+    security: [
+        { name: 'X-Auth-Token', type: 'apiKey' },
+        {
+            key: 'BearerAuth',
+            scheme: 'bearer',
+            type: 'http'
+        },
+        {
+            key: 'OAuth2',
+            scheme: 'bearer',
+            type: 'http'
+        }
+    ],
+    url: '/work_requests',
+    ...options
+});
+
+/**
+ * Create a work request
+ *
+ * Files a role-to-role work request. The caller must fill `from_role_id`.
+ *
+ */
+export const createWorkRequest = <ThrowOnError extends boolean = false>(options: Options<CreateWorkRequestData, ThrowOnError>): RequestResult<CreateWorkRequestResponses, CreateWorkRequestErrors, ThrowOnError> => (options.client ?? client).post<CreateWorkRequestResponses, CreateWorkRequestErrors, ThrowOnError>({
+    security: [
+        { name: 'X-Auth-Token', type: 'apiKey' },
+        {
+            key: 'BearerAuth',
+            scheme: 'bearer',
+            type: 'http'
+        },
+        {
+            key: 'OAuth2',
+            scheme: 'bearer',
+            type: 'http'
+        }
+    ],
+    url: '/work_requests',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * Get a work request
+ */
+export const getWorkRequest = <ThrowOnError extends boolean = false>(options: Options<GetWorkRequestData, ThrowOnError>): RequestResult<GetWorkRequestResponses, GetWorkRequestErrors, ThrowOnError> => (options.client ?? client).get<GetWorkRequestResponses, GetWorkRequestErrors, ThrowOnError>({
+    security: [
+        { name: 'X-Auth-Token', type: 'apiKey' },
+        {
+            key: 'BearerAuth',
+            scheme: 'bearer',
+            type: 'http'
+        },
+        {
+            key: 'OAuth2',
+            scheme: 'bearer',
+            type: 'http'
+        }
+    ],
+    url: '/work_requests/{id}',
+    ...options
+});
+
+/**
+ * Accept a work request
+ *
+ * Accepts a pending work request, creating the requested project or action
+ * on the target role. Sets `decided_by` to the caller and `decided_by_role`
+ * to the target role.
+ *
+ */
+export const acceptWorkRequest = <ThrowOnError extends boolean = false>(options: Options<AcceptWorkRequestData, ThrowOnError>): RequestResult<AcceptWorkRequestResponses, AcceptWorkRequestErrors, ThrowOnError> => (options.client ?? client).post<AcceptWorkRequestResponses, AcceptWorkRequestErrors, ThrowOnError>({
+    security: [
+        { name: 'X-Auth-Token', type: 'apiKey' },
+        {
+            key: 'BearerAuth',
+            scheme: 'bearer',
+            type: 'http'
+        },
+        {
+            key: 'OAuth2',
+            scheme: 'bearer',
+            type: 'http'
+        }
+    ],
+    url: '/work_requests/{id}/accept',
+    ...options
+});
+
+/**
+ * Accept a work request with edits
+ *
+ * Accepts a pending work request after optionally modifying its description
+ * and/or note. Creates the requested project or action on the target role.
+ *
+ */
+export const acceptWorkRequestWithEdits = <ThrowOnError extends boolean = false>(options: Options<AcceptWorkRequestWithEditsData, ThrowOnError>): RequestResult<AcceptWorkRequestWithEditsResponses, AcceptWorkRequestWithEditsErrors, ThrowOnError> => (options.client ?? client).post<AcceptWorkRequestWithEditsResponses, AcceptWorkRequestWithEditsErrors, ThrowOnError>({
+    security: [
+        { name: 'X-Auth-Token', type: 'apiKey' },
+        {
+            key: 'BearerAuth',
+            scheme: 'bearer',
+            type: 'http'
+        },
+        {
+            key: 'OAuth2',
+            scheme: 'bearer',
+            type: 'http'
+        }
+    ],
+    url: '/work_requests/{id}/accept_with_edits',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * Reject a work request
+ *
+ * Rejects a pending work request. No project or action is created.
+ *
+ */
+export const rejectWorkRequest = <ThrowOnError extends boolean = false>(options: Options<RejectWorkRequestData, ThrowOnError>): RequestResult<RejectWorkRequestResponses, RejectWorkRequestErrors, ThrowOnError> => (options.client ?? client).post<RejectWorkRequestResponses, RejectWorkRequestErrors, ThrowOnError>({
+    security: [
+        { name: 'X-Auth-Token', type: 'apiKey' },
+        {
+            key: 'BearerAuth',
+            scheme: 'bearer',
+            type: 'http'
+        },
+        {
+            key: 'OAuth2',
+            scheme: 'bearer',
+            type: 'http'
+        }
+    ],
+    url: '/work_requests/{id}/reject',
+    ...options
 });

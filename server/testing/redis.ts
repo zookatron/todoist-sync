@@ -5,9 +5,9 @@ import { createRedisMock } from './redis-mock.js'
 
 /**
  * An in-memory Redis for the duration of a test file: ioredis-mock behind the app's
- * `getConnection()`. Everything that uses Redis runs on it unmodified — the owner cache's
- * `MGET` / `SET … EX`, and BullMQ itself, so the real queues are built over it and a test
- * enqueues and inspects jobs with the ordinary `Queue` API:
+ * `getConnection()`. Everything that uses Redis runs on it unmodified — BullMQ itself, so the
+ * real queues are built over it and a test enqueues and inspects jobs with the ordinary
+ * `Queue` API:
  *
  * ```ts
  * const jobs = await getTaskQueue().getJobs(['wait'], 0, -1, true)

@@ -150,7 +150,7 @@ for (const job of jobs) await runTaskSync(job.data, job.id ?? job.name)
 ```
 
 `redis.client` is the same connection, for seeding and inspecting keys
-(`await redis.client.ttl(ownerKey('a-1'))`). Redis is flushed before each test.
+(`await redis.client.keys('*')`). Redis is flushed before each test.
 
 ioredis-mock cannot run BullMQ by itself — its Lua VM lacks `cmsgpack` and `cjson`, has
 32-bit integers, and mangles script replies. `server/testing/redis-mock.ts` and

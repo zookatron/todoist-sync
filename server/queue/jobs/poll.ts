@@ -6,8 +6,8 @@ import { getGlassfrogClient, paginateAll } from '../../glassfrog/client.js'
 import { diffGlassfrogActions } from '../../glassfrog/delta.js'
 import { listMyActions } from '../../glassfrog/generated/sdk.gen.js'
 import type { Action } from '../../glassfrog/generated/types.gen.js'
-import { getOwnership } from '../../sync/ownership.js'
 import { emptyHierarchyResult, type HierarchyResult, syncHierarchy } from '../../sync/hierarchy.js'
+import { getActorId, isOwnedBy } from '../../sync/ownership.js'
 import { callTodoist } from '../../todoist/client.js'
 import { filterTodoistChanges } from '../../todoist/delta.js'
 import { env } from '../../utils/env.js'
@@ -66,13 +66,6 @@ async function poll(userId: string): Promise<PollResult> {
     return { hierarchy: emptyHierarchyResult(), enqueued: 0, skipped: 'not-configured' }
   }
 
-  // Keys saved before ownership existed have no v3 key. Syncing without one would mirror
-  // co-fillers' work, so it stays off until the user adds it.
-  if (!glassfrog.v3ApiKey || glassfrog.v3PersonId == null) {
-    log.warn('No Glassfrog v3 API key saved; add one in settings to resume sync')
-    return { hierarchy: emptyHierarchyResult(), enqueued: 0, skipped: 'not-configured' }
-  }
-
   // Hierarchy first: task jobs must be able to find their destination project.
   const hierarchy = await withPhase('hierarchy', () => syncHierarchy(userId, { db }))
 
@@ -128,25 +121,42 @@ async function poll(userId: string): Promise<PollResult> {
   return { hierarchy, enqueued: jobs.size }
 }
 
-/** Enumerates the user's Glassfrog actions and compares them with stored timestamps. */
+/**
+ * Enumerates the user's Glassfrog actions and compares them with stored timestamps.
+ *
+ * Role actions and individual initiatives are separate listings — `/me/actions` returns one or
+ * the other depending on `individual_initiative` — so both are read.
+ */
 async function detectGlassfrogChanges(userId: string) {
   const client = await getGlassfrogClient(userId)
-  const ownership = await getOwnership(userId)
+  const actorId = await getActorId(userId, client)
 
-  const allActions = await paginateAll<Action>(async ({ cursor, perPage }) => {
-    const response = await listMyActions({
-      client,
-      query: { cursor, per_page: perPage, include_legacy_id: true },
-      throwOnError: true,
+  const listActions = (individualInitiative: boolean) =>
+    paginateAll<Action>(async ({ cursor, perPage }) => {
+      const response = await listMyActions({
+        client,
+        query: {
+          cursor,
+          per_page: perPage,
+          individual_initiative: individualInitiative,
+          actor_id: actorId,
+        },
+        throwOnError: true,
+      })
+      return response.data
     })
-    return response.data
-  })
 
-  // /me/actions includes co-fillers' actions on shared roles. Dropping them here makes a
-  // previously-mapped one read as 'missing', which removes its Todoist task (and only that:
+  const listed = [...(await listActions(false)), ...(await listActions(true))]
+
+  // `actor_id` already leaves out co-fillers' actions on shared roles; the check is repeated
+  // here because a wrongly included one would be mirrored. A previously-mapped action that is
+  // no longer the user's reads as 'missing', which removes its Todoist task (and only that:
   // sync-task never deletes the Glassfrog action).
-  const ownedIds = await ownership.ownedIds('action', allActions)
-  const actions = allActions.filter((action) => ownedIds.has(action.id))
+  const actions = [
+    ...new Map(
+      listed.filter((action) => isOwnedBy(action, actorId)).map((action) => [action.id, action]),
+    ).values(),
+  ]
 
   const mappings = await db
     .select({
